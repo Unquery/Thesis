@@ -12,6 +12,7 @@ android {
     defaultConfig {
         applicationId = "pl.edu.pjwstk.engineeringthesis"
         minSdk = 28
+        //noinspection OldTargetApi
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
