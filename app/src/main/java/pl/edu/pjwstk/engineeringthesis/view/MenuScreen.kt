@@ -122,8 +122,7 @@ fun MenuScreen(
                     shadowElevation = 12.dp,
                     shape = RoundedCornerShape(10.dp)
                 ) {
-                    Column(
-                    ) {
+                    Column{
                         MenuActionItem(
                             text = stringResource(R.string.connect_band_menu_button),
                             shape = RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp),
