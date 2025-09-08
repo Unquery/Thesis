@@ -4,7 +4,7 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 import pl.edu.pjwstk.engineeringthesis.model.TempSample
 
-@Entity(tableName = "gsr_sample")
+@Entity(tableName = "temp_sample")
 data class TempSampleEntity(
     @PrimaryKey(autoGenerate = true)
     val id : Int = 0,
