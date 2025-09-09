@@ -11,18 +11,31 @@ import pl.edu.pjwstk.engineeringthesis.data.db.entity.GsrSampleEntity
 interface GsrSampleDao {
 
     @Insert
-    suspend fun addNote(note : GsrSampleEntity)
+    suspend fun addGsrSample(gsrSample : GsrSampleEntity)
 
     @Update
-    suspend fun updateNote(note : GsrSampleEntity)
+    suspend fun updateGsrSample(gsrSample : GsrSampleEntity)
 
     @Transaction
-    @Query("SELECT * FROM temp_sample WHERE id = :id;")
-    suspend fun getTempSample(id: Int): GsrSampleEntity?
+    @Query("SELECT * FROM gsr_sample WHERE id = :id;")
+    suspend fun getGsrSample(id: Int): GsrSampleEntity?
 
     @Transaction
-    @Query("SELECT * FROM temp_sample")
-    suspend fun getAllTempSample(): List<GsrSampleEntity>
+    @Query("SELECT * FROM gsr_sample")
+    suspend fun getAllTGsrSample(): List<GsrSampleEntity>
+
+    @Transaction
+    @Query("SELECT * FROM gsr_sample WHERE epoch >= :firstEpoch AND epoch < :lastEpoch")
+    suspend fun getGsrSamples(firstEpoch : Long, lastEpoch : Long): List<GsrSampleEntity>
+
+    @Query("DELETE FROM gsr_sample WHERE id = :id")
+    suspend fun removeGsrSample(id : Int)
+
+    @Query("DELETE FROM gsr_sample WHERE epoch = :epoch")
+    suspend fun removeGsrSamplesByEpoch(epoch : Long)
+
+    @Query("DELETE FROM gsr_sample")
+    suspend fun removeAllGsrSamples()
 
 
 }
