@@ -14,6 +14,21 @@ class GsrSampleRepositoryImpl @Inject constructor(
     val gsrItems : List<GsrSample>
         get() = _gsrSampleItems
 
+    override suspend fun getGsrSample(id: Int): GsrSample? {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun getGsrSamples(
+        firstEpoch: Long,
+        lastEpoch: Long
+    ): List<GsrSample> {
+        TODO("Not yet implemented")
+    }
+
+    override suspend fun getAllGsrSamples(): List<GsrSample> {
+        TODO("Not yet implemented")
+    }
+
     override suspend fun addGsrSample(tempSample: TempSample) {
         TODO("Not yet implemented")
     }
@@ -31,10 +46,6 @@ class GsrSampleRepositoryImpl @Inject constructor(
     }
 
     override suspend fun clear() {
-        TODO("Not yet implemented")
-    }
-
-    override suspend fun initDb() {
         TODO("Not yet implemented")
     }
 }
