@@ -3,9 +3,7 @@ package pl.edu.pjwstk.engineeringthesis.viewmodel
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCharacteristic
-import android.bluetooth.BluetoothManager
 import android.bluetooth.le.BluetoothLeScanner
-import android.content.Context.BLUETOOTH_SERVICE
 import androidx.lifecycle.ViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.UUID
