@@ -1,10 +1,6 @@
 package pl.edu.pjwstk.engineeringthesis.viewmodel
 
-import android.bluetooth.BluetoothAdapter
-import android.bluetooth.BluetoothGatt
-import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothManager
-import android.bluetooth.le.BluetoothLeScanner
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -15,21 +11,10 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.util.UUID
 import javax.inject.Inject
 
 @HiltViewModel
 class BluetoothPermissionViewModel @Inject constructor() : ViewModel() {
-    private val UART_SERVICE_UUID: UUID = UUID.fromString("6E400001-B5A3-F393-E0A9-E50E24DCCA9E")
-    private val UART_TX_CHAR_UUID: UUID = UUID.fromString("6E400003-B5A3-F393-E0A9-E50E24DCCA9E")
-
-    private lateinit var bluetoothAdapter: BluetoothAdapter
-    private var scanner: BluetoothLeScanner? = null
-
-
-    private var gatt: BluetoothGatt? = null
-    private var txChar: BluetoothGattCharacteristic? = null
-
     data class UiState(
         val hasPermissions: Boolean = false,
         val connecting: Boolean = false,
