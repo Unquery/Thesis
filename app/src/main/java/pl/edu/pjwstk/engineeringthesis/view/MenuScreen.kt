@@ -73,7 +73,7 @@ fun MenuScreen(
             containerColor = Color.Black,
             topBar = {
                 TopApplicationBar(
-                    onConnectBandClick
+                    {connectBandMenuOpen = !connectBandMenuOpen}
                 )
             },
             bottomBar = {

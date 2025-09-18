@@ -30,7 +30,7 @@ fun Navigation(){
     val navController = rememberNavController()
 
     NavHost(navController = navController, startDestination = Menu){
-        menuDestination()
+        menuDestination(navController)
 
         connectBandDestination()
 
