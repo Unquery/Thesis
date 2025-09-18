@@ -3,14 +3,16 @@ package pl.edu.pjwstk.engineeringthesis.viewmodel
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCharacteristic
+import android.bluetooth.BluetoothManager
 import android.bluetooth.le.BluetoothLeScanner
+import android.content.Context.BLUETOOTH_SERVICE
 import androidx.lifecycle.ViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.UUID
 import javax.inject.Inject
 
 @HiltViewModel
-class ConnectBandViewModel @Inject constructor() : ViewModel() {
+class ConnectBandViewModel @Inject constructor(private val adapter: BluetoothAdapter) : ViewModel() {
     private val UART_SERVICE_UUID: UUID = UUID.fromString("6E400001-B5A3-F393-E0A9-E50E24DCCA9E")
     private val UART_TX_CHAR_UUID: UUID = UUID.fromString("6E400003-B5A3-F393-E0A9-E50E24DCCA9E")
 
@@ -22,4 +24,7 @@ class ConnectBandViewModel @Inject constructor() : ViewModel() {
     private var txChar: BluetoothGattCharacteristic? = null
 
 
+    fun createConnector(){
+        scanner = bluetoothAdapter.bluetoothLeScanner
+    }
 }
