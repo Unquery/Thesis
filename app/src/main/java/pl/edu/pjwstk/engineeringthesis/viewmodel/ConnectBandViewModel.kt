@@ -19,11 +19,6 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.ParcelUuid
 import android.util.Log
-import androidx.annotation.RequiresApi
-import androidx.annotation.RequiresPermission
-import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.ui.platform.LocalContext
 import androidx.core.app.ActivityCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -38,7 +33,6 @@ import org.json.JSONObject
 import java.nio.charset.StandardCharsets
 import java.util.UUID
 import javax.inject.Inject
-import kotlin.collections.listOf
 
 @HiltViewModel
 class ConnectBandViewModel @Inject constructor(
