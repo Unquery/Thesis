@@ -67,7 +67,7 @@ fun ConnectBandScreen(
                 BluetoothPermissionViewModel.UiEvent.RequestPermissions -> launcher.launch(vmBluetoothPermission.requiredBluetoothPermissions())
                 BluetoothPermissionViewModel.UiEvent.ConnectNow -> {
                     if (state.bluetoothOn) {
-                        vmConnectBand.ensurePermsAndScan(ctx)
+                        vmConnectBand.startAfterPermissionsGranted()
                     } else {
                         enableBt.launch(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE))
                     }
@@ -94,7 +94,7 @@ fun ConnectBandScreen(
                 !hasAll -> vmBluetoothPermission.onStart(connectPressed = true, hasPerms = hasAll)
                 !state.bluetoothOn -> enableBt.launch(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE))
                 else -> {
-                   vmConnectBand.ensurePermsAndScan(ctx)
+                   vmConnectBand.startAfterPermissionsGranted()
                 }
             }
         }) {
