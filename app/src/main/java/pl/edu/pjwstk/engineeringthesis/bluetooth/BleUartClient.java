@@ -172,19 +172,14 @@ public class BleUartClient {
 
             enableNotifications(g, (txChar.getProperties() & BluetoothGattCharacteristic.PROPERTY_INDICATE) != 0);
 
-            // ---- MTU request with explicit permission guard ----
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                if (hasConnectPermission()) {
-                    try {
-                        g.requestMtu(185);
-                    } catch (SecurityException se) {
-                        notifyErr("SecurityException during requestMtu", se);
-                    }
-                } else {
-                    notifyErr("Missing BLUETOOTH_CONNECT for requestMtu", null);
+            if (hasConnectPermission()) {
+                try {
+                    g.requestMtu(185);
+                } catch (SecurityException se) {
+                    notifyErr("SecurityException during requestMtu", se);
                 }
             } else {
-                if (listener != null) listener.onConnected(g.getDevice().getAddress(), 23);
+                notifyErr("Missing BLUETOOTH_CONNECT for requestMtu", null);
             }
         }
 
