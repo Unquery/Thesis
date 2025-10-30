@@ -72,7 +72,7 @@ fun MenuScreen(
         Scaffold(
             containerColor = Color.Black,
             topBar = {
-                TopApplicationBar(
+                TopMenuBar(
                     {connectBandMenuOpen = !connectBandMenuOpen}
                 )
             },
@@ -194,7 +194,7 @@ private fun AlphaOverlay(modifier: Modifier){
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun TopApplicationBar(
+private fun TopMenuBar(
     onPlusClicked : () -> Unit
 ){
     Box {
@@ -255,6 +255,6 @@ private fun MenuScreenPreview() {
 @Composable
 private fun TopApplicationBarPreview() {
     EngineeringThesisTheme {
-        TopApplicationBar {}
+        TopMenuBar {}
     }
 }
