@@ -1,15 +1,11 @@
 package pl.edu.pjwstk.engineeringthesis.view
 
-import android.annotation.SuppressLint
 import android.bluetooth.BluetoothAdapter
 import android.content.Intent
-import android.content.pm.PackageManager
-import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDp
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.updateTransition
 import androidx.compose.animation.fadeIn
@@ -31,23 +27,14 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -66,13 +53,11 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.content.ContextCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.airbnb.lottie.compose.LottieAnimation
@@ -81,13 +66,11 @@ import com.airbnb.lottie.compose.LottieConstants
 import com.airbnb.lottie.compose.rememberLottieComposition
 import pl.edu.pjwstk.engineeringthesis.R
 import pl.edu.pjwstk.engineeringthesis.font.interFamily
-import pl.edu.pjwstk.engineeringthesis.ui.theme.DarkGray850
 import pl.edu.pjwstk.engineeringthesis.ui.theme.EngineeringThesisTheme
 import pl.edu.pjwstk.engineeringthesis.viewmodel.Band
 import pl.edu.pjwstk.engineeringthesis.viewmodel.BluetoothPermissionViewModel
 import pl.edu.pjwstk.engineeringthesis.viewmodel.ConnectBandViewModel
 import pl.edu.pjwstk.engineeringthesis.viewmodel.ScanUiState
-import java.util.Locale
 
 @Composable
 fun ConnectBandScreen(
@@ -95,13 +78,10 @@ fun ConnectBandScreen(
     vmConnectBand : ConnectBandViewModel = hiltViewModel()
 ) {
 
-    val ctx = LocalContext.current
     val state by vmBluetoothPermission.state.collectAsStateWithLifecycle()
 
-    val temps by vmConnectBand.temps.collectAsStateWithLifecycle()
     val scanState by vmConnectBand.scanState.collectAsStateWithLifecycle()
     val bands by vmConnectBand.bands.collectAsStateWithLifecycle()
-    val gsr   by vmConnectBand.gsr.collectAsStateWithLifecycle()
 
     val launcher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -122,7 +102,7 @@ fun ConnectBandScreen(
             state.hasPermissions && !state.bluetoothOn -> {
                 enableBt.launch(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE))
             }
-            state.hasPermissions && state.bluetoothOn -> {
+            else -> {
                 vmConnectBand.startAfterPermissionsGranted()
             }
         }
