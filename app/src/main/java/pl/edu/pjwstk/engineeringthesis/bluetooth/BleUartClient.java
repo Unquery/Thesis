@@ -83,6 +83,7 @@ public class BleUartClient {
         if (!hasScanPermission()) {
             throw new SecurityException("Scan permission not granted");
         }
+
         if (scanner == null) {
             if (listener != null) listener.onError("No BLE scanner available", null);
             return;
@@ -107,7 +108,6 @@ public class BleUartClient {
         try {
             if (scanner != null && hasScanPermission()) scanner.stopScan(scanCb);
         } catch (SecurityException ignored) {}
-        disconnect();
     }
 
 
