@@ -8,6 +8,10 @@ import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateDp
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.updateTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -50,13 +54,17 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -256,19 +264,83 @@ private fun ScanStatusPanel(
 
 @Composable
 private fun BandRow(band: Band, onClick: () -> Unit) {
-    Row(
-        Modifier
+    var showAction by remember { mutableStateOf(false) }
+    var rowHeight by remember { mutableIntStateOf(0) }
+
+    val transition = updateTransition(targetState = showAction, label = "action")
+
+    val spacerWidth by transition.animateDp(
+        transitionSpec = {
+            if (targetState) {
+                tween(durationMillis = 200)
+            } else {
+                tween(durationMillis = 400)
+            }
+        },
+        label = "spacer"
+    ) { isVisible ->
+        if (isVisible) 68.dp else 0.dp
+    }
+
+    Box(
+        modifier = Modifier
             .fillMaxWidth()
-            .background(Color(0xFF3A3A3A), RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick)
-            .padding(16.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .clip(RoundedCornerShape(12.dp))
     ) {
-        Column(Modifier.weight(1f)) {
-            Text(text = band.name ?: "Unknown", color = Color.White, fontFamily = interFamily, fontWeight = FontWeight.SemiBold)
-            Text(text = band.address, color = Color.LightGray, fontFamily = interFamily, fontSize = 12.sp)
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .background(Color(0xFF3A3A3A))
+                .clickable(onClick = { showAction = !showAction })
+                .onSizeChanged { size ->
+                    rowHeight = size.height
+                }
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = band.name ?: "Unknown",
+                    color = Color.White,
+                    fontFamily = interFamily,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = band.address,
+                    color = Color.LightGray,
+                    fontFamily = interFamily,
+                    fontSize = 12.sp
+                )
+            }
+            Text(text = "${band.rssi} dBm", color = Color.White, fontFamily = interFamily)
+            Spacer(modifier = Modifier.width(spacerWidth))
         }
-        Text(text = "${band.rssi} dBm", color = Color.White, fontFamily = interFamily)
+
+        transition.AnimatedVisibility(
+            visible = { it },
+            modifier = Modifier
+                .align(Alignment.CenterEnd),
+            enter = slideInHorizontally(initialOffsetX = { it }) + fadeIn(),
+            exit = slideOutHorizontally(targetOffsetX = { it }) + fadeOut()
+        ) {
+            Box(
+                modifier = Modifier
+                    .height(with(LocalDensity.current) { rowHeight.toDp() })
+                    .width(56.dp)
+                    .background(Color(0xFF22C55E), RoundedCornerShape(10.dp))
+                    .clickable(
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() }
+                    ) { onClick() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "Connect",
+                    tint = Color.Black
+                )
+            }
+        }
     }
 }
 
