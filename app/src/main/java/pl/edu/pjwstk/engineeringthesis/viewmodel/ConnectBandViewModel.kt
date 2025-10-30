@@ -7,6 +7,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.app.ActivityCompat
 import androidx.lifecycle.ViewModel
+import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import pl.edu.pjwstk.engineeringthesis.bluetooth.BleUartClient
@@ -14,6 +15,7 @@ import pl.edu.pjwstk.engineeringthesis.bluetooth.Packet
 import java.util.UUID
 import javax.inject.Inject
 
+@HiltViewModel
 class ConnectBandViewModel @Inject constructor(
     @ApplicationContext private val ctx: Context,
     private val adapter: BluetoothAdapter
