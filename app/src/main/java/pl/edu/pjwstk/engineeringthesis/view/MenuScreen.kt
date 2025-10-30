@@ -47,12 +47,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import pl.edu.pjwstk.engineeringthesis.R
+import pl.edu.pjwstk.engineeringthesis.font.interFamily
 import pl.edu.pjwstk.engineeringthesis.ui.theme.DarkGray700
 import pl.edu.pjwstk.engineeringthesis.ui.theme.DarkGray850
 import pl.edu.pjwstk.engineeringthesis.ui.theme.EngineeringThesisTheme
@@ -206,7 +208,8 @@ private fun TopMenuBar(
                 ) {
                     Text(
                         stringResource(R.string.main_screen_title),
-                        fontFamily = FontFamily.SansSerif,
+                        fontFamily = interFamily,
+                        fontWeight = FontWeight.Normal,
                         textAlign = TextAlign.Center,
                         fontSize = 40.sp
                     )
