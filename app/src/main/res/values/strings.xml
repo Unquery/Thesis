@@ -3,4 +3,7 @@
     <string name="main_screen_title">Health</string>
     <string name="connect_band_menu_button">Connect band</string>
     <string name="menu_alpha">Scrim alpha</string>
+    <string name="connect_band_screen_title">Connect</string>
+    <string name="scanning">Finding bands...</string>
+    <string name="no_bands_found">No bands found</string>
 </resources>
