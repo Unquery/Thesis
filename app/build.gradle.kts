@@ -95,4 +95,12 @@ dependencies {
     //Kotlin Extensions and Coroutines support for Room
     implementation(libs.androidx.room.ktx)
 
+    //Lottie animations
+    implementation(libs.lottie.compose)
+
+    //Fonts
+    implementation(libs.androidx.ui.text.google.fonts)
+
+
+
 }
