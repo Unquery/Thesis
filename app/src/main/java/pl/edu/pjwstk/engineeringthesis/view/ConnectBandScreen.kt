@@ -213,7 +213,7 @@ private fun ScanStatusPanel(
         }
 
         if (state == ScanUiState.Scanning) {
-            val comp by rememberLottieComposition(LottieCompositionSpec.RawRes(R.raw.loading))
+            val comp by rememberLottieComposition(LottieCompositionSpec.RawRes(R.raw.scan))
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                 LottieAnimation(composition = comp, iterations = LottieConstants.IterateForever, modifier = Modifier.size(72.dp))
             }
