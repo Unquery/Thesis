@@ -102,7 +102,7 @@ dependencies {
     implementation(libs.androidx.ui.text.google.fonts)
 
     //Splash screen
-    implementation("androidx.core:core-splashscreen:1.0.1")
+    implementation(libs.androidx.core.splashscreen)
 
 
 
