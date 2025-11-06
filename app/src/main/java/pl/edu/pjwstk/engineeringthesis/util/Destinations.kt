@@ -18,3 +18,4 @@ fun NavGraphBuilder.connectBandDestination(){
         ConnectBandScreen()
     }
 }
+
