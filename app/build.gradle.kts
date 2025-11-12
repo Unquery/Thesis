@@ -104,6 +104,8 @@ dependencies {
     //Splash screen
     implementation(libs.androidx.core.splashscreen)
 
+    //Material3
+    implementation(libs.material3)
 
 
 }
