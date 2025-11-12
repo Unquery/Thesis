@@ -7,10 +7,11 @@ import pl.edu.pjwstk.engineeringthesis.data.db.dao.TempSampleDao
 import pl.edu.pjwstk.engineeringthesis.data.db.dao.UserProfileDao
 import pl.edu.pjwstk.engineeringthesis.data.db.entity.GsrSampleEntity
 import pl.edu.pjwstk.engineeringthesis.data.db.entity.TempSampleEntity
+import pl.edu.pjwstk.engineeringthesis.data.db.entity.UserProfileEntity
 
 @Database(
-    entities = [TempSampleEntity::class, GsrSampleEntity::class],
-    version = 1
+    entities = [TempSampleEntity::class, GsrSampleEntity::class, UserProfileEntity::class],
+    version = 2
 )
 abstract class DiaryDB : RoomDatabase() {
 
