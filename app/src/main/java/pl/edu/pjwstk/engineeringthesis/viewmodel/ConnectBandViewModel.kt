@@ -68,6 +68,7 @@ class ConnectBandViewModel @Inject constructor(
         UUID.fromString("6E400003-B5A3-F393-E0A9-E50E24DCCA9E")  // TX characteristic (Notify)
     ).apply {
         setDeviceNameFilter("ESP32-TEMP")
+        setPushTimeOnConnect(true)
         setListener(object : BleUartClient.Listener {
             override fun onStatus(s: String) {
                 _status.value = s

@@ -12,6 +12,8 @@ import android.util.Log;
 
 import androidx.core.content.ContextCompat;
 
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
@@ -30,9 +32,13 @@ public class BleUartClient {
     private static final UUID CCCD_UUID =
             UUID.fromString("00002902-0000-1000-8000-00805f9b34fb");
 
+    private static final UUID DEFAULT_NUS_RX =
+            UUID.fromString("6E400002-B5A3-F393-E0A9-E50E24DCCA9E");
+
     private final Context appCtx;
     private final UUID serviceUuid;
     private final UUID txUuid;
+    private final UUID rxUuid;
 
     private Listener listener;
 
@@ -40,26 +46,43 @@ public class BleUartClient {
     private BluetoothGatt gatt;
     private BluetoothGattCharacteristic txChar;
 
+    private BluetoothGattCharacteristic rxChar;
+
     private String deviceNameFilter;
     private final StringBuilder lineBuf = new StringBuilder();
 
     private final Map<String, BluetoothDevice> found = new HashMap<>();
     private volatile boolean connected = false;
+
+    private boolean pushTimeOnConnect = true;
+    private boolean timePushedThisConn = false;
+
     public boolean isConnected() { return connected; }
 
     public BleUartClient(Context ctx,
                          BluetoothAdapter adapter,
                          UUID serviceUuid,
                          UUID txUuid) {
+        this(ctx, adapter, serviceUuid, txUuid, DEFAULT_NUS_RX);
+    }
+
+    public BleUartClient(Context ctx,
+                         BluetoothAdapter adapter,
+                         UUID serviceUuid,
+                         UUID txUuid,
+                         UUID rxUuid) {
         this.appCtx = ctx.getApplicationContext();
         this.serviceUuid = serviceUuid;
         this.txUuid = txUuid;
+        this.rxUuid = rxUuid != null ? rxUuid : DEFAULT_NUS_RX;
         this.scanner = adapter != null ? adapter.getBluetoothLeScanner() : null;
     }
 
     public void setListener(Listener l) { this.listener = l; }
 
     public void setDeviceNameFilter(String name) { this.deviceNameFilter = name; }
+
+    public void setPushTimeOnConnect(boolean enable) { this.pushTimeOnConnect = enable; }
 
     public boolean hasScanPermission() {
         if (Build.VERSION.SDK_INT >= 31)
@@ -116,6 +139,48 @@ public class BleUartClient {
         } catch (SecurityException ignored) {}
     }
 
+    @SuppressLint("MissingPermission")
+    public void connect(String address) {
+        if (!hasConnectPermission()) throw new SecurityException("Connect permission not granted");
+        BluetoothDevice dev = found.get(address);
+        if (dev == null) { notifyErr("Device not in scan list: " + address, null); return; }
+        stop(); // reduce RF noise while connecting
+        timePushedThisConn = false; // reset guard
+        gatt = dev.connectGatt(appCtx, false, gattCb, BluetoothDevice.TRANSPORT_LE);
+    }
+    @SuppressLint("MissingPermission")
+    public void pushEpochNow() {
+        pushEpoch(System.currentTimeMillis() / 1000L);
+    }
+
+    @SuppressLint("MissingPermission")
+    public void pushEpoch(long epochSeconds) {
+        if (gatt == null || rxChar == null) { notifyErr("RX char not ready", null); return; }
+        if (!hasConnectPermission()) { notifyErr("Missing BLUETOOTH_CONNECT for write", null); return; }
+
+        byte[] payload = ByteBuffer.allocate(8)
+                .order(ByteOrder.LITTLE_ENDIAN)
+                .putLong(epochSeconds)
+                .array();
+
+        int props = rxChar.getProperties();
+        int writeType = (props & BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE) != 0
+                ? BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
+                : BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT;
+
+        try {
+            if (Build.VERSION.SDK_INT >= 33) {
+                gatt.writeCharacteristic(rxChar, payload, writeType);
+            } else {
+                rxChar.setWriteType(writeType);
+                rxChar.setValue(payload);
+                gatt.writeCharacteristic(rxChar);
+            }
+            if (listener != null) listener.onStatus("Pushed time " + epochSeconds + " (type=" + writeType + ")");
+        } catch (SecurityException se) {
+            notifyErr("SecurityException during writeCharacteristic", se);
+        }
+    }
 
     // ---------- Internals ----------
     private final ScanCallback scanCb = new ScanCallback() {
@@ -176,6 +241,11 @@ public class BleUartClient {
             txChar = (svc != null) ? svc.getCharacteristic(txUuid) : null;
             if (txChar == null) { notifyErr("UART TX characteristic not found"); return; }
 
+            rxChar = svc.getCharacteristic(rxUuid);
+            if (rxChar == null) {
+                if (listener != null) listener.onStatus("RX characteristic not found (time sync disabled)");
+            }
+
             enableNotifications(g, (txChar.getProperties() & BluetoothGattCharacteristic.PROPERTY_INDICATE) != 0);
 
             if (hasConnectPermission()) {
@@ -187,9 +257,11 @@ public class BleUartClient {
             } else {
                 notifyErr("Missing BLUETOOTH_CONNECT for requestMtu", null);
             }
+            pendingTimePush = true;
         }
 
 
+        private boolean pendingTimePush = false;
 
         @Override
         public void onMtuChanged(BluetoothGatt g, int mtu, int status) {
@@ -198,6 +270,8 @@ public class BleUartClient {
                     ((txChar.getProperties() & BluetoothGattCharacteristic.PROPERTY_INDICATE) != 0);
             enableNotifications(g, useIndicate);
             if (listener != null) listener.onConnected(g.getDevice().getAddress(), mtu);
+
+            maybePushTime(g);
         }
 
         @Override
@@ -205,6 +279,10 @@ public class BleUartClient {
             if (CCCD_UUID.equals(d.getUuid())) {
                 if (status == BluetoothGatt.GATT_SUCCESS) {
                     if (listener != null) listener.onStatus("Subscribed; waiting for data…");
+                    if (pendingTimePush) {
+                        pendingTimePush = false;
+                        maybePushTime(g);
+                    }
                 } else {
                     if (listener != null) listener.onError("Subscribe failed: " + status, null);
                 }
@@ -215,11 +293,28 @@ public class BleUartClient {
         public void onCharacteristicChanged(BluetoothGatt g, BluetoothGattCharacteristic c) {
             if (c.getUuid().equals(txUuid)) handleNotify(c.getValue());
         }
+
+        @Override
+        public void onCharacteristicWrite(BluetoothGatt g, BluetoothGattCharacteristic c, int status) {
+            if (c.getUuid().equals(rxUuid)) {
+                if (listener != null) listener.onStatus("onCharacteristicWrite RX status=" + status);
+                if (status != BluetoothGatt.GATT_SUCCESS) notifyErr("Write failed: " + status, null);
+            }
+        }
     };
+
+    private void maybePushTime(BluetoothGatt g) {
+        if (!pushTimeOnConnect || timePushedThisConn || rxChar == null) return;
+        if (!hasConnectPermission()) return;
+        long epoch = System.currentTimeMillis() / 1000L;
+        if (listener != null) listener.onStatus("Pushing epoch " + epoch + "…");
+        timePushedThisConn = true;
+        pushEpoch(epoch);
+    }
 
     @SuppressLint("MissingPermission")
     private void enableNotifications(BluetoothGatt g, boolean useIndicate) {
-        if (!hasConnectPermission()) return;
+        if (!hasConnectPermission() || txChar == null) return;
         try {
             boolean ok = g.setCharacteristicNotification(txChar, true);
             BluetoothGattDescriptor cccd = txChar.getDescriptor(CCCD_UUID);
@@ -267,22 +362,22 @@ public class BleUartClient {
     private void disconnect() {
         try { if (gatt != null && hasConnectPermission()) gatt.disconnect(); } catch (Exception ignored) {}
         try { if (gatt != null) gatt.close(); } catch (Exception ignored) {}
-        gatt = null; txChar = null; connected = false;
+        gatt = null; txChar = null;  rxChar = null; connected = false;
         if (listener != null) listener.onDisconnected();
     }
 
-    @SuppressLint("MissingPermission")
-    public void connect(String address) {
-        if (!hasConnectPermission()) throw new SecurityException("Connect permission not granted");
-        BluetoothDevice dev = found.get(address);
-        if (dev == null) {
-            if (listener != null) listener.onError("Device not in scan list: " + address, null);
-            return;
-        }
-        // (Optionally) stop scanning to reduce radio noise while connecting
-        stop();
-
-        gatt = dev.connectGatt(appCtx, false, gattCb, BluetoothDevice.TRANSPORT_LE);
-    }
+//    @SuppressLint("MissingPermission")
+//    public void connect(String address) {
+//        if (!hasConnectPermission()) throw new SecurityException("Connect permission not granted");
+//        BluetoothDevice dev = found.get(address);
+//        if (dev == null) {
+//            if (listener != null) listener.onError("Device not in scan list: " + address, null);
+//            return;
+//        }
+//
+//        stop();
+//
+//        gatt = dev.connectGatt(appCtx, false, gattCb, BluetoothDevice.TRANSPORT_LE);
+//    }
 
 }
