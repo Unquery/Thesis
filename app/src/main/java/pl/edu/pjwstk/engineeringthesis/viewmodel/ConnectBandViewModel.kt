@@ -20,6 +20,10 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import pl.edu.pjwstk.engineeringthesis.bluetooth.BleUartClient
 import pl.edu.pjwstk.engineeringthesis.bluetooth.Packet
+import pl.edu.pjwstk.engineeringthesis.data.db.dao.GsrSampleDao
+import pl.edu.pjwstk.engineeringthesis.data.db.dao.TempSampleDao
+import pl.edu.pjwstk.engineeringthesis.data.db.entity.GsrSampleEntity
+import pl.edu.pjwstk.engineeringthesis.data.db.entity.TempSampleEntity
 import java.util.UUID
 import javax.inject.Inject
 
@@ -40,17 +44,10 @@ data class Band(
 @HiltViewModel
 class ConnectBandViewModel @Inject constructor(
     @ApplicationContext private val ctx: Context,
-    private val adapter: BluetoothAdapter
+    private val adapter: BluetoothAdapter,
+    private val gsrSampleDao : GsrSampleDao,
+    private val tempSampleDao: TempSampleDao
 ): ViewModel() {
-
-    private val _status = MutableStateFlow("Idle");
-    val status = _status
-
-    private val _temps  = MutableStateFlow<List<Float>>(emptyList());
-    val temps = _temps
-
-    private val _gsr    = MutableStateFlow<List<Int>>(emptyList());
-    val gsr   = _gsr
 
     private val _scanState = MutableStateFlow<ScanUiState>(ScanUiState.Idle)
     val scanState: StateFlow<ScanUiState> = _scanState
@@ -64,14 +61,13 @@ class ConnectBandViewModel @Inject constructor(
     private val client = BleUartClient(
         ctx,
         adapter,
-        UUID.fromString("6E400001-B5A3-F393-E0A9-E50E24DCCA9E"), // UART service
-        UUID.fromString("6E400003-B5A3-F393-E0A9-E50E24DCCA9E")  // TX characteristic (Notify)
+        UUID.fromString("6E400001-B5A3-F393-E0A9-E50E24DCCA9E"),
+        UUID.fromString("6E400003-B5A3-F393-E0A9-E50E24DCCA9E")
     ).apply {
         setDeviceNameFilter("ESP32-TEMP")
         setPushTimeOnConnect(true)
         setListener(object : BleUartClient.Listener {
             override fun onStatus(s: String) {
-                _status.value = s
                 if (s.startsWith("Scanning")) _scanState.value = ScanUiState.Scanning
             }
 
@@ -92,8 +88,18 @@ class ConnectBandViewModel @Inject constructor(
             }
 
             override fun onPacket(p: Packet) {
-                _temps.value = p.temps
-                _gsr.value = p.gsr
+                viewModelScope.launch(Dispatchers.IO) {
+                    val tempSamples = p.temps.map { TempSampleEntity(epoch = p.epoch, temperature = it) }
+                    val gsrSamples = p.gsr.map { GsrSampleEntity(epoch = p.epoch, gsr = it) }
+
+                    try {
+                        tempSamples.forEach { tempSampleDao.upsertTempSample(it) }
+                        gsrSamples.forEach { gsrSampleDao.upsertGsrSample(it) }
+                    } catch (e: Exception) {
+                        Log.e("ConnectBandViewModel", "Failed to insert samples into the database", e)
+                    }
+                }
+
             }
 
             override fun onError(msg: String, t: Throwable?) {
@@ -159,7 +165,7 @@ class ConnectBandViewModel @Inject constructor(
     fun connectTo(address: String) {
         try {
             client.connect(address)
-        } catch (se: SecurityException) {
+        } catch (_ : SecurityException){
         }
     }
 }
