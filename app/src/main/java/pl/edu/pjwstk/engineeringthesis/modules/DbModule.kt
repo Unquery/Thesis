@@ -9,6 +9,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 import pl.edu.pjwstk.engineeringthesis.data.db.DiaryDB
+import pl.edu.pjwstk.engineeringthesis.data.db.dao.GsrSampleDao
 import pl.edu.pjwstk.engineeringthesis.data.db.dao.UserProfileDao
 import pl.edu.pjwstk.engineeringthesis.data.db.dao.TempSampleDao
 
@@ -25,4 +26,6 @@ object DbModule {
 
     @Provides fun provideUserProfileDao(db: DiaryDB): UserProfileDao = db.userProfileDao
     @Provides fun provideTempSampleDao(db: DiaryDB): TempSampleDao = db.tempSamples
+    @Provides fun provideGsrSampleDao(diaryDB: DiaryDB): GsrSampleDao = diaryDB.gsrSamples
+
 }
