@@ -8,7 +8,6 @@ interface TempSampleRepository {
     suspend fun getTempSample(firstEpoch : Long, lastEpoch : Long) : List<TempSample>
     suspend fun getAllTempSamples() : List<TempSample>
     suspend fun addTempSample(tempSample : TempSample)
-    suspend fun addTempSamples(tempSamples : List<TempSample>)
     suspend fun removeTempSample(tempSample : TempSample)
     suspend fun removeTempSamplesByEpoch(epoch : Long)
     suspend fun clear()

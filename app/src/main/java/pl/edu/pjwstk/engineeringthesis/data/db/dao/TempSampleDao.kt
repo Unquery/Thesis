@@ -12,6 +12,9 @@ import pl.edu.pjwstk.engineeringthesis.data.db.entity.TempSampleEntity
 @Dao
 interface TempSampleDao {
 
+    @Upsert
+    suspend fun upsertTempSample(entity: TempSampleEntity)
+
     @Query("SELECT * FROM temp_sample WHERE id = :id")
     suspend fun getTempSample(id: Int): TempSampleEntity?
 
@@ -24,12 +27,6 @@ interface TempSampleDao {
         ORDER BY epoch
     """)
     suspend fun getTempSamples(firstEpoch: Long, lastEpoch: Long): List<TempSampleEntity>
-
-    @Upsert
-    suspend fun upsertTempSample(entity: TempSampleEntity)
-
-    @Upsert
-    suspend fun upsertTempSamples(entities: List<TempSampleEntity>)
 
     @Query("DELETE FROM temp_sample WHERE id = :id")
     suspend fun removeTempSample(id: Int)

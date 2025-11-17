@@ -32,19 +32,6 @@ class TempSampleRepositoryImpl @Inject constructor(
         )
     }
 
-    override suspend fun addTempSamples(tempSamples: List<TempSample>) {
-        if (tempSamples.isEmpty()) return
-        dao.upsertTempSamples(
-            tempSamples.map {
-                TempSampleEntity(
-                    id = it.id,
-                    epoch = it.epoch,
-                    temperature = it.temperature
-                )
-            }
-        )
-    }
-
     override suspend fun removeTempSample(tempSample: TempSample) {
         dao.removeTempSample(tempSample.id)
     }

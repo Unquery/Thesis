@@ -5,13 +5,14 @@ import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Update
+import androidx.room.Upsert
 import pl.edu.pjwstk.engineeringthesis.data.db.entity.GsrSampleEntity
 
 @Dao
 interface GsrSampleDao {
 
-    @Insert
-    suspend fun addGsrSample(gsrSample : GsrSampleEntity)
+    @Upsert
+    suspend fun upsertGsrSample(gsrSample : GsrSampleEntity)
 
     @Update
     suspend fun updateGsrSample(gsrSample : GsrSampleEntity)
