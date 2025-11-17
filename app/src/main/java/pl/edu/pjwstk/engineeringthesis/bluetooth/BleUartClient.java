@@ -144,8 +144,8 @@ public class BleUartClient {
         if (!hasConnectPermission()) throw new SecurityException("Connect permission not granted");
         BluetoothDevice dev = found.get(address);
         if (dev == null) { notifyErr("Device not in scan list: " + address, null); return; }
-        stop(); // reduce RF noise while connecting
-        timePushedThisConn = false; // reset guard
+        stop();
+        timePushedThisConn = false;
         gatt = dev.connectGatt(appCtx, false, gattCb, BluetoothDevice.TRANSPORT_LE);
     }
     @SuppressLint("MissingPermission")
@@ -182,7 +182,6 @@ public class BleUartClient {
         }
     }
 
-    // ---------- Internals ----------
     private final ScanCallback scanCb = new ScanCallback() {
         @SuppressLint("MissingPermission")
         @Override public void onScanResult(int callbackType, ScanResult result) {
@@ -365,19 +364,4 @@ public class BleUartClient {
         gatt = null; txChar = null;  rxChar = null; connected = false;
         if (listener != null) listener.onDisconnected();
     }
-
-//    @SuppressLint("MissingPermission")
-//    public void connect(String address) {
-//        if (!hasConnectPermission()) throw new SecurityException("Connect permission not granted");
-//        BluetoothDevice dev = found.get(address);
-//        if (dev == null) {
-//            if (listener != null) listener.onError("Device not in scan list: " + address, null);
-//            return;
-//        }
-//
-//        stop();
-//
-//        gatt = dev.connectGatt(appCtx, false, gattCb, BluetoothDevice.TRANSPORT_LE);
-//    }
-
 }
