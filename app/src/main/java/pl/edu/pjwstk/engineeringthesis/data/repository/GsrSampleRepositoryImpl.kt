@@ -7,7 +7,6 @@ import pl.edu.pjwstk.engineeringthesis.data.db.entity.GsrSampleEntity
 import pl.edu.pjwstk.engineeringthesis.model.GsrSample
 import pl.edu.pjwstk.engineeringthesis.model.HourlyAvg
 import pl.edu.pjwstk.engineeringthesis.model.MetricSummary
-import pl.edu.pjwstk.engineeringthesis.model.TempSample
 import javax.inject.Inject
 
 class GsrSampleRepositoryImpl @Inject constructor(

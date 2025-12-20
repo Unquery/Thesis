@@ -47,7 +47,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -56,7 +55,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import pl.edu.pjwstk.engineeringthesis.R
-import pl.edu.pjwstk.engineeringthesis.data.db.dao.GsrSampleDao
 import pl.edu.pjwstk.engineeringthesis.font.interFamily
 import pl.edu.pjwstk.engineeringthesis.ui.theme.DarkGray700
 import pl.edu.pjwstk.engineeringthesis.ui.theme.DarkGray850
@@ -265,7 +263,7 @@ private fun TopMenuBar(
 @Composable
 private fun MenuScreenPreview() {
     EngineeringThesisTheme {
-        MenuScreen(vm = MenuViewModel(), onConnectBandClick = {})
+        MenuScreen(onConnectBandClick = {})
     }
 }
 

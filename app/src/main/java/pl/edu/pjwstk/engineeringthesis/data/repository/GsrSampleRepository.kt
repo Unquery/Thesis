@@ -4,7 +4,6 @@ import kotlinx.coroutines.flow.Flow
 import pl.edu.pjwstk.engineeringthesis.model.GsrSample
 import pl.edu.pjwstk.engineeringthesis.model.HourlyAvg
 import pl.edu.pjwstk.engineeringthesis.model.MetricSummary
-import pl.edu.pjwstk.engineeringthesis.model.TempSample
 
 interface GsrSampleRepository {
     // write
