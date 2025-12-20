@@ -2,11 +2,10 @@ package pl.edu.pjwstk.engineeringthesis.data.db.entity
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
-import pl.edu.pjwstk.engineeringthesis.model.GsrSample
 import pl.edu.pjwstk.engineeringthesis.model.HearthRateSample
 
-@Entity(tableName = "gsr_sample")
-data class HearthRateEntity(
+@Entity(tableName = "hearth_rate_sample")
+data class HearthRateSampleEntity(
     @PrimaryKey(autoGenerate = true)
     val id : Int = 0,
 

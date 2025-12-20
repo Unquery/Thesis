@@ -54,7 +54,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import pl.edu.pjwstk.engineeringthesis.R
+import pl.edu.pjwstk.engineeringthesis.data.db.dao.GsrSampleDao
 import pl.edu.pjwstk.engineeringthesis.font.interFamily
 import pl.edu.pjwstk.engineeringthesis.ui.theme.DarkGray700
 import pl.edu.pjwstk.engineeringthesis.ui.theme.DarkGray850
@@ -64,7 +66,7 @@ import pl.edu.pjwstk.engineeringthesis.viewmodel.MenuViewModel
 @Composable
 fun MenuScreen(
     onConnectBandClick: () -> Unit,
-    vm: MenuViewModel
+    vm: MenuViewModel = hiltViewModel()
 ) {
     val gsrBars by vm.observeTodayGsrBars(1).collectAsState()
     var connectBandMenuOpen by remember { mutableStateOf(false) }
@@ -263,7 +265,7 @@ private fun TopMenuBar(
 @Composable
 private fun MenuScreenPreview() {
     EngineeringThesisTheme {
-        MenuScreen {}
+        MenuScreen(vm = MenuViewModel(), onConnectBandClick = {})
     }
 }
 

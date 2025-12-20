@@ -1,84 +1,82 @@
 package pl.edu.pjwstk.engineeringthesis.data.db.dao
 
 import androidx.room.Dao
-import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Update
 import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
-import pl.edu.pjwstk.engineeringthesis.data.db.entity.GsrSampleEntity
-import pl.edu.pjwstk.engineeringthesis.data.db.entity.TempSampleEntity
+import pl.edu.pjwstk.engineeringthesis.data.db.entity.HearthRateSampleEntity
 import pl.edu.pjwstk.engineeringthesis.model.HourlyAvg
 import pl.edu.pjwstk.engineeringthesis.model.MetricSummary
 
 @Dao
-interface TempSampleDao {
-
+interface HearthRateSampleDao {
     @Upsert
-    suspend fun upsertTempSample(sample: TempSampleEntity)
+    suspend fun upsert(sample: HearthRateSampleEntity)
 
     @Update
-    suspend fun updateTempSample(sample: TempSampleEntity)
+    suspend fun update(sample: HearthRateSampleEntity)
+
+    // read
+    @Transaction
+    @Query("SELECT * FROM hearth_rate_sample WHERE id = :id")
+    suspend fun getById(id: Int): HearthRateSampleEntity?
 
     @Transaction
-    @Query("SELECT * FROM temp_sample WHERE id = :id;")
-    suspend fun getTempSample(id: Int): TempSampleEntity?
-
-    @Transaction
-    @Query("SELECT * FROM temp_sample")
-    suspend fun getAllTempSamples(): List<TempSampleEntity>
+    @Query("SELECT * FROM hearth_rate_sample")
+    suspend fun getAll(): List<HearthRateSampleEntity>
 
     @Transaction
     @Query("""
-        SELECT * FROM temp_sample
+        SELECT * FROM hearth_rate_sample
         WHERE epoch >= :firstEpoch AND epoch < :lastEpoch
         ORDER BY epoch ASC
     """)
-    suspend fun getTempSamples(firstEpoch: Long, lastEpoch: Long): List<TempSampleEntity>
+    suspend fun getRange(firstEpoch: Long, lastEpoch: Long): List<HearthRateSampleEntity>
 
     @Transaction
     @Query("""
-        SELECT * FROM temp_sample
+        SELECT * FROM hearth_rate_sample
         WHERE userId = :userId
           AND epoch >= :firstEpoch AND epoch < :lastEpoch
         ORDER BY epoch ASC
     """)
-    suspend fun getTempSamplesForUser(
+    suspend fun getRangeForUser(
         userId: Int,
         firstEpoch: Long,
         lastEpoch: Long
-    ): List<TempSampleEntity>
+    ): List<HearthRateSampleEntity>
 
     @Query("""
-        SELECT * FROM temp_sample
+        SELECT * FROM hearth_rate_sample
         WHERE userId = :userId
           AND epoch >= :firstEpoch AND epoch < :lastEpoch
         ORDER BY epoch ASC
     """)
-    fun observeTempSamplesForUser(
+    fun observeRangeForUser(
         userId: Int,
         firstEpoch: Long,
         lastEpoch: Long
-    ): Flow<List<TempSampleEntity>>
+    ): Flow<List<HearthRateSampleEntity>>
 
     // delete
-    @Query("DELETE FROM temp_sample WHERE id = :id")
-    suspend fun removeTempSample(id: Int)
+    @Query("DELETE FROM hearth_rate_sample WHERE id = :id")
+    suspend fun removeById(id: Int)
 
-    @Query("DELETE FROM temp_sample WHERE epoch = :epoch")
-    suspend fun removeTempSamplesByEpoch(epoch: Long)
+    @Query("DELETE FROM hearth_rate_sample WHERE epoch = :epoch")
+    suspend fun removeByEpoch(epoch: Long)
 
-    @Query("DELETE FROM temp_sample")
-    suspend fun removeAllTempSamples()
+    @Query("DELETE FROM hearth_rate_sample")
+    suspend fun removeAll()
 
-    // dashboard: 24 bars avg/hour (epoch assumed millis)
+    // dashboard: 24 bars (avg per hour) — epoch assumed millis
     @Query(
         """
         SELECT 
             CAST(strftime('%H', datetime(epoch / 1000, 'unixepoch', 'localtime')) AS INTEGER) AS hour,
-            AVG(CAST(temp AS REAL)) AS avg
-        FROM temp_sample
+            AVG(CAST(hearthRate AS REAL)) AS avg
+        FROM hearth_rate_sample
         WHERE userId = :userId
           AND epoch >= :startEpoch
           AND epoch < :endEpoch
@@ -92,9 +90,9 @@ interface TempSampleDao {
         endEpoch: Long
     ): Flow<List<HourlyAvg>>
 
-    // dashboard: latest sample in range
+    // dashboard: latest in range
     @Query("""
-        SELECT * FROM temp_sample
+        SELECT * FROM hearth_rate_sample
         WHERE userId = :userId
           AND epoch >= :startEpoch AND epoch < :endEpoch
         ORDER BY epoch DESC
@@ -104,16 +102,16 @@ interface TempSampleDao {
         userId: Int,
         startEpoch: Long,
         endEpoch: Long
-    ): Flow<TempSampleEntity?>
+    ): Flow<HearthRateSampleEntity?>
 
     // dashboard: summary in range
     @Query("""
         SELECT 
-            AVG(CAST(temp AS REAL)) AS avg,
-            MIN(CAST(temp AS REAL)) AS min,
-            MAX(CAST(temp AS REAL)) AS max,
+            AVG(CAST(hearthRate AS REAL)) AS avg,
+            MIN(hearthRate) AS min,
+            MAX(hearthRate) AS max,
             COUNT(*) AS count
-        FROM temp_sample
+        FROM hearth_rate_sample
         WHERE userId = :userId
           AND epoch >= :startEpoch AND epoch < :endEpoch
     """)
@@ -122,5 +120,4 @@ interface TempSampleDao {
         startEpoch: Long,
         endEpoch: Long
     ): Flow<MetricSummary>
-
 }

@@ -1,84 +1,78 @@
 package pl.edu.pjwstk.engineeringthesis.data.db.dao
 
 import androidx.room.Dao
-import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Update
 import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
-import pl.edu.pjwstk.engineeringthesis.data.db.entity.GsrSampleEntity
-import pl.edu.pjwstk.engineeringthesis.data.db.entity.TempSampleEntity
+import pl.edu.pjwstk.engineeringthesis.data.db.entity.SpO2SampleEntity
 import pl.edu.pjwstk.engineeringthesis.model.HourlyAvg
 import pl.edu.pjwstk.engineeringthesis.model.MetricSummary
 
 @Dao
-interface TempSampleDao {
-
+interface SpO2SampleDao {
     @Upsert
-    suspend fun upsertTempSample(sample: TempSampleEntity)
+    suspend fun upsertSpO2Sample(sample: SpO2SampleEntity)
 
     @Update
-    suspend fun updateTempSample(sample: TempSampleEntity)
+    suspend fun updateSpO2Sample(sample: SpO2SampleEntity)
 
     @Transaction
-    @Query("SELECT * FROM temp_sample WHERE id = :id;")
-    suspend fun getTempSample(id: Int): TempSampleEntity?
+    @Query("SELECT * FROM spo2_sample WHERE id = :id;")
+    suspend fun getSpO2Sample(id: Int): SpO2SampleEntity?
 
     @Transaction
-    @Query("SELECT * FROM temp_sample")
-    suspend fun getAllTempSamples(): List<TempSampleEntity>
+    @Query("SELECT * FROM spo2_sample")
+    suspend fun getAllSpO2Samples(): List<SpO2SampleEntity>
 
     @Transaction
-    @Query("""
-        SELECT * FROM temp_sample
-        WHERE epoch >= :firstEpoch AND epoch < :lastEpoch
-        ORDER BY epoch ASC
-    """)
-    suspend fun getTempSamples(firstEpoch: Long, lastEpoch: Long): List<TempSampleEntity>
+    @Query("SELECT * FROM spo2_sample WHERE epoch >= :firstEpoch AND epoch < :lastEpoch")
+    suspend fun getSpO2Samples(firstEpoch: Long, lastEpoch: Long): List<SpO2SampleEntity>
 
+    // --- user-scoped range (very useful for dashboard) ---
     @Transaction
     @Query("""
-        SELECT * FROM temp_sample
+        SELECT * FROM spo2_sample
         WHERE userId = :userId
           AND epoch >= :firstEpoch AND epoch < :lastEpoch
         ORDER BY epoch ASC
     """)
-    suspend fun getTempSamplesForUser(
+    suspend fun getSpO2SamplesForUser(
         userId: Int,
         firstEpoch: Long,
         lastEpoch: Long
-    ): List<TempSampleEntity>
+    ): List<SpO2SampleEntity>
 
     @Query("""
-        SELECT * FROM temp_sample
+        SELECT * FROM spo2_sample
         WHERE userId = :userId
           AND epoch >= :firstEpoch AND epoch < :lastEpoch
         ORDER BY epoch ASC
     """)
-    fun observeTempSamplesForUser(
+    fun observeSpO2SamplesForUser(
         userId: Int,
         firstEpoch: Long,
         lastEpoch: Long
-    ): Flow<List<TempSampleEntity>>
+    ): Flow<List<SpO2SampleEntity>>
 
-    // delete
-    @Query("DELETE FROM temp_sample WHERE id = :id")
-    suspend fun removeTempSample(id: Int)
+    // --- delete ---
+    @Query("DELETE FROM spo2_sample WHERE id = :id")
+    suspend fun removeSpO2Sample(id: Int)
 
-    @Query("DELETE FROM temp_sample WHERE epoch = :epoch")
-    suspend fun removeTempSamplesByEpoch(epoch: Long)
+    @Query("DELETE FROM spo2_sample WHERE epoch = :epoch")
+    suspend fun removeSpO2SamplesByEpoch(epoch: Long)
 
-    @Query("DELETE FROM temp_sample")
-    suspend fun removeAllTempSamples()
+    @Query("DELETE FROM spo2_sample")
+    suspend fun removeAllSpO2Samples()
 
-    // dashboard: 24 bars avg/hour (epoch assumed millis)
+    // --- 24 bars: average per hour (epoch assumed millis) ---
     @Query(
         """
         SELECT 
             CAST(strftime('%H', datetime(epoch / 1000, 'unixepoch', 'localtime')) AS INTEGER) AS hour,
-            AVG(CAST(temp AS REAL)) AS avg
-        FROM temp_sample
+            AVG(CAST(spo2 AS REAL)) AS avg
+        FROM spo2_sample
         WHERE userId = :userId
           AND epoch >= :startEpoch
           AND epoch < :endEpoch
@@ -92,9 +86,9 @@ interface TempSampleDao {
         endEpoch: Long
     ): Flow<List<HourlyAvg>>
 
-    // dashboard: latest sample in range
+    // --- latest in range ---
     @Query("""
-        SELECT * FROM temp_sample
+        SELECT * FROM spo2_sample
         WHERE userId = :userId
           AND epoch >= :startEpoch AND epoch < :endEpoch
         ORDER BY epoch DESC
@@ -104,16 +98,16 @@ interface TempSampleDao {
         userId: Int,
         startEpoch: Long,
         endEpoch: Long
-    ): Flow<TempSampleEntity?>
+    ): Flow<SpO2SampleEntity?>
 
-    // dashboard: summary in range
+    // --- summary in range ---
     @Query("""
         SELECT 
-            AVG(CAST(temp AS REAL)) AS avg,
-            MIN(CAST(temp AS REAL)) AS min,
-            MAX(CAST(temp AS REAL)) AS max,
+            AVG(CAST(spo2 AS REAL)) AS avg,
+            MIN(CAST(spo2 AS REAL)) AS min,
+            MAX(CAST(spo2 AS REAL)) AS max,
             COUNT(*) AS count
-        FROM temp_sample
+        FROM spo2_sample
         WHERE userId = :userId
           AND epoch >= :startEpoch AND epoch < :endEpoch
     """)
@@ -122,5 +116,4 @@ interface TempSampleDao {
         startEpoch: Long,
         endEpoch: Long
     ): Flow<MetricSummary>
-
 }

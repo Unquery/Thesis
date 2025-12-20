@@ -8,6 +8,7 @@ import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
 import pl.edu.pjwstk.engineeringthesis.data.db.entity.GsrSampleEntity
 import pl.edu.pjwstk.engineeringthesis.model.HourlyAvg
+import pl.edu.pjwstk.engineeringthesis.model.MetricSummary
 
 @Dao
 interface GsrSampleDao {
@@ -39,11 +40,37 @@ interface GsrSampleDao {
     @Query("DELETE FROM gsr_sample")
     suspend fun removeAllGsrSamples()
 
+    @Transaction
+    @Query("""
+        SELECT * FROM gsr_sample
+        WHERE userId = :userId
+          AND epoch >= :firstEpoch AND epoch < :lastEpoch
+        ORDER BY epoch ASC
+    """)
+    suspend fun getGsrSamplesForUser(
+        userId: Int,
+        firstEpoch: Long,
+        lastEpoch: Long
+    ): List<GsrSampleEntity>
+
+
+    @Query("""
+        SELECT * FROM gsr_sample
+        WHERE userId = :userId
+          AND epoch >= :firstEpoch AND epoch < :lastEpoch
+        ORDER BY epoch ASC
+    """)
+    fun observeGsrSamplesForUser(
+        userId: Int,
+        firstEpoch: Long,
+        lastEpoch: Long
+    ): Flow<List<GsrSampleEntity>>
+
     @Query(
         """
         SELECT 
             CAST(strftime('%H', datetime(epoch / 1000, 'unixepoch', 'localtime')) AS INTEGER) AS hour,
-            AVG(gsr) AS avg
+            AVG(CAST(gsr AS REAL)) AS avg
         FROM gsr_sample
         WHERE userId = :userId
           AND epoch >= :startEpoch
@@ -57,5 +84,36 @@ interface GsrSampleDao {
         startEpoch: Long,
         endEpoch: Long
     ): Flow<List<HourlyAvg>>
+
+    @Query("""
+        SELECT * FROM gsr_sample
+        WHERE userId = :userId
+          AND epoch >= :startEpoch
+          AND epoch < :endEpoch
+        ORDER BY epoch DESC
+        LIMIT 1
+    """)
+    fun observeLatestInRange(
+        userId: Int,
+        startEpoch: Long,
+        endEpoch: Long
+    ): Flow<GsrSampleEntity?>
+
+    @Query("""
+        SELECT 
+            AVG(CAST(gsr AS REAL)) AS avg,
+            MIN(gsr) AS min,
+            MAX(gsr) AS max,
+            COUNT(*) AS count
+        FROM gsr_sample
+        WHERE userId = :userId
+          AND epoch >= :startEpoch
+          AND epoch < :endEpoch
+    """)
+    fun observeSummaryInRange(
+        userId: Int,
+        startEpoch: Long,
+        endEpoch: Long
+    ): Flow<MetricSummary>
 
 }
