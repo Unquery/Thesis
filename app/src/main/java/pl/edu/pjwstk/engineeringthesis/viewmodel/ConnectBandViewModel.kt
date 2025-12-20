@@ -26,6 +26,7 @@ import pl.edu.pjwstk.engineeringthesis.data.db.entity.GsrSampleEntity
 import pl.edu.pjwstk.engineeringthesis.data.db.entity.TempSampleEntity
 import java.util.UUID
 import javax.inject.Inject
+import androidx.core.content.edit
 
 
 sealed interface ScanUiState {
@@ -58,6 +59,19 @@ class ConnectBandViewModel @Inject constructor(
     private var scanJob: Job? = null
     @Volatile private var gotConnection = false
 
+    private val prefs by lazy {
+        ctx.getSharedPreferences("ble_band_prefs", Context.MODE_PRIVATE)
+    }
+    private val KEY_LAST_BAND_ADDR = "last_band_address"
+
+    private var preferredAddress: String? =
+        prefs.getString(KEY_LAST_BAND_ADDR, null)
+
+    private fun savePreferredAddress(addr: String) {
+        preferredAddress = addr
+        prefs.edit() { putString(KEY_LAST_BAND_ADDR, addr) }
+    }
+
     private val client = BleUartClient(
         ctx,
         adapter,
@@ -77,14 +91,29 @@ class ConnectBandViewModel @Inject constructor(
                 if (idx >= 0) updated[idx] = updated[idx].copy(name = name, rssi = rssi)
                 else updated += Band(address, name, rssi)
                 _bands.value = updated.sortedByDescending { it.rssi }
+                val preferred = preferredAddress
+                if (!gotConnection && preferred != null && preferred == address) {
+                    try {
+                        connectTo(address)
+                    } catch (_: SecurityException) {
+                        // ignore, permissions already checked before scan
+                    }
+                }
             }
 
             override fun onConnected(address: String, mtu: Int) {
                 gotConnection = true
                 _scanState.value = ScanUiState.Connected
+                savePreferredAddress(address)
             }
             override fun onDisconnected() {
                 _scanState.value = ScanUiState.Idle
+                if (preferredAddress != null) {
+                    viewModelScope.launch {
+                        delay(1000)
+                        startScanWithTimeout(20_000L)
+                    }
+                }
             }
 
             override fun onPacket(p: Packet) {

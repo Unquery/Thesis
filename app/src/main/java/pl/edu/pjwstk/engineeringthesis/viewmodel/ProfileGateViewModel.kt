@@ -20,7 +20,7 @@ class ProfileGateViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             profileRepo.clear()
-            _showOnboarding.value = !profileRepo.exists()
+            _showOnboarding.value = false //Todo replace -> !profileRepo.exists()
         }
     }
 

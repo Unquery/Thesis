@@ -59,10 +59,10 @@ fun AppRoot(
             SplashOverlay(onGone = { showSplash = false })
         }
 
-        if (show == true) {
+        if (show == true && !showSplash) {
             Surface(color = MaterialTheme.colorScheme.background) {
                 ProfileOnboardingScreen(
-                    onDone = { gateVm.markDone() }
+                    onDone = { gateVm.markDone(); }
                 )
             }
         }
@@ -73,7 +73,6 @@ fun AppRoot(
 @Composable
 fun Navigation(){
     val navController = rememberNavController()
-
     NavHost(navController = navController, startDestination = Menu){
         menuDestination(navController)
 
