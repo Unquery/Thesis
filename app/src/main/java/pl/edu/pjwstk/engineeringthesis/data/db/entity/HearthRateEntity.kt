@@ -3,9 +3,10 @@ package pl.edu.pjwstk.engineeringthesis.data.db.entity
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import pl.edu.pjwstk.engineeringthesis.model.GsrSample
+import pl.edu.pjwstk.engineeringthesis.model.HearthRateSample
 
 @Entity(tableName = "gsr_sample")
-data class GsrSampleEntity(
+data class HearthRateEntity(
     @PrimaryKey(autoGenerate = true)
     val id : Int = 0,
 
@@ -13,14 +14,14 @@ data class GsrSampleEntity(
 
     val epoch : Long,
 
-    val gsr : Int
+    val hearthRate : Float
 ){
-    fun toDomain() : GsrSample{
-        return GsrSample(
+    fun toDomain() : HearthRateSample{
+        return HearthRateSample(
             id,
             userId,
             epoch,
-            gsr
+            hearthRate
         )
     }
 }

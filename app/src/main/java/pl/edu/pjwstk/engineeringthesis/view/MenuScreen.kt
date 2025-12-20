@@ -36,6 +36,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -58,11 +59,14 @@ import pl.edu.pjwstk.engineeringthesis.font.interFamily
 import pl.edu.pjwstk.engineeringthesis.ui.theme.DarkGray700
 import pl.edu.pjwstk.engineeringthesis.ui.theme.DarkGray850
 import pl.edu.pjwstk.engineeringthesis.ui.theme.EngineeringThesisTheme
+import pl.edu.pjwstk.engineeringthesis.viewmodel.MenuViewModel
 
 @Composable
 fun MenuScreen(
-    onConnectBandClick: () -> Unit
+    onConnectBandClick: () -> Unit,
+    vm: MenuViewModel
 ) {
+    val gsrBars by vm.observeTodayGsrBars(1).collectAsState()
     var connectBandMenuOpen by remember { mutableStateOf(false) }
 
     val scrimAlpha by animateFloatAsState(
@@ -93,7 +97,13 @@ fun MenuScreen(
                     .padding(inner)
                     .fillMaxSize()
                     .background(Color.Blue)
-            )
+            ){
+                GsrBox(
+                    title = "GSR (today avg/hour)",
+                    bars = gsrBars,
+                    onClick = { /* navigate */ }
+                )
+            }
         }
 
         if (scrimAlpha > 0f) {
@@ -245,6 +255,9 @@ private fun TopMenuBar(
         )
     }
 }
+
+
+
 
 @Preview(showBackground = true)
 @Composable

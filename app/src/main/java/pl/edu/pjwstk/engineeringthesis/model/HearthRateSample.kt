@@ -1,8 +1,8 @@
 package pl.edu.pjwstk.engineeringthesis.model
 
-data class GsrSample(
+class HearthRateSample (
     val id : Int,
     val userId : Int,
     val epoch : Long,
-    val gsr : Int
+    val hearthRate : Float
 )

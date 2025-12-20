@@ -26,6 +26,7 @@ class TempSampleRepositoryImpl @Inject constructor(
         dao.upsertTempSample(
             TempSampleEntity(
                 id = tempSample.id,
+                userId = tempSample.userId,
                 epoch = tempSample.epoch,
                 temperature = tempSample.temperature
             )

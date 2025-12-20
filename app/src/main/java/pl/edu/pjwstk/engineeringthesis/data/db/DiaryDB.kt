@@ -11,7 +11,7 @@ import pl.edu.pjwstk.engineeringthesis.data.db.entity.UserProfileEntity
 
 @Database(
     entities = [TempSampleEntity::class, GsrSampleEntity::class, UserProfileEntity::class],
-    version = 2
+    version = 3
 )
 abstract class DiaryDB : RoomDatabase() {
 

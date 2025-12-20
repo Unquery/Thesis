@@ -118,9 +118,9 @@ class ConnectBandViewModel @Inject constructor(
 
             override fun onPacket(p: Packet) {
                 viewModelScope.launch(Dispatchers.IO) {
-                    val tempSamples = p.temps.map { TempSampleEntity(epoch = p.epoch, temperature = it) }
-                    val gsrSamples = p.gsr.map { GsrSampleEntity(epoch = p.epoch, gsr = it) }
-
+                    val tempSamples = p.temps.map { TempSampleEntity(epoch = p.epoch, temperature = it, userId = 1) }
+                    val gsrSamples = p.gsr.map { GsrSampleEntity(epoch = p.epoch, gsr = it, userId = 1) }
+                    //Todo
                     try {
                         tempSamples.forEach { tempSampleDao.upsertTempSample(it) }
                         gsrSamples.forEach { gsrSampleDao.upsertGsrSample(it) }
