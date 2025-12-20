@@ -1,13 +1,11 @@
 package pl.edu.pjwstk.engineeringthesis.data.db.dao
 
 import androidx.room.Dao
-import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Update
 import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
-import pl.edu.pjwstk.engineeringthesis.data.db.entity.GsrSampleEntity
 import pl.edu.pjwstk.engineeringthesis.data.db.entity.TempSampleEntity
 import pl.edu.pjwstk.engineeringthesis.model.HourlyAvg
 import pl.edu.pjwstk.engineeringthesis.model.MetricSummary
@@ -77,7 +75,7 @@ interface TempSampleDao {
         """
         SELECT 
             CAST(strftime('%H', datetime(epoch / 1000, 'unixepoch', 'localtime')) AS INTEGER) AS hour,
-            AVG(CAST(temp AS REAL)) AS avg
+            AVG(CAST(temperature AS REAL)) AS avg
         FROM temp_sample
         WHERE userId = :userId
           AND epoch >= :startEpoch
@@ -109,9 +107,9 @@ interface TempSampleDao {
     // dashboard: summary in range
     @Query("""
         SELECT 
-            AVG(CAST(temp AS REAL)) AS avg,
-            MIN(CAST(temp AS REAL)) AS min,
-            MAX(CAST(temp AS REAL)) AS max,
+            AVG(CAST(temperature AS REAL)) AS avg,
+            MIN(CAST(temperature AS REAL)) AS min,
+            MAX(CAST(temperature AS REAL)) AS max,
             COUNT(*) AS count
         FROM temp_sample
         WHERE userId = :userId
