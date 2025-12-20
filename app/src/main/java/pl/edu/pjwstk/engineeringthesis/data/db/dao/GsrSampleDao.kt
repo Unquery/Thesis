@@ -1,7 +1,6 @@
 package pl.edu.pjwstk.engineeringthesis.data.db.dao
 
 import androidx.room.Dao
-import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Update
@@ -23,7 +22,7 @@ interface GsrSampleDao {
 
     @Transaction
     @Query("SELECT * FROM gsr_sample")
-    suspend fun getAllTGsrSample(): List<GsrSampleEntity>
+    suspend fun getAllTGsrSamples(): List<GsrSampleEntity>
 
     @Transaction
     @Query("SELECT * FROM gsr_sample WHERE epoch >= :firstEpoch AND epoch < :lastEpoch")
