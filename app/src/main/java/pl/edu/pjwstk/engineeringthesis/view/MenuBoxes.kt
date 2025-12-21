@@ -18,6 +18,16 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.graphics.lerp
+
+private fun medianOf(values: List<Float>): Float {
+    if (values.isEmpty()) return 0f
+    val sorted = values.sorted()
+    val mid = sorted.size / 2
+    return if (sorted.size % 2 == 0) (sorted[mid - 1] + sorted[mid]) / 2f else sorted[mid]
+}
+
+private fun safeDiv(num: Float, den: Float): Float = if (den == 0f) 0f else num / den
 
 @Composable
 fun MetricBox24h(
@@ -32,6 +42,13 @@ fun MetricBox24h(
     chartHeight: Dp = 130.dp,
     barColor: Color = Color(0xFF3F51B5),
     columnBgColor: Color = Color.Black.copy(alpha = 0.08f),
+    maxBarRatio: Float = 0.8f,
+    scaleFromMin: Boolean = false,
+    yMinOverride: Float? = null,
+    yMaxOverride: Float? = null,
+    useMedianGradient: Boolean = true,
+    lowColorMix: Float = 0.13f,
+    highColorMix: Float = 0.13f,
 
     // labels
     leftTimeLabel: String = "00:00",
@@ -95,8 +112,33 @@ fun MetricBox24h(
                 }
 
                 val finiteVals = vals.filter { it.isFinite() }
-                val maxVal = (finiteVals.maxOrNull() ?: 0f).takeIf { it > 0f } ?: 1f
-                val minVal = (finiteVals.minOrNull() ?: 0f)
+
+                val realMin = finiteVals.minOrNull() ?: 0f
+                val realMax = finiteVals.maxOrNull() ?: 0f
+                val med = medianOf(finiteVals)
+
+
+                val lowColor = lerp(barColor, Color.White, lowColorMix.coerceIn(0f, 1f))
+                val highColor = lerp(barColor, Color.Black, highColorMix.coerceIn(0f, 1f))
+
+                val baseMin = when {
+                    yMinOverride != null -> yMinOverride
+                    scaleFromMin -> realMin
+                    else -> 0f
+                }
+
+                val topMax = when {
+                    yMaxOverride != null -> yMaxOverride
+                    else -> {
+                        val safeRatio = maxBarRatio.coerceIn(0.05f, 0.95f)
+                        val range = (realMax - baseMin).takeIf { it > 0f } ?: 1f
+                        baseMin + (range / safeRatio)
+                    }
+                }
+
+                val scaleMin = baseMin
+                val scaleMax = topMax
+                val scaleRange = (scaleMax - scaleMin).takeIf { it > 0f } ?: 1f
 
                 val n = 24
                 val gap = chartWidth * 0.006f
@@ -105,11 +147,25 @@ fun MetricBox24h(
                 for (i in 0 until n) {
                     val v = vals.getOrNull(i)
                     val barValue = if (v == null || !v.isFinite()) 0f else v
-                    val ratio = (barValue / maxVal).coerceIn(0f, 1f)
+                    val ratio = ((barValue - scaleMin) / scaleRange).coerceIn(0f, 1f)
                     val h = chartHeightPx * ratio
 
                     val x = chartLeft + i * (w + gap)
                     val y = chartTop + (chartHeightPx - h)
+
+                    val c = if (!useMedianGradient || finiteVals.isEmpty()) {
+                        barColor
+                    } else {
+                        if (barValue <= med) {
+                            // realMin -> lowColor, median -> barColor
+                            val tLow = safeDiv(barValue - realMin, (med - realMin)).coerceIn(0f, 1f)
+                            lerp(lowColor, barColor, tLow)
+                        } else {
+                            // median -> barColor, realMax -> highColor
+                            val tHigh = safeDiv(barValue - med, (realMax - med)).coerceIn(0f, 1f)
+                            lerp(barColor, highColor, tHigh)
+                        }
+                    }
 
                     // background column
                     drawRect(
@@ -120,7 +176,7 @@ fun MetricBox24h(
 
                     // bar
                     drawRect(
-                        color = barColor,
+                        color = c,
                         topLeft = Offset(x, y),
                         size = Size(w, h)
                     )
@@ -138,14 +194,14 @@ fun MetricBox24h(
                         val rightX = chartRight + with(density) { 6.dp.toPx() }
 
                         canvas.nativeCanvas.drawText(
-                            valueFormatter(minVal),
+                            valueFormatter(scaleMin),
                             rightX,
                             chartBottom, // baseline near bottom
                             paint
                         )
 
                         canvas.nativeCanvas.drawText(
-                            valueFormatter(maxVal),
+                            valueFormatter(scaleMax),
                             rightX,
                             chartTop + paint.textSize, // baseline near top
                             paint
