@@ -198,7 +198,7 @@ fun MenuMetricsColumn(
                 Box(Modifier.weight(0.5f)) {
                     MetricBox24h(
                         title = "Body temperature",
-                        unit = "°C",
+                        unit = "temperature",
                         bars = tempBars,
                         onClick = onTempClick,
                         valueFormatter = { v -> String.format("%.1f", v) },
@@ -207,6 +207,14 @@ fun MenuMetricsColumn(
                         maxBarRatio = 0.85f,
                         barColor = Color(0xFFF59E0B),
                         icon = Icons.Filled.DeviceThermostat,
+                        fullHeightBars = true,
+                        showMinMaxLabels = false,
+                        referenceValue = 36.6f,
+                        referenceRange = 0.5f,
+                        colorCurve = 1.2f,
+                        colorStrength = 1.4f,
+                        lowColorMix = 0.25f,
+                        highColorMix = 0.75f
                     )
                 }
                 Spacer(Modifier.width(5.dp))
@@ -214,7 +222,7 @@ fun MenuMetricsColumn(
                 Box(Modifier.weight(0.5f)) {
                     MetricBox24h(
                         title = "Heart rate",
-                        unit = "bpm",
+                        unit = "rate",
                         bars = hrBars,
                         onClick = onHrClick,
                         valueFormatter = { it.toInt().toString() },
@@ -222,7 +230,16 @@ fun MenuMetricsColumn(
                         scaleFromMin = false,
                         maxBarRatio = 0.80f,
                         barColor = Color(0xFFE53935),
-                        icon = Icons.Filled.MonitorHeart
+                        icon = Icons.Filled.MonitorHeart,
+                        fullHeightBars = true,
+                        showMinMaxLabels = false,
+                        useReferenceGradient = true,
+                        referenceValue = 70f,
+                        referenceRange = 15f,
+                        colorCurve = 1.3f,
+                        colorStrength = 1.2f,
+                        highColorMix = 0.65f,
+                        lowColorMix = 0.3f
                     )
                 }
             }
@@ -235,7 +252,7 @@ fun MenuMetricsColumn(
                 Box(Modifier.weight(0.5f)) {
                     MetricBox24h(
                         title = "Blood oxygen",
-                        unit = "%",
+                        unit = "oxygen",
                         bars = spo2Bars,
                         onClick = onSpo2Click,
                         valueFormatter = { it.toInt().toString() },
@@ -244,7 +261,16 @@ fun MenuMetricsColumn(
                         yMinOverride = spo2Min,
                         yMaxOverride = 100f,
                         barColor = Color(0xFF0284C7),
-                        icon = Icons.Filled.Bloodtype
+                        icon = Icons.Filled.Bloodtype,
+                        fullHeightBars = true,
+                        showMinMaxLabels = false,
+                        useReferenceGradient = true,
+                        referenceValue = 97f,
+                        referenceRange = 2.0f,
+                        colorCurve = 1.2f,
+                        colorStrength = 1.3f,
+                        highColorMix = 0.35f,
+                        lowColorMix = 0.25f,
                     )
                 }
                 Spacer(Modifier.width(5.dp))
@@ -252,7 +278,7 @@ fun MenuMetricsColumn(
                 Box(Modifier.weight(0.5f)) {
                     MetricBox24h(
                         title = "Skin conductance",
-                        unit = "µS",
+                        unit = "conductance",
                         bars = gsrBars,
                         onClick = onGsrClick,
                         valueFormatter = { it.toInt().toString() },
@@ -260,7 +286,12 @@ fun MenuMetricsColumn(
                         scaleFromMin = false,
                         maxBarRatio = 0.80f,
                         barColor = Color(0xFF6366F1),
-                        icon = Icons.Filled.SsidChart
+                        icon = Icons.Filled.SsidChart,
+                        fullHeightBars = true,
+                        showMinMaxLabels = false,
+                        lowColorMix = 0.14f,
+                        highColorMix = 0.14f,
+                        colorCurve = 2.2f
                     )
                 }
             }

@@ -3,6 +3,8 @@ package pl.edu.pjwstk.engineeringthesis.view
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -25,6 +27,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.TextUnit
 import pl.edu.pjwstk.engineeringthesis.font.interFamily
+import androidx.compose.ui.geometry.CornerRadius
+import kotlin.math.pow
 
 private fun medianOf(values: List<Float>): Float {
     if (values.isEmpty()) return 0f
@@ -44,7 +48,7 @@ fun MetricBox24h(
     unit: String? = null,
 
     cardHeight: Dp = 190.dp,
-    chartHeight: Dp = 130.dp,
+    chartHeight: Dp = 60.dp,
     barColor: Color = Color(0xFF3F51B5),
     columnBgColor: Color = Color.Black.copy(alpha = 0.08f),
     maxBarRatio: Float = 0.8f,
@@ -52,11 +56,18 @@ fun MetricBox24h(
     yMinOverride: Float? = null,
     yMaxOverride: Float? = null,
     useMedianGradient: Boolean = true,
-    lowColorMix: Float = 0.20f,
-    highColorMix: Float = 0.30f,
+    lowColorMix: Float = 0.5f,
+    highColorMix: Float = 0.5f,
     icon: ImageVector? = null,
     fontFamily: FontFamily = interFamily,
     titleSize: TextUnit = 14.sp,
+    fullHeightBars: Boolean = false,
+    barHeightFraction: Float = 0.75f,
+    colorCurve: Float = 2.0f,
+    useReferenceGradient: Boolean = false,
+    referenceValue: Float? = null,
+    referenceRange: Float = 1f,
+    colorStrength: Float = 1.0f,
 
     leftTimeLabel: String = "00:00",
     rightTimeLabel: String = "24:00",
@@ -71,7 +82,7 @@ fun MetricBox24h(
             .height(cardHeight)
             .clickable { onClick() }
     ) {
-        Column(Modifier.padding(start = 12.dp, top = 12.dp, bottom = 12.dp, end = 5.dp).fillMaxWidth()) {
+        Column(Modifier.padding(start = 12.dp, top = 12.dp, bottom = 12.dp, end = 12.dp).fillMaxSize()) {
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 if (icon != null) {
                     Icon(
@@ -81,10 +92,10 @@ fun MetricBox24h(
                         modifier = Modifier.size(20.dp)
                     )
                 }
-                Spacer(modifier = Modifier.width(10.dp));
+                Spacer(modifier = Modifier.width(8.dp));
                 Text(title, fontSize = titleSize, fontFamily = fontFamily, style = MaterialTheme.typography.bodyLarge)
             }
-            if (!unit.isNullOrBlank()) {
+            if (!unit.isNullOrBlank() && !fullHeightBars) {
                 Spacer(Modifier.height(2.dp))
                 Text(
                     text = unit,
@@ -92,9 +103,27 @@ fun MetricBox24h(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                 )
+            }else{
+                Spacer(Modifier.height(4.dp))
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically){
+                    Text(
+                        modifier = Modifier.weight(1f),
+                        text = "See detailed information about $unit",
+                        fontFamily = fontFamily,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    )
+                    Spacer(Modifier.width(5.dp))
+                    Icon(
+                        imageVector = Icons.Filled.ChevronRight,
+                        contentDescription = null,
+                        tint = barColor,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
 
-            Spacer(Modifier.height(8.dp))
+            Spacer(modifier = Modifier.weight(0.9f))
 
             val density = LocalDensity.current
             val labelColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f)
@@ -140,15 +169,14 @@ fun MetricBox24h(
             val scaleMax = topMax
             val scaleRange = (scaleMax - scaleMin).takeIf { it > 0f } ?: 1f
 
-// --- chart + labels side-by-side ---
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                modifier = Modifier.fillMaxWidth().requiredHeight(chartHeight),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Canvas(
                     modifier = Modifier
                         .weight(1f)
-                        .height(chartHeight)
+                        .fillMaxHeight()
                 ) {
                     val bottomLabelPadPx = with(density) { 18.dp.toPx() }
 
@@ -159,46 +187,73 @@ fun MetricBox24h(
 
                     val chartWidth = (chartRight - chartLeft).coerceAtLeast(1f)
                     val chartHeightPx = (chartBottom - chartTop).coerceAtLeast(1f)
+                    val barAreaHeightPx = chartHeightPx * barHeightFraction.coerceIn(0.1f, 1f)
+                    val barAreaTop = chartTop + (chartHeightPx - barAreaHeightPx)
 
                     val n = 24
                     val gap = with(density) { 4.dp.toPx() }
                     val w = (chartWidth - gap * (n - 1)) / n
 
                     for (i in 0 until n) {
-                        val v = vals.getOrNull(i)
-                        val barValue = if (v == null || !v.isFinite()) 0f else v
+                        val raw = vals.getOrNull(i)
+                        val isMissing = raw == null || !raw.isFinite()
+                        val barValue = if (isMissing) 0f else raw
 
-                        val ratio = ((barValue - scaleMin) / scaleRange).coerceIn(0f, 1f)
-                        val h = chartHeightPx * ratio
+                        val ratio = if (fullHeightBars) 1f else ((barValue - scaleMin) / scaleRange).coerceIn(0f, 1f)
+                        val h = barAreaHeightPx * ratio
 
                         val x = chartLeft + i * (w + gap)
-                        val y = chartTop + (chartHeightPx - h)
+                        val y = barAreaTop + (barAreaHeightPx - h)
 
-                        val c = if (!useMedianGradient || finiteVals.isEmpty()) {
-                            barColor
-                        } else {
-                            if (barValue <= med) {
-                                val tLow =
-                                    safeDiv(barValue - realMin, (med - realMin)).coerceIn(0f, 1f)
-                                lerp(lowColor, barColor, tLow)
-                            } else {
-                                val tHigh =
-                                    safeDiv(barValue - med, (realMax - med)).coerceIn(0f, 1f)
-                                lerp(barColor, highColor, tHigh)
+                        val c = when {
+                            isMissing || finiteVals.isEmpty() -> barColor
+
+                            useReferenceGradient && referenceValue != null -> {
+                                val ref = referenceValue
+                                val range = referenceRange.coerceAtLeast(0.0001f)
+                                val z = ((barValue - ref) / range).coerceIn(-1f, 1f)
+                                val m = kotlin.math.abs(z).pow(colorCurve)
+                                val m2 = (m * colorStrength).coerceIn(0f, 1f)
+
+                                if (z >= 0f) {
+                                    lerp(barColor, highColor, m2)
+                                } else {
+                                    lerp(barColor, lowColor, m2)
+                                }
                             }
+
+                            useMedianGradient -> {
+                                if (barValue <= med) {
+                                    val tLow = safeDiv(barValue - realMin, (med - realMin))
+                                        .coerceIn(0f, 1f)
+                                        .pow(colorCurve)
+                                    lerp(lowColor, barColor, tLow)
+                                } else {
+                                    val tHigh = safeDiv(barValue - med, (realMax - med))
+                                        .coerceIn(0f, 1f)
+                                        .pow(colorCurve)
+                                    lerp(barColor, highColor, tHigh)
+                                }
+                            }
+
+                            else -> barColor
                         }
 
                         drawRect(
                             color = columnBgColor,
-                            topLeft = Offset(x, chartTop),
-                            size = Size(w, chartHeightPx)
+                            topLeft = Offset(x, barAreaTop),
+                            size = Size(w, barAreaHeightPx)
                         )
 
-                        drawRect(
-                            color = c,
-                            topLeft = Offset(x, y),
-                            size = Size(w, h)
-                        )
+                        if (!isMissing) {
+                            val r = (w * 0.35f).coerceAtMost(with(density) { 6.dp.toPx() })
+                            drawRoundRect(
+                                color = c,
+                                topLeft = Offset(x, y),
+                                size = Size(w, h),
+                                cornerRadius = CornerRadius(r, r)
+                            )
+                        }
                     }
 
                     // time labels
