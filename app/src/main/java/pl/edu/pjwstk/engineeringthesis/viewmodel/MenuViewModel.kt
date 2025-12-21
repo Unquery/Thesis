@@ -117,22 +117,33 @@ class MenuViewModel @Inject constructor(
 
         if (hasGsrToday && hasHrToday && hasSpo2Today && hasTempToday) return@launch
 
+        // ---- Spike window: one hour where values are much higher ----
+        val spikeHour = 14 // 14:00–15:00 (change to whatever you want)
+        val spikeStart = start + spikeHour * 60 * 60 * 1000L
+        val spikeEnd = (spikeStart + 60 * 60 * 1000L).coerceAtMost(end)
+
+        val rnd = Random(System.currentTimeMillis())
+        val step = 10 * 60 * 1000L // ✅ one value every 10 minutes
+
         var t = start
         while (t < end) {
+            val isSpike = (t >= spikeStart && t < spikeEnd)
+
             if (!hasGsrToday) {
-                val gsrValue = 200 + Random.nextInt(600)
-                gsrRepo.upsert(
-                    GsrSample(
-                        id = 0,
-                        userId = userId,
-                        epoch = t,
-                        gsr = gsrValue
-                    )
-                )
+                val gsrValue = if (isSpike) {
+                    1100 + rnd.nextInt(700)   // 1100..1799 (spike)
+                } else {
+                    200 + rnd.nextInt(350)    // 200..549 (normal)
+                }
+                gsrRepo.upsert(GsrSample(id = 0, userId = userId, epoch = t, gsr = gsrValue))
             }
 
             if (!hasHrToday) {
-                val hrValue = 55f + Random.nextInt(60)
+                val hrValue = if (isSpike) {
+                    125f + rnd.nextInt(35)    // 125..159 bpm (spike)
+                } else {
+                    55f + rnd.nextInt(35)     // 55..89 bpm (normal)
+                }
                 hrRepo.upsert(
                     HearthRateSample(
                         id = 0,
@@ -144,19 +155,20 @@ class MenuViewModel @Inject constructor(
             }
 
             if (!hasSpo2Today) {
-                val spo2Value = 92 + Random.nextInt(8)
-                spo2Repo.upsert(
-                    SpO2Sample(
-                        id = 0,
-                        userId = userId,
-                        epoch = t,
-                        spo2 = spo2Value
-                    )
-                )
+                val spo2Value = if (isSpike) {
+                    98 + rnd.nextInt(3)       // 98..100 (spike/high)
+                } else {
+                    92 + rnd.nextInt(6)       // 92..97 (normal)
+                }
+                spo2Repo.upsert(SpO2Sample(id = 0, userId = userId, epoch = t, spo2 = spo2Value))
             }
 
             if (!hasTempToday) {
-                val tempValue = 36.0f + (Random.nextInt(16) / 10f)
+                val tempValue = if (isSpike) {
+                    38.2f + (rnd.nextInt(11) / 10f)  // 38.2..39.2 (spike)
+                } else {
+                    36.2f + (rnd.nextInt(8) / 10f)   // 36.2..36.9 (normal)
+                }
                 tempRepo.upsert(
                     TempSample(
                         id = 0,
@@ -167,7 +179,7 @@ class MenuViewModel @Inject constructor(
                 )
             }
 
-            t += 10 * 60 * 1000L
+            t += step
         }
     }
 }
