@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.unit.TextUnit
 import pl.edu.pjwstk.engineeringthesis.font.interFamily
 
 private fun medianOf(values: List<Float>): Float {
@@ -55,6 +56,7 @@ fun MetricBox24h(
     highColorMix: Float = 0.30f,
     icon: ImageVector? = null,
     fontFamily: FontFamily = interFamily,
+    titleSize: TextUnit = 14.sp,
 
     leftTimeLabel: String = "00:00",
     rightTimeLabel: String = "24:00",
@@ -80,7 +82,7 @@ fun MetricBox24h(
                     )
                 }
                 Spacer(modifier = Modifier.width(10.dp));
-                Text(title, fontFamily = fontFamily, style = MaterialTheme.typography.bodyLarge)
+                Text(title, fontSize = titleSize, fontFamily = fontFamily, style = MaterialTheme.typography.bodyLarge)
             }
             if (!unit.isNullOrBlank()) {
                 Spacer(Modifier.height(2.dp))
