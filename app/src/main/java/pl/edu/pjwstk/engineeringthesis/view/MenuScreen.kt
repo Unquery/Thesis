@@ -66,7 +66,7 @@ fun MenuScreen(
     onConnectBandClick: () -> Unit,
     vm: MenuViewModel = hiltViewModel()
 ) {
-    val gsrBars by vm.observeTodayGsrBars(1).collectAsState()
+    val gsrBars by vm.todayGsrBars.collectAsState()
     var connectBandMenuOpen by remember { mutableStateOf(false) }
 
     val scrimAlpha by animateFloatAsState(
