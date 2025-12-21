@@ -16,6 +16,7 @@ interface TempSampleRepository {
 
     suspend fun getRangeForUser(userId: Int, firstEpoch: Long, lastEpoch: Long): List<TempSample>
     fun observeRangeForUser(userId: Int, firstEpoch: Long, lastEpoch: Long): Flow<List<TempSample>>
+    suspend fun existsInRange(userId: Int, startEpoch: Long, endEpoch: Long): Boolean
 
     suspend fun removeById(id: Int)
     suspend fun removeByEpoch(epoch: Long)

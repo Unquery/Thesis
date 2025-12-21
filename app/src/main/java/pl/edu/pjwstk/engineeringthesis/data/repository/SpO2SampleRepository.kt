@@ -16,6 +16,7 @@ interface SpO2SampleRepository {
 
     suspend fun getRangeForUser(userId: Int, firstEpoch: Long, lastEpoch: Long): List<SpO2Sample>
     fun observeRangeForUser(userId: Int, firstEpoch: Long, lastEpoch: Long): Flow<List<SpO2Sample>>
+    suspend fun existsInRange(userId: Int, startEpoch: Long, endEpoch: Long): Boolean
 
     suspend fun removeById(id: Int)
     suspend fun removeByEpoch(epoch: Long)

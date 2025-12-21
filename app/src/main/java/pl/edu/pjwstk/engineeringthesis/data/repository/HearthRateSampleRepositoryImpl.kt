@@ -68,6 +68,10 @@ class HearthRateSampleRepositoryImpl @Inject constructor(
     override fun observeSummary(userId: Int, startEpoch: Long, endEpoch: Long): Flow<MetricSummary> =
         dao.observeSummaryInRange(userId, startEpoch, endEpoch)
 
+    override suspend fun existsInRange(userId: Int, startEpoch: Long, endEpoch: Long): Boolean {
+        return dao.existsInRange(userId, startEpoch, endEpoch)
+    }
+
     override suspend fun clear() {
         dao.removeAll()
     }

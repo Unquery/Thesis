@@ -16,6 +16,7 @@ interface HearthRateSampleRepository {
 
     suspend fun getRangeForUser(userId: Int, firstEpoch: Long, lastEpoch: Long): List<HearthRateSample>
     fun observeRangeForUser(userId: Int, firstEpoch: Long, lastEpoch: Long): Flow<List<HearthRateSample>>
+    suspend fun existsInRange(userId: Int, startEpoch: Long, endEpoch: Long): Boolean
 
     suspend fun removeById(id: Int)
     suspend fun removeByEpoch(epoch: Long)

@@ -76,6 +76,10 @@ class SpO2SampleRepositoryImpl @Inject constructor(
         return dao.observeSummaryInRange(userId, startEpoch, endEpoch)
     }
 
+    override suspend fun existsInRange(userId: Int, startEpoch: Long, endEpoch: Long): Boolean {
+        return dao.existsInRange(userId, startEpoch, endEpoch)
+    }
+
     override suspend fun clear() {
         dao.removeAllSpO2Samples()
     }

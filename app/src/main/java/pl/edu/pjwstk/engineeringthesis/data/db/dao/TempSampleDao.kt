@@ -121,4 +121,14 @@ interface TempSampleDao {
         endEpoch: Long
     ): Flow<MetricSummary>
 
+    @Query("""
+    SELECT EXISTS(
+        SELECT 1 FROM temp_sample
+        WHERE userId = :userId
+          AND epoch >= :startEpoch
+          AND epoch < :endEpoch
+    )
+    """)
+    suspend fun existsInRange(userId: Int, startEpoch: Long, endEpoch: Long): Boolean
+
 }
