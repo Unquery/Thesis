@@ -10,7 +10,7 @@ import pl.edu.pjwstk.engineeringthesis.model.MetricSummary
 import javax.inject.Inject
 
 class HearthRateSampleRepositoryImpl @Inject constructor(
-    private val diaryDB: DiaryDB
+    diaryDB: DiaryDB
 ) : HearthRateSampleRepository {
 
     private val dao = diaryDB.hearthRateSamples // add this to DiaryDB

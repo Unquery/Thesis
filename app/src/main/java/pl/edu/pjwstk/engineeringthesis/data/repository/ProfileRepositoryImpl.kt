@@ -8,7 +8,7 @@ import pl.edu.pjwstk.engineeringthesis.model.UserProfile
 import javax.inject.Inject
 
 class ProfileRepositoryImpl @Inject constructor(
-    private val diaryDB: DiaryDB
+    diaryDB: DiaryDB
 ) : ProfileRepository {
 
     private val dao = diaryDB.userProfileDao

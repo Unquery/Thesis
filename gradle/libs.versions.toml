@@ -1,6 +1,6 @@
 [versions]
 agp = "8.9.3"
-composeBomVersion = "2025.11.00"
+composeBomVersion = "2025.12.01"
 coreSplashscreen = "1.2.0"
 hiltAndroid = "2.56.2"
 hiltNavigationCompose = "1.3.0"
@@ -9,17 +9,18 @@ coreKtx = "1.17.0"
 junit = "4.13.2"
 junitVersion = "1.3.0"
 espressoCore = "3.7.0"
-kotlinxSerializationJson = "1.7.3"
-lifecycleRuntimeCompose = "2.9.4"
-lifecycleRuntimeKtx = "2.9.3"
-activityCompose = "1.10.1"
-composeBom = "2025.08.01"
+kotlinxSerializationJson = "1.8.1"
+lifecycleRuntimeCompose = "2.10.0"
+lifecycleRuntimeKtx = "2.10.0"
+activityCompose = "1.12.2"
+composeBom = "2025.12.01"
 lottieCompose = "6.4.0"
-navigationCompose = "2.9.3"
-room_version = "2.7.2"
+navigationCompose = "2.9.6"
+room_version = "2.8.4"
 uiTextGoogleFonts = "<latest>"
 
 [libraries]
+#noinspection SimilarGradleDependency
 androidx-compose-bom-v20251100 = { module = "androidx.compose:compose-bom", version.ref = "composeBomVersion" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-core-splashscreen = { module = "androidx.core:core-splashscreen", version.ref = "coreSplashscreen" }
@@ -43,6 +44,7 @@ androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "j
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
 androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycleRuntimeKtx" }
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
+#noinspection SimilarGradleDependency
 androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
 androidx-ui = { group = "androidx.compose.ui", name = "ui" }
 androidx-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics" }

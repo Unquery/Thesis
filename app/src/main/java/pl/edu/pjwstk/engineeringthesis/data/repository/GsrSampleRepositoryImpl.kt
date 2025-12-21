@@ -10,7 +10,7 @@ import pl.edu.pjwstk.engineeringthesis.model.MetricSummary
 import javax.inject.Inject
 
 class GsrSampleRepositoryImpl @Inject constructor(
-    private val diaryDB : DiaryDB
+    diaryDB : DiaryDB
 ) : GsrSampleRepository{
 
     private val dao = diaryDB.gsrSamples

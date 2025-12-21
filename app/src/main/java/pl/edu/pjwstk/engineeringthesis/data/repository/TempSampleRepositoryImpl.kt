@@ -10,7 +10,7 @@ import pl.edu.pjwstk.engineeringthesis.model.TempSample
 import javax.inject.Inject
 
 class TempSampleRepositoryImpl @Inject constructor(
-    private val diaryDB: DiaryDB
+    diaryDB: DiaryDB
 ) : TempSampleRepository {
 
     private val dao = diaryDB.tempSamples

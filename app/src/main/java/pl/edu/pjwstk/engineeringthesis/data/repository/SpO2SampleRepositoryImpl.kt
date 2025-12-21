@@ -10,7 +10,7 @@ import pl.edu.pjwstk.engineeringthesis.model.SpO2Sample
 import javax.inject.Inject
 
 class SpO2SampleRepositoryImpl @Inject constructor(
-    private val diaryDB: DiaryDB
+    diaryDB: DiaryDB
 ) : SpO2SampleRepository {
 
     private val dao = diaryDB.spO2Samples
