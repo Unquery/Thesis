@@ -51,18 +51,31 @@ class MenuViewModel @Inject constructor(
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    val todayGsrBars: StateFlow<List<Float?>> =
+    private fun todayBars(
+        hourlyAvgProvider: (userId: Int, start: Long, end: Long) -> Flow<List<HourlyAvg>>
+    ): StateFlow<List<Float?>> =
         activeUserId
             .flatMapLatest { userId ->
                 if (userId == null) {
                     flowOf(List(24) { null })
                 } else {
                     val (start, end) = todayRangeMillis()
-                    gsrRepo.observeHourlyAvg(userId, start, end)
-                        .map(::to24Bars)
+                    hourlyAvgProvider(userId, start, end).map(::to24Bars)
                 }
             }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), List(24) { null })
+
+    val todayGsrBars: StateFlow<List<Float?>> =
+        todayBars { userId, start, end -> gsrRepo.observeHourlyAvg(userId, start, end) }
+
+    val todayHrBars: StateFlow<List<Float?>> =
+        todayBars { userId, start, end -> hrRepo.observeHourlyAvg(userId, start, end) }
+
+    val todaySpo2Bars: StateFlow<List<Float?>> =
+        todayBars { userId, start, end -> spo2Repo.observeHourlyAvg(userId, start, end) }
+
+    val todayTempBars: StateFlow<List<Float?>> =
+        todayBars { userId, start, end -> tempRepo.observeHourlyAvg(userId, start, end) }
 
     fun seedMock() {
         seedMockActiveUserAndTodayAll(profileRepo, gsrRepo, hrRepo, spo2Repo, tempRepo)
@@ -131,7 +144,7 @@ class MenuViewModel @Inject constructor(
             }
 
             if (!hasSpo2Today) {
-                val spo2Value = 92 + Random.nextInt(9)
+                val spo2Value = 92 + Random.nextInt(8)
                 spo2Repo.upsert(
                     SpO2Sample(
                         id = 0,
