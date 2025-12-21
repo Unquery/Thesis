@@ -7,9 +7,15 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import pl.edu.pjwstk.engineeringthesis.data.repository.GsrSampleRepository
+import pl.edu.pjwstk.engineeringthesis.data.repository.HearthRateSampleRepository
 import pl.edu.pjwstk.engineeringthesis.data.repository.ProfileRepository
+import pl.edu.pjwstk.engineeringthesis.data.repository.SpO2SampleRepository
+import pl.edu.pjwstk.engineeringthesis.data.repository.TempSampleRepository
 import pl.edu.pjwstk.engineeringthesis.model.GsrSample
+import pl.edu.pjwstk.engineeringthesis.model.HearthRateSample
 import pl.edu.pjwstk.engineeringthesis.model.HourlyAvg
+import pl.edu.pjwstk.engineeringthesis.model.SpO2Sample
+import pl.edu.pjwstk.engineeringthesis.model.TempSample
 import pl.edu.pjwstk.engineeringthesis.model.UserProfile
 import java.time.LocalDate
 import java.time.ZoneId
@@ -20,7 +26,10 @@ import kotlin.random.Random
 @HiltViewModel
 class MenuViewModel @Inject constructor(
     private val gsrRepo: GsrSampleRepository,
-    private val profileRepo: ProfileRepository
+    private val profileRepo: ProfileRepository,
+    private val hrRepo: HearthRateSampleRepository,
+    private val spo2Repo: SpO2SampleRepository,
+    private val tempRepo: TempSampleRepository
     ) : ViewModel() {
 
     private val zone = ZoneId.systemDefault()
@@ -56,7 +65,7 @@ class MenuViewModel @Inject constructor(
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), List(24) { null })
 
     fun seedMock() {
-        seedMockActiveUserAndTodayGsr(profileRepo, gsrRepo)
+        seedMockActiveUserAndTodayAll(profileRepo, gsrRepo, hrRepo, spo2Repo, tempRepo)
     }
 
     init{
@@ -64,15 +73,19 @@ class MenuViewModel @Inject constructor(
     }
 
     //Mock functions
-    private fun seedMockActiveUserAndTodayGsr(
+    private fun seedMockActiveUserAndTodayAll(
         profileRepo: ProfileRepository,
-        gsrRepo: GsrSampleRepository
+        gsrRepo: GsrSampleRepository,
+        hrRepo: HearthRateSampleRepository,
+        spo2Repo: SpO2SampleRepository,
+        tempRepo: TempSampleRepository
     ) = viewModelScope.launch {
 
         val zone = ZoneId.of("Europe/Warsaw")
         val start = LocalDate.now(zone).atStartOfDay(zone).toInstant().toEpochMilli()
         val end = LocalDate.now(zone).plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
 
+        // 1) Get active user or create+activate one
         val active = profileRepo.getActive()
         val userId = active?.id ?: profileRepo.insertAndActivate(
             UserProfile(
@@ -84,21 +97,62 @@ class MenuViewModel @Inject constructor(
             )
         )
 
-        val hasTodayData = gsrRepo.existsInRange(userId, start, end)
-        if (hasTodayData) return@launch
+        val hasGsrToday = gsrRepo.existsInRange(userId, start, end)
+        val hasHrToday = hrRepo.existsInRange(userId, start, end)
+        val hasSpo2Today = spo2Repo.existsInRange(userId, start, end)
+        val hasTempToday = tempRepo.existsInRange(userId, start, end)
+
+        if (hasGsrToday && hasHrToday && hasSpo2Today && hasTempToday) return@launch
 
         var t = start
         while (t < end) {
-            val gsrValue = 200 + Random.nextInt(600) // 200..799
-
-            gsrRepo.upsert(
-                GsrSample(
-                    id = 0,      // auto-generate
-                    userId = userId,
-                    epoch = t,   // millis
-                    gsr = gsrValue
+            if (!hasGsrToday) {
+                val gsrValue = 200 + Random.nextInt(600)
+                gsrRepo.upsert(
+                    GsrSample(
+                        id = 0,
+                        userId = userId,
+                        epoch = t,
+                        gsr = gsrValue
+                    )
                 )
-            )
+            }
+
+            if (!hasHrToday) {
+                val hrValue = 55f + Random.nextInt(60)
+                hrRepo.upsert(
+                    HearthRateSample(
+                        id = 0,
+                        userId = userId,
+                        epoch = t,
+                        hearthRate = hrValue
+                    )
+                )
+            }
+
+            if (!hasSpo2Today) {
+                val spo2Value = 92 + Random.nextInt(9)
+                spo2Repo.upsert(
+                    SpO2Sample(
+                        id = 0,
+                        userId = userId,
+                        epoch = t,
+                        spo2 = spo2Value
+                    )
+                )
+            }
+
+            if (!hasTempToday) {
+                val tempValue = 36.0f + (Random.nextInt(16) / 10f)
+                tempRepo.upsert(
+                    TempSample(
+                        id = 0,
+                        userId = userId,
+                        epoch = t,
+                        temperature = tempValue
+                    )
+                )
+            }
 
             t += 10 * 60 * 1000L
         }
