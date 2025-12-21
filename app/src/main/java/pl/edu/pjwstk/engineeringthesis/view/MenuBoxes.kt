@@ -15,24 +15,52 @@ import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlin.math.roundToInt
 
 @Composable
-fun GsrBox(
+fun MetricBox24h(
     title: String,
     bars: List<Float?>,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    unit: String? = null,
+
+    // appearance
+    cardHeight: Dp = 190.dp,
+    chartHeight: Dp = 130.dp,
+    barColor: Color = Color(0xFF3F51B5),
+    columnBgColor: Color = Color.Black.copy(alpha = 0.08f),
+
+    // labels
+    leftTimeLabel: String = "00:00",
+    rightTimeLabel: String = "24:00",
+
+    // label formatting (temp: { "%.1f".format(it) }, HR: { it.toInt().toString() })
+    valueFormatter: (Float) -> String = { v -> v.toInt().toString() },
+
+    // how to treat empty data
+    nullAsZero: Boolean = true,
+    showMinMaxLabels: Boolean = true,
 ) {
     Card(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
-            .height(190.dp)
+            .height(cardHeight)
             .clickable { onClick() }
     ) {
         Column(Modifier.padding(12.dp)) {
             Text(title)
+            if (!unit.isNullOrBlank()) {
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = unit,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                )
+            }
+
             Spacer(Modifier.height(8.dp))
 
             val density = LocalDensity.current
@@ -41,10 +69,10 @@ fun GsrBox(
             Canvas(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(130.dp)
+                    .height(chartHeight)
             ) {
-                val rightLabelPadPx = with(density) { 42.dp.toPx() }
-                val bottomLabelPadPx = with(density) { 18.dp.toPx() }
+                val rightLabelPadPx = with(density) { 46.dp.toPx() }  // space for min/max labels
+                val bottomLabelPadPx = with(density) { 18.dp.toPx() } // space for time labels
 
                 val chartLeft = 0f
                 val chartTop = 0f
@@ -52,33 +80,47 @@ fun GsrBox(
                 val chartBottom = size.height - bottomLabelPadPx
 
                 val chartWidth = (chartRight - chartLeft).coerceAtLeast(1f)
-                val chartHeight = (chartBottom - chartTop).coerceAtLeast(1f)
+                val chartHeightPx = (chartBottom - chartTop).coerceAtLeast(1f)
 
-                val vals = bars.take(24).let { list ->
+                val normalizedBars = bars.take(24).let { list ->
                     if (list.size < 24) list + List(24 - list.size) { null } else list
-                }.map { it ?: 0f }
+                }
 
-                val maxVal = (vals.maxOrNull() ?: 0f).takeIf { it > 0f } ?: 1f
-                val minVal = (vals.minOrNull() ?: 0f)
+                val vals = normalizedBars.map { v ->
+                    when {
+                        v == null && nullAsZero -> 0f
+                        v == null -> Float.NaN
+                        else -> v
+                    }
+                }
+
+                val finiteVals = vals.filter { it.isFinite() }
+                val maxVal = (finiteVals.maxOrNull() ?: 0f).takeIf { it > 0f } ?: 1f
+                val minVal = (finiteVals.minOrNull() ?: 0f)
 
                 val n = 24
                 val gap = chartWidth * 0.006f
                 val w = (chartWidth - gap * (n - 1)) / n
 
                 for (i in 0 until n) {
-                    val ratio = (vals[i] / maxVal).coerceIn(0f, 1f)
-                    val h = chartHeight * ratio
-                    val x = chartLeft + i * (w + gap)
-                    val y = chartTop + (chartHeight - h)
+                    val v = vals.getOrNull(i)
+                    val barValue = if (v == null || !v.isFinite()) 0f else v
+                    val ratio = (barValue / maxVal).coerceIn(0f, 1f)
+                    val h = chartHeightPx * ratio
 
+                    val x = chartLeft + i * (w + gap)
+                    val y = chartTop + (chartHeightPx - h)
+
+                    // background column
                     drawRect(
-                        color = Color.Black.copy(alpha = 0.08f),
+                        color = columnBgColor,
                         topLeft = Offset(x, chartTop),
-                        size = Size(w, chartHeight)
+                        size = Size(w, chartHeightPx)
                     )
 
+                    // bar
                     drawRect(
-                        color = Color(0xFF3F51B5),
+                        color = barColor,
                         topLeft = Offset(x, y),
                         size = Size(w, h)
                     )
@@ -91,34 +133,32 @@ fun GsrBox(
                         textSize = with(density) { 11.sp.toPx() }
                     }
 
-                    val rightX = chartRight + with(density) { 6.dp.toPx() }
+                    // right side labels (max top, min bottom)
+                    if (showMinMaxLabels && finiteVals.isNotEmpty()) {
+                        val rightX = chartRight + with(density) { 6.dp.toPx() }
 
-                    canvas.nativeCanvas.drawText(
-                        "${minVal.roundToInt()}",
-                        rightX,
-                        chartBottom,
-                        paint
-                    )
+                        canvas.nativeCanvas.drawText(
+                            valueFormatter(minVal),
+                            rightX,
+                            chartBottom, // baseline near bottom
+                            paint
+                        )
 
-                    canvas.nativeCanvas.drawText(
-                        "${maxVal.roundToInt()}",
-                        rightX,
-                        chartTop + paint.textSize,
-                        paint
-                    )
+                        canvas.nativeCanvas.drawText(
+                            valueFormatter(maxVal),
+                            rightX,
+                            chartTop + paint.textSize, // baseline near top
+                            paint
+                        )
+                    }
 
+                    // bottom time labels
                     val timeY = size.height
-                    canvas.nativeCanvas.drawText(
-                        "00:00",
-                        chartLeft,
-                        timeY,
-                        paint
-                    )
+                    canvas.nativeCanvas.drawText(leftTimeLabel, chartLeft, timeY, paint)
 
-                    val rightText = "24:00"
-                    val rightTextWidth = paint.measureText(rightText)
+                    val rightTextWidth = paint.measureText(rightTimeLabel)
                     canvas.nativeCanvas.drawText(
-                        rightText,
+                        rightTimeLabel,
                         chartRight - rightTextWidth,
                         timeY,
                         paint
