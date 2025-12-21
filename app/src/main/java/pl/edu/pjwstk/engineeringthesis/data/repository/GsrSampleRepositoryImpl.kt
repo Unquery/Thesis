@@ -95,6 +95,10 @@ class GsrSampleRepositoryImpl @Inject constructor(
         dao.removeAllGsrSamples()
     }
 
+    override suspend fun existsInRange(userId: Int, startEpoch: Long, endEpoch: Long): Boolean {
+        return dao.existsInRange(userId, startEpoch, endEpoch)
+    }
+
     private fun GsrSample.toEntity(): GsrSampleEntity =
         GsrSampleEntity(
             id = id,

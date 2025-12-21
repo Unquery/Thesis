@@ -17,6 +17,7 @@ interface GsrSampleRepository {
     suspend fun getRangeForUser(userId: Int, firstEpoch: Long, lastEpoch: Long): List<GsrSample>
 
     fun observeRangeForUser(userId: Int, firstEpoch: Long, lastEpoch: Long): Flow<List<GsrSample>>
+    suspend fun existsInRange(userId: Int, startEpoch: Long, endEpoch: Long): Boolean
 
     // delete
     suspend fun removeById(id: Int)
