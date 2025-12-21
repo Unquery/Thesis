@@ -117,66 +117,61 @@ class MenuViewModel @Inject constructor(
 
         if (hasGsrToday && hasHrToday && hasSpo2Today && hasTempToday) return@launch
 
-        // ---- Spike window: one hour where values are much higher ----
-        val spikeHour = 14 // 14:00–15:00 (change to whatever you want)
-        val spikeStart = start + spikeHour * 60 * 60 * 1000L
-        val spikeEnd = (spikeStart + 60 * 60 * 1000L).coerceAtMost(end)
+        // ---- Spike windows (1 hour each) ----
+        val highHour = 14 // 14:00–15:00
+        val lowHour = 4   // 04:00–05:00  (change as you want)
+
+        fun hourWindow(hour: Int): Pair<Long, Long> {
+            val s = start + hour * 60 * 60 * 1000L
+            val e = (s + 60 * 60 * 1000L).coerceAtMost(end)
+            return s to e
+        }
+
+        val (highStart, highEnd) = hourWindow(highHour)
+        val (lowStart, lowEnd) = hourWindow(lowHour)
 
         val rnd = Random(System.currentTimeMillis())
-        val step = 10 * 60 * 1000L // ✅ one value every 10 minutes
+        val step = 10 * 60 * 1000L // one value every 10 minutes
 
         var t = start
         while (t < end) {
-            val isSpike = (t >= spikeStart && t < spikeEnd)
+            val isHigh = (t >= highStart && t < highEnd)
+            val isLow = !isHigh && (t >= lowStart && t < lowEnd) // high wins if overlap
 
             if (!hasGsrToday) {
-                val gsrValue = if (isSpike) {
-                    1100 + rnd.nextInt(700)   // 1100..1799 (spike)
-                } else {
-                    200 + rnd.nextInt(350)    // 200..549 (normal)
+                val gsrValue = when {
+                    isHigh -> 1100 + rnd.nextInt(700)  // 1100..1799
+                    isLow  -> 20 + rnd.nextInt(60)     // 20..79 (very low)
+                    else   -> 200 + rnd.nextInt(350)   // 200..549
                 }
                 gsrRepo.upsert(GsrSample(id = 0, userId = userId, epoch = t, gsr = gsrValue))
             }
 
             if (!hasHrToday) {
-                val hrValue = if (isSpike) {
-                    125f + rnd.nextInt(35)    // 125..159 bpm (spike)
-                } else {
-                    55f + rnd.nextInt(35)     // 55..89 bpm (normal)
+                val hrValue = when {
+                    isHigh -> 125f + rnd.nextInt(35)   // 125..159
+                    isLow  -> 42f + rnd.nextInt(10)    // 42..51 (very low)
+                    else   -> 55f + rnd.nextInt(35)    // 55..89
                 }
-                hrRepo.upsert(
-                    HearthRateSample(
-                        id = 0,
-                        userId = userId,
-                        epoch = t,
-                        hearthRate = hrValue
-                    )
-                )
+                hrRepo.upsert(HearthRateSample(id = 0, userId = userId, epoch = t, hearthRate = hrValue))
             }
 
             if (!hasSpo2Today) {
-                val spo2Value = if (isSpike) {
-                    98 + rnd.nextInt(3)       // 98..100 (spike/high)
-                } else {
-                    92 + rnd.nextInt(6)       // 92..97 (normal)
+                val spo2Value = when {
+                    isHigh -> 98 + rnd.nextInt(3)      // 98..100
+                    isLow  -> 86 + rnd.nextInt(5)      // 86..90 (very low)
+                    else   -> 92 + rnd.nextInt(6)      // 92..97
                 }
                 spo2Repo.upsert(SpO2Sample(id = 0, userId = userId, epoch = t, spo2 = spo2Value))
             }
 
             if (!hasTempToday) {
-                val tempValue = if (isSpike) {
-                    38.2f + (rnd.nextInt(11) / 10f)  // 38.2..39.2 (spike)
-                } else {
-                    36.2f + (rnd.nextInt(8) / 10f)   // 36.2..36.9 (normal)
+                val tempValue = when {
+                    isHigh -> 38.2f + (rnd.nextInt(11) / 10f) // 38.2..39.2
+                    isLow  -> 35.2f + (rnd.nextInt(6) / 10f)  // 35.2..35.7 (very low)
+                    else   -> 36.2f + (rnd.nextInt(8) / 10f)  // 36.2..36.9
                 }
-                tempRepo.upsert(
-                    TempSample(
-                        id = 0,
-                        userId = userId,
-                        epoch = t,
-                        temperature = tempValue
-                    )
-                )
+                tempRepo.upsert(TempSample(id = 0, userId = userId, epoch = t, temperature = tempValue))
             }
 
             t += step
