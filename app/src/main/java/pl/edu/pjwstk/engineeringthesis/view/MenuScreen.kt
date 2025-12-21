@@ -1,5 +1,6 @@
 package pl.edu.pjwstk.engineeringthesis.view
 
+import android.annotation.SuppressLint
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
@@ -15,6 +16,7 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -23,6 +25,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -67,6 +70,10 @@ fun MenuScreen(
     vm: MenuViewModel = hiltViewModel()
 ) {
     val gsrBars by vm.todayGsrBars.collectAsState()
+    val hrBars by vm.todayHrBars.collectAsState()
+    val spo2Bars by vm.todaySpo2Bars.collectAsState()
+    val tempBars by vm.todayTempBars.collectAsState()
+
     var connectBandMenuOpen by remember { mutableStateOf(false) }
 
     val scrimAlpha by animateFloatAsState(
@@ -98,10 +105,12 @@ fun MenuScreen(
                     .fillMaxSize()
                     .background(Color.Blue)
             ){
-                GsrBox(
-                    title = "GSR (today avg/hour)",
-                    bars = gsrBars,
-                    onClick = { /* navigate */ }
+                MenuMetricsColumn(
+                    gsrBars = gsrBars,
+                    hrBars = hrBars,
+                    spo2Bars = spo2Bars,
+                    tempBars = tempBars,
+                    modifier = Modifier.fillMaxSize()
                 )
             }
         }
@@ -152,6 +161,85 @@ fun MenuScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+@SuppressLint("DefaultLocale")
+@Composable
+fun MenuMetricsColumn(
+    gsrBars: List<Float?>,
+    hrBars: List<Float?>,
+    spo2Bars: List<Float?>,
+    tempBars: List<Float?>,
+    onGsrClick: () -> Unit = {},
+    onHrClick: () -> Unit = {},
+    onSpo2Click: () -> Unit = {},
+    onTempClick: () -> Unit = {},
+    @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
+) {
+    LazyColumn(
+        modifier = modifier,
+        contentPadding = PaddingValues(12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
+            MetricBox24h(
+                title = "Body temperature",
+                unit = "°C",
+                bars = tempBars,
+                onClick = onTempClick,
+                valueFormatter = { v -> String.format("%.1f", v) },
+                nullAsZero = false,
+                scaleFromMin = true,
+                maxBarRatio = 0.85f,
+                barColor = Color(0xFFF59E0B)
+            )
+        }
+
+        item {
+            MetricBox24h(
+                title = "Heart rate",
+                unit = "bpm",
+                bars = hrBars,
+                onClick = onHrClick,
+                valueFormatter = { it.toInt().toString() },
+                nullAsZero = false,
+                scaleFromMin = false,
+                maxBarRatio = 0.80f,
+                barColor = Color(0xFFE53935)
+            )
+        }
+
+        item {
+            val spo2Min = (spo2Bars.filterNotNull().minOrNull()?.minus(1f) ?: 0f).coerceAtLeast(0f)
+
+            MetricBox24h(
+                title = "Blood oxygen",
+                unit = "%",
+                bars = spo2Bars,
+                onClick = onSpo2Click,
+                valueFormatter = { it.toInt().toString() },
+                nullAsZero = false,
+                scaleFromMin = true,
+                yMinOverride = spo2Min,
+                yMaxOverride = 100f,
+                barColor = Color(0xFF0284C7)
+            )
+        }
+
+        item {
+            MetricBox24h(
+                title = "Skin conductance",
+                unit = "µS",
+                bars = gsrBars,
+                onClick = onGsrClick,
+                valueFormatter = { it.toInt().toString() },
+                nullAsZero = false,
+                scaleFromMin = false,
+                maxBarRatio = 0.80f,
+                barColor = Color(0xFF6366F1)
+            )
         }
     }
 }
