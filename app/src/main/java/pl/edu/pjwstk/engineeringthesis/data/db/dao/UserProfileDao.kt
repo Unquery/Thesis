@@ -1,7 +1,9 @@
 package pl.edu.pjwstk.engineeringthesis.data.db.dao
 
 import androidx.room.Dao
+import androidx.room.Insert
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Upsert
 import pl.edu.pjwstk.engineeringthesis.data.db.entity.UserProfileEntity
 
@@ -10,6 +12,9 @@ interface UserProfileDao {
     // --- Create/Update ---
     @Upsert
     suspend fun upsert(entity: UserProfileEntity)
+
+    @Insert
+    suspend fun insert(entity: UserProfileEntity): Long
 
     // --- Read ---
     @Query("SELECT * FROM user_profile WHERE id = :id")
@@ -20,6 +25,32 @@ interface UserProfileDao {
 
     @Query("SELECT * FROM user_profile ORDER BY id ASC")
     suspend fun getAll(): List<UserProfileEntity>
+
+    // ---------- active profile ----------
+    @Query("SELECT * FROM user_profile WHERE isActive = 1 LIMIT 1")
+    suspend fun getActive(): UserProfileEntity?
+
+    @Query("SELECT * FROM user_profile WHERE isActive = 1 LIMIT 1")
+    fun observeActive(): kotlinx.coroutines.flow.Flow<UserProfileEntity?>
+
+    @Query("UPDATE user_profile SET isActive = 0 WHERE isActive = 1")
+    suspend fun clearActiveFlag()
+
+    @Query("UPDATE user_profile SET isActive = 1 WHERE id = :id")
+    suspend fun setActiveFlag(id: Int)
+
+    @Transaction
+    suspend fun setActiveProfile(id: Int) {
+        clearActiveFlag()
+        setActiveFlag(id)
+    }
+
+    @Transaction
+    suspend fun insertAndActivate(entity: UserProfileEntity): Int {
+        val newId = insert(entity.copy(isActive = false)).toInt()
+        setActiveProfile(newId)
+        return newId
+    }
 
     // --- Observe (optional but very useful for UI) ---
     @Query("SELECT * FROM user_profile WHERE id = :id")
@@ -51,4 +82,8 @@ interface UserProfileDao {
 
     @Query("UPDATE user_profile SET heightCm = :heightCm WHERE id = :id")
     suspend fun setHeightCm(id: Int, heightCm: Int)
+
+    @Query("SELECT COALESCE(MAX(id), 0) + 1 FROM user_profile")
+    suspend fun getNextId(): Int
+
 }

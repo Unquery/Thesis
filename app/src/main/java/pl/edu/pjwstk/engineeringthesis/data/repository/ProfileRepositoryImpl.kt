@@ -17,6 +17,9 @@ class ProfileRepositoryImpl @Inject constructor(
         dao.upsert(profile.toEntity())
     }
 
+    override suspend fun insert(profile: UserProfile): Int {
+        return dao.insert(profile.toEntity()).toInt()
+    }
     override suspend fun getById(id: Int): UserProfile? =
         dao.getById(id)?.toDomain()
 
@@ -57,6 +60,22 @@ class ProfileRepositoryImpl @Inject constructor(
     override suspend fun setHeightCm(id: Int, heightCm: Int) {
         dao.setHeightCm(id, heightCm)
     }
+
+    override suspend fun getActive(): UserProfile? =
+        dao.getActive()?.toDomain()
+
+    override fun observeActive(): Flow<UserProfile?> =
+        dao.observeActive().map { it?.toDomain() }
+
+    override suspend fun setActiveProfile(id: Int) {
+        dao.setActiveProfile(id)
+    }
+
+    override suspend fun insertAndActivate(profile: UserProfile): Int {
+        return dao.insertAndActivate(profile.toEntity())
+    }
+
+    override suspend fun getNextId(): Int = dao.getNextId()
 }
 
 private fun UserProfileEntity.toDomain(): UserProfile =
@@ -64,7 +83,8 @@ private fun UserProfileEntity.toDomain(): UserProfile =
         id = id,
         gender = gender,
         birthDateEpochDays = birthDateEpochDays,
-        heightCm = heightCm
+        heightCm = heightCm,
+        isActive = isActive
     )
 
 private fun UserProfile.toEntity(): UserProfileEntity =
@@ -72,5 +92,6 @@ private fun UserProfile.toEntity(): UserProfileEntity =
         id = id,
         gender = gender,
         birthDateEpochDays = birthDateEpochDays,
-        heightCm = heightCm
+        heightCm = heightCm,
+        isActive = isActive
     )

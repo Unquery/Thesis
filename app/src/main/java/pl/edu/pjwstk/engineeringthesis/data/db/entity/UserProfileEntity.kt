@@ -8,5 +8,6 @@ data class UserProfileEntity(
     @PrimaryKey(autoGenerate = true) val id: Int = 1,
     val gender: String,
     val birthDateEpochDays: Long,
-    val heightCm: Int
+    val heightCm: Int,
+    val isActive: Boolean = false
 )

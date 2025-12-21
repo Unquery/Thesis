@@ -34,7 +34,7 @@ class ProfileOnboardingViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            if (repo.exists()) {
+            if (repo.existsAny()) {
                 _state.update { it.copy(step = Step.Done, finished = true) }
             }
         }
@@ -66,12 +66,15 @@ class ProfileOnboardingViewModel @Inject constructor(
 
     private fun saveAndFinish() = viewModelScope.launch {
         val s = _state.value
+
         val profile = UserProfile(
+            id = 0,
             gender = s.gender ?: "unspecified",
             birthDateEpochDays = s.birthDateEpochDays ?: 0L,
-            heightCm = s.heightCm.toIntOrNull() ?: 0
+            heightCm = s.heightCm.toIntOrNull() ?: 0,
+            isActive = true
         )
-        repo.save(profile)
+        repo.insertAndActivate(profile)
         _state.update { it.copy(step = Step.Done, finished = true) }
     }
 
