@@ -10,6 +10,8 @@ import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 import pl.edu.pjwstk.engineeringthesis.data.db.DiaryDB
 import pl.edu.pjwstk.engineeringthesis.data.db.dao.GsrSampleDao
+import pl.edu.pjwstk.engineeringthesis.data.db.dao.HearthRateSampleDao
+import pl.edu.pjwstk.engineeringthesis.data.db.dao.SpO2SampleDao
 import pl.edu.pjwstk.engineeringthesis.data.db.dao.UserProfileDao
 import pl.edu.pjwstk.engineeringthesis.data.db.dao.TempSampleDao
 
@@ -27,5 +29,8 @@ object DbModule {
     @Provides fun provideUserProfileDao(db: DiaryDB): UserProfileDao = db.userProfileDao
     @Provides fun provideTempSampleDao(db: DiaryDB): TempSampleDao = db.tempSamples
     @Provides fun provideGsrSampleDao(diaryDB: DiaryDB): GsrSampleDao = diaryDB.gsrSamples
+    @Provides fun provideHearthRateSampleDao(db: DiaryDB): HearthRateSampleDao = db.hearthRateSamples
+    @Provides fun provideSpO2SampleDao(db: DiaryDB): SpO2SampleDao = db.spO2Samples
+
 
 }
