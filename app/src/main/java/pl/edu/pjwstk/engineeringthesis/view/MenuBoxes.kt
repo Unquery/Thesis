@@ -92,7 +92,7 @@ fun MetricBox24h(
                         modifier = Modifier.size(20.dp)
                     )
                 }
-                Spacer(modifier = Modifier.width(8.dp));
+                Spacer(modifier = Modifier.width(8.dp))
                 Text(title, fontSize = titleSize, fontFamily = fontFamily, style = MaterialTheme.typography.bodyLarge)
             }
             if (!unit.isNullOrBlank() && !fullHeightBars) {
