@@ -211,7 +211,7 @@ fun MenuMetricsColumn(
                         referenceRange = 0.5f,
                         colorCurve = 1.2f,
                         colorStrength = 1.4f,
-                        lowColorMix = 0.25f,
+                        lowColorMix = 0.5f,
                         highColorMix = 0.75f
                     )
                 }
@@ -263,12 +263,13 @@ fun MenuMetricsColumn(
                         fullHeightBars = true,
                         showMinMaxLabels = false,
                         useReferenceGradient = true,
-                        referenceValue = 97f,
-                        referenceRange = 2.0f,
-                        colorCurve = 1.2f,
+                        referenceValue = 98f,
+                        referenceRange = 7.0f,
+                        colorCurve = 1.3f,
                         colorStrength = 1.3f,
-                        highColorMix = 0.35f,
-                        lowColorMix = 0.25f,
+                        highColorMix = 0.25f,
+                        lowColorMix = 0.4f,
+                        lowColorTarget = Color.Black
                     )
                 }
                 Spacer(Modifier.width(5.dp))

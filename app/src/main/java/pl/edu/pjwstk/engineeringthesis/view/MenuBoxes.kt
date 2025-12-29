@@ -68,6 +68,7 @@ fun MetricBox24h(
     referenceValue: Float? = null,
     referenceRange: Float = 1f,
     colorStrength: Float = 1.0f,
+    lowColorTarget : Color = Color.White,
 
     leftTimeLabel: String = "00:00",
     rightTimeLabel: String = "24:00",
@@ -147,7 +148,7 @@ fun MetricBox24h(
             val realMax = finiteVals.maxOrNull() ?: 0f
             val med = medianOf(finiteVals)
 
-            val lowColor = lerp(barColor, Color.White, lowColorMix.coerceIn(0f, 1f))
+            val lowColor = lerp(barColor, lowColorTarget, lowColorMix.coerceIn(0f, 1f))
             val highColor = lerp(barColor, Color.Black, highColorMix.coerceIn(0f, 1f))
 
             val baseMin = when {
