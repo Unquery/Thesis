@@ -21,8 +21,12 @@ import kotlinx.coroutines.launch
 import pl.edu.pjwstk.engineeringthesis.bluetooth.BleUartClient
 import pl.edu.pjwstk.engineeringthesis.bluetooth.Packet
 import pl.edu.pjwstk.engineeringthesis.data.db.dao.GsrSampleDao
+import pl.edu.pjwstk.engineeringthesis.data.db.dao.HearthRateSampleDao
+import pl.edu.pjwstk.engineeringthesis.data.db.dao.SpO2SampleDao
 import pl.edu.pjwstk.engineeringthesis.data.db.dao.TempSampleDao
 import pl.edu.pjwstk.engineeringthesis.data.db.entity.GsrSampleEntity
+import pl.edu.pjwstk.engineeringthesis.data.db.entity.HearthRateSampleEntity
+import pl.edu.pjwstk.engineeringthesis.data.db.entity.SpO2SampleEntity
 import pl.edu.pjwstk.engineeringthesis.data.db.entity.TempSampleEntity
 import java.util.UUID
 import javax.inject.Inject
@@ -47,7 +51,9 @@ class ConnectBandViewModel @Inject constructor(
     @ApplicationContext private val ctx: Context,
     private val adapter: BluetoothAdapter,
     private val gsrSampleDao : GsrSampleDao,
-    private val tempSampleDao: TempSampleDao
+    private val tempSampleDao: TempSampleDao,
+    private val hearthRateSampleDao: HearthRateSampleDao,
+    private val spO2SampleDao: SpO2SampleDao
 ): ViewModel() {
 
     private val _scanState = MutableStateFlow<ScanUiState>(ScanUiState.Idle)
@@ -118,12 +124,23 @@ class ConnectBandViewModel @Inject constructor(
 
             override fun onPacket(p: Packet) {
                 viewModelScope.launch(Dispatchers.IO) {
-                    val tempSamples = p.temps.map { TempSampleEntity(epoch = p.epoch, temperature = it, userId = 1) }
-                    val gsrSamples = p.gsr.map { GsrSampleEntity(epoch = p.epoch, gsr = it, userId = 1) }
-                    //Todo
+                    val tempSamples = p.temps.map {
+                        TempSampleEntity(epoch = p.epoch, temperature = it, userId = 1)
+                    }
+                    val gsrSamples = p.gsr.map {
+                        GsrSampleEntity(epoch = p.epoch, gsr = it, userId = 1)
+                    }
+                    val hearthRateSamples = p.hearthRate.map {
+                        HearthRateSampleEntity(epoch = p.epoch, hearthRate = it, userId = 1)
+                    }
+                    val spO2Samples = p.spo2.map {
+                        SpO2SampleEntity(epoch = p.epoch, spo2 = it.toInt(), userId = 1)
+                    }
                     try {
                         tempSamples.forEach { tempSampleDao.upsertTempSample(it) }
                         gsrSamples.forEach { gsrSampleDao.upsertGsrSample(it) }
+                        hearthRateSamples.forEach { hearthRateSampleDao.upsert(it) }
+                        spO2Samples.forEach { spO2SampleDao.upsertSpO2Sample(it) }
                     } catch (e: Exception) {
                         Log.e("ConnectBandViewModel", "Failed to insert samples into the database", e)
                     }
@@ -159,12 +176,10 @@ class ConnectBandViewModel @Inject constructor(
         scanJob?.cancel()
         gotConnection = false
         _scanState.value = ScanUiState.Scanning
-        Log.d("asd",_scanState.value.toString())
         scanJob = viewModelScope.launch(Dispatchers.Main.immediate) {
             try { client.startScan() }
             catch (_: SecurityException) {
                 _scanState.value = ScanUiState.Idle
-                Log.d("asd",_scanState.value.toString())
                 return@launch
             }
 

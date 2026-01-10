@@ -13,6 +13,8 @@ public final class JsonPacketParser {
         JSONArray tArr = obj.optJSONArray("temp");
         if (tArr == null) tArr = obj.optJSONArray("t");
         JSONArray gArr = obj.optJSONArray("gsr");
+        JSONArray hrArr = obj.optJSONArray("hr");
+        JSONArray spo2Arr = obj.optJSONArray("spo2");
 
         ArrayList<Float> temps = new ArrayList<>();
         if (tArr != null) {
@@ -22,8 +24,16 @@ public final class JsonPacketParser {
         if (gArr != null) {
             for (int i=0; i<gArr.length(); i++) gsr.add(gArr.getInt(i));
         }
+        ArrayList<Float> hearthRate = new ArrayList<>();
+        if (hrArr != null) {
+            for (int i=0; i<hrArr.length(); i++) hearthRate.add((float) hrArr.getDouble(i));
+        }
+        ArrayList<Float> spo2 = new ArrayList<>();
+        if (spo2Arr != null) {
+            for (int i=0; i<spo2Arr.length(); i++) spo2.add((float) spo2Arr.getDouble(i));
+        }
         long epoch = obj.optLong("epoch", -1L);
 
-        return new Packet(temps, gsr, epoch, obj);
+        return new Packet(temps, gsr, hearthRate, spo2, epoch, obj);
     }
 }
