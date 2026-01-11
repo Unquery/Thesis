@@ -93,16 +93,14 @@ fun MenuScreen(
         Scaffold(
             containerColor = Color.Black,
             topBar = {
-                TopMenuBar(
-                    {connectBandMenuOpen = !connectBandMenuOpen}
-                )
+                TopMenuBar { connectBandMenuOpen = !connectBandMenuOpen }
             },
             bottomBar = {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(70.dp)
-                        .background(Color.DarkGray)
+                        .background(Color.Black)
                 )
             }
 
@@ -111,14 +109,13 @@ fun MenuScreen(
                 Modifier
                     .padding(inner)
                     .fillMaxSize()
-                    .background(Color.Blue)
+                    .background(Color.Black)
             ){
-                MenuMetricsColumn(
+                MenuBody(
                     gsrBars = gsrBars,
                     hrBars = hrBars,
                     spo2Bars = spo2Bars,
-                    tempBars = tempBars,
-                    modifier = Modifier.fillMaxSize()
+                    tempBars = tempBars
                 )
             }
         }
@@ -170,6 +167,91 @@ fun MenuScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun MenuBody(
+    gsrBars: List<Float?>,
+    hrBars: List<Float?>,
+    spo2Bars: List<Float?>,
+    tempBars: List<Float?>
+) {
+    val lastTemp = tempBars.lastOrNull { it != null }
+    val lastHr = hrBars.lastOrNull { it != null }
+    val lastSpo2 = spo2Bars.lastOrNull { it != null }
+    val lastGsr = gsrBars.lastOrNull { it != null }
+
+    val lastItems = listOf(
+        MeasurementCircleItem(
+            title = "Body temperature",
+            value = lastTemp?.toDouble(),
+            unit = "C",
+            trendText = "- stable",
+            icon = Icons.Filled.DeviceThermostat,
+            baseColor = Color(0xFFF59E0B),
+            normalMin = 36.1,
+            normalMax = 37.2,
+            criticalMin = 34.0,
+            criticalMax = 41.0,
+            decimals = 1
+        ),
+        MeasurementCircleItem(
+            title = "Heart rate",
+            value = lastHr?.toDouble(),
+            unit = "bpm",
+            trendText = "- stable",
+            icon = Icons.Filled.MonitorHeart,
+            baseColor = Color(0xFFE53935),
+            normalMin = 60.0,
+            normalMax = 100.0,
+            criticalMin = 30.0,
+            criticalMax = 200.0,
+            decimals = 0
+        ),
+        MeasurementCircleItem(
+            title = "Blood oxygen",
+            value = lastSpo2?.toDouble(),
+            unit = "%",
+            trendText = "- stable",
+            icon = Icons.Filled.Bloodtype,
+            baseColor = Color(0xFF0284C7),
+            normalMin = 95.0,
+            normalMax = 100.0,
+            criticalMin = 70.0,
+            criticalMax = 100.0,
+            decimals = 0
+        ),
+        MeasurementCircleItem(
+            title = "Skin conductance",
+            value = lastGsr?.toDouble(),
+            unit = "uS",
+            trendText = "- stable",
+            icon = Icons.Filled.SsidChart,
+            baseColor = Color(0xFF6366F1),
+            normalMin = 200.0,
+            normalMax = 900.0,
+            criticalMin = 0.0,
+            criticalMax = 2000.0,
+            decimals = 0
+        )
+    )
+
+    Column(Modifier.fillMaxSize()) {
+        LastMeasurementsCirclesBox(
+            items = lastItems,
+            modifier = Modifier.padding(horizontal = 12.dp)
+        )
+
+        MenuMetricsColumn(
+            gsrBars = gsrBars,
+            hrBars = hrBars,
+            spo2Bars = spo2Bars,
+            tempBars = tempBars,
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+        )
     }
 }
 
@@ -398,21 +480,31 @@ private fun TopMenuBar(
     }
 }
 
-
-
-
 @Preview(showBackground = true)
 @Composable
-private fun MenuScreenPreview() {
+private fun MenuBodyPreview() {
+    val tempBars = List(24) { i -> 36.3f + (i % 6) * 0.1f }
+    val hrBars = List(24) { i -> 58f + (i % 8) * 3f }
+    val spo2Bars = List(24) { i -> 93f + (i % 6) * 1f }
+    val gsrBars = List(24) { i -> 200f + (i % 10) * 40f }
+
     EngineeringThesisTheme {
-        MenuScreen(onConnectBandClick = {})
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black)
+                .padding(12.dp)
+        ) {
+            MenuBody(
+                gsrBars = gsrBars,
+                hrBars = hrBars,
+                spo2Bars = spo2Bars,
+                tempBars = tempBars
+            )
+        }
     }
 }
 
-@Preview(showBackground = true)
-@Composable
-private fun TopApplicationBarPreview() {
-    EngineeringThesisTheme {
-        TopMenuBar {}
-    }
-}
+
+
+
