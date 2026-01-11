@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -81,7 +82,8 @@ fun MetricBox24h(
     Card(
         modifier = modifier.fillMaxWidth()
             .height(cardHeight)
-            .clickable { onClick() }
+            .clickable { onClick() },
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A))
     ) {
         Column(Modifier.padding(start = 12.dp, top = 12.dp, bottom = 12.dp, end = 12.dp).fillMaxSize()) {
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -94,7 +96,13 @@ fun MetricBox24h(
                     )
                 }
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(title, fontSize = titleSize, fontFamily = fontFamily, style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    text = title,
+                    fontSize = titleSize,
+                    fontFamily = fontFamily,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = Color.White
+                )
             }
             if (!unit.isNullOrBlank() && !fullHeightBars) {
                 Spacer(Modifier.height(2.dp))
@@ -102,7 +110,7 @@ fun MetricBox24h(
                     text = unit,
                     fontFamily = fontFamily,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    color = Color.White.copy(alpha = 0.7f)
                 )
             }else{
                 Spacer(Modifier.height(4.dp))
@@ -112,7 +120,7 @@ fun MetricBox24h(
                         text = "See detailed information about $unit",
                         fontFamily = fontFamily,
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                        color = Color.White.copy(alpha = 0.7f)
                     )
                     Spacer(Modifier.width(5.dp))
                     Icon(
@@ -127,7 +135,7 @@ fun MetricBox24h(
             Spacer(modifier = Modifier.weight(0.9f))
 
             val density = LocalDensity.current
-            val labelColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f)
+            val labelColor = Color.White.copy(alpha = 0.75f)
 
             // --- precompute scale + colors OUTSIDE canvas (so we can show labels in Column) ---
             val normalizedBars = bars.take(24).let { list ->
