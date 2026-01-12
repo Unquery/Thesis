@@ -1,53 +1,40 @@
 package pl.edu.pjwstk.engineeringthesis.view
 
 import android.annotation.SuppressLint
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.foundation.layout.wrapContentWidth
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bloodtype
+import androidx.compose.material.icons.filled.Devices
 import androidx.compose.material.icons.filled.DeviceThermostat
 import androidx.compose.material.icons.filled.MonitorHeart
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.SsidChart
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -55,21 +42,21 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import pl.edu.pjwstk.engineeringthesis.R
-import pl.edu.pjwstk.engineeringthesis.font.interFamily
-import pl.edu.pjwstk.engineeringthesis.ui.theme.DarkGray700
-import pl.edu.pjwstk.engineeringthesis.ui.theme.DarkGray850
 import pl.edu.pjwstk.engineeringthesis.ui.theme.EngineeringThesisTheme
 import pl.edu.pjwstk.engineeringthesis.viewmodel.MenuViewModel
+import java.util.Locale
+import kotlin.math.abs
+import kotlin.math.pow
 
 
 @Composable
@@ -81,26 +68,15 @@ fun MenuScreen(
     val hrBars by vm.todayHrBars.collectAsState()
     val spo2Bars by vm.todaySpo2Bars.collectAsState()
     val tempBars by vm.todayTempBars.collectAsState()
+    val lastUpdatedEpoch by vm.todayLatestEpoch.collectAsState()
 
-    var connectBandMenuOpen by remember { mutableStateOf(false) }
-
-    val scrimAlpha by animateFloatAsState(
-        targetValue = if (connectBandMenuOpen) 0.35f else 0f,
-        label = stringResource(R.string.menu_alpha)
-    )
     Box(Modifier.fillMaxSize()) {
 
         Scaffold(
             containerColor = Color.Black,
-            topBar = {
-                TopMenuBar { connectBandMenuOpen = !connectBandMenuOpen }
-            },
             bottomBar = {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(70.dp)
-                        .background(Color.Black)
+                BottomNavBar(
+                    onDeviceClick = onConnectBandClick
                 )
             }
 
@@ -115,56 +91,9 @@ fun MenuScreen(
                     gsrBars = gsrBars,
                     hrBars = hrBars,
                     spo2Bars = spo2Bars,
-                    tempBars = tempBars
+                    tempBars = tempBars,
+                    lastUpdatedEpoch = lastUpdatedEpoch
                 )
-            }
-        }
-
-        if (scrimAlpha > 0f) {
-            AlphaOverlay(
-                Modifier
-                    .matchParentSize()
-                    .background(Color.Black.copy(alpha = scrimAlpha))
-                    .clickable(
-                        indication = null,
-                        interactionSource = remember { MutableInteractionSource() }
-                    ) { connectBandMenuOpen = false }
-            )
-        }
-
-        AnimatedVisibility(
-            visible = connectBandMenuOpen,
-            enter = slideInHorizontally(initialOffsetX = { it }) + fadeIn(),
-            exit = slideOutHorizontally(targetOffsetX = { it }) + fadeOut()
-        ) {
-            Box(Modifier.fillMaxSize()) {
-                Surface(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(top = 60.dp, end = 18.dp)
-                        .wrapContentWidth()
-                        .wrapContentHeight(),
-                    color = DarkGray850,
-                    shadowElevation = 12.dp,
-                    shape = RoundedCornerShape(10.dp)
-                ) {
-                    Column{
-                        MenuActionItem(
-                            text = stringResource(R.string.connect_band_menu_button),
-                            shape = RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp),
-                            onClick = {
-                                connectBandMenuOpen = false
-                                onConnectBandClick()
-                            }
-                        )
-
-                        MenuActionItem(
-                            text = stringResource(R.string.connect_band_menu_button),
-                            shape = RoundedCornerShape(bottomStart = 10.dp, bottomEnd = 10.dp),
-                            onClick = { /* TODO: navigate to settings or any action */ }
-                        )
-                    }
-                }
             }
         }
     }
@@ -175,19 +104,38 @@ private fun MenuBody(
     gsrBars: List<Float?>,
     hrBars: List<Float?>,
     spo2Bars: List<Float?>,
-    tempBars: List<Float?>
+    tempBars: List<Float?>,
+    lastUpdatedEpoch: Long?
 ) {
+    var stretchTarget by remember { mutableFloatStateOf(0f) }
+    var isDragging by remember { mutableStateOf(false) }
+    val maxStretch = with(LocalDensity.current) { 90.dp.toPx() }
+    val stretch by animateFloatAsState(
+        targetValue = stretchTarget,
+        animationSpec = if (isDragging) snap() else spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "menuStretch"
+    )
     val lastTemp = tempBars.lastOrNull { it != null }
     val lastHr = hrBars.lastOrNull { it != null }
     val lastSpo2 = spo2Bars.lastOrNull { it != null }
     val lastGsr = gsrBars.lastOrNull { it != null }
+
+    val headerSubtitle = formatUpdatedSubtitle(lastUpdatedEpoch)
+
+    val tempTrend = trendTextFromBars(tempBars, "C", 1)
+    val hrTrend = trendTextFromBars(hrBars, "bpm", 0)
+    val spo2Trend = trendTextFromBars(spo2Bars, "%", 0)
+    val gsrTrend = trendTextFromBars(gsrBars, "uS", 0)
 
     val lastItems = listOf(
         MeasurementCircleItem(
             title = "Body temperature",
             value = lastTemp?.toDouble(),
             unit = "C",
-            trendText = "- stable",
+            trendText = tempTrend,
             icon = Icons.Filled.DeviceThermostat,
             baseColor = Color(0xFFF59E0B),
             normalMin = 36.1,
@@ -200,7 +148,7 @@ private fun MenuBody(
             title = "Heart rate",
             value = lastHr?.toDouble(),
             unit = "bpm",
-            trendText = "- stable",
+            trendText = hrTrend,
             icon = Icons.Filled.MonitorHeart,
             baseColor = Color(0xFFE53935),
             normalMin = 60.0,
@@ -213,7 +161,7 @@ private fun MenuBody(
             title = "Blood oxygen",
             value = lastSpo2?.toDouble(),
             unit = "%",
-            trendText = "- stable",
+            trendText = spo2Trend,
             icon = Icons.Filled.Bloodtype,
             baseColor = Color(0xFF0284C7),
             normalMin = 95.0,
@@ -226,7 +174,7 @@ private fun MenuBody(
             title = "Skin conductance",
             value = lastGsr?.toDouble(),
             unit = "uS",
-            trendText = "- stable",
+            trendText = gsrTrend,
             icon = Icons.Filled.SsidChart,
             baseColor = Color(0xFF6366F1),
             normalMin = 200.0,
@@ -237,10 +185,43 @@ private fun MenuBody(
         )
     )
 
-    Column(Modifier.fillMaxSize()) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .pointerInput(Unit) {
+                detectVerticalDragGestures(
+                    onDragStart = { isDragging = true },
+                    onDragEnd = {
+                        isDragging = false
+                        stretchTarget = 0f
+                    },
+                    onDragCancel = {
+                        isDragging = false
+                        stretchTarget = 0f
+                    }
+                ) { change, dragAmount ->
+                    change.consume()
+                    val next = (stretchTarget + dragAmount * 0.5f).coerceIn(-maxStretch, maxStretch)
+                    stretchTarget = next
+                }
+            }
+            .graphicsLayer {
+                translationY = stretch
+                val stretchRatio = if (maxStretch > 0f) abs(stretch) / maxStretch else 0f
+                scaleY = 1f + stretchRatio * 0.05f
+                transformOrigin = if (stretch >= 0f) {
+                    TransformOrigin(0.5f, 0f)
+                } else {
+                    TransformOrigin(0.5f, 1f)
+                }
+            }
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
         LastMeasurementsCirclesBox(
             items = lastItems,
-            modifier = Modifier.padding(horizontal = 12.dp)
+            modifier = Modifier.fillMaxWidth(),
+            headerSubtitle = headerSubtitle
         )
 
         MenuMetricsColumn(
@@ -248,9 +229,78 @@ private fun MenuBody(
             hrBars = hrBars,
             spo2Bars = spo2Bars,
             tempBars = tempBars,
+            modifier = Modifier.fillMaxWidth()
+        )
+    }
+}
+
+@Composable
+private fun BottomNavBar(
+    modifier: Modifier = Modifier,
+    onHealthClick: () -> Unit = {},
+    onDeviceClick: () -> Unit = {},
+    onProfileClick: () -> Unit = {}
+) {
+    Surface(
+        modifier = modifier,
+        color = Color(0xFF0F172A),
+        shadowElevation = 8.dp
+    ) {
+        Row(
             modifier = Modifier
-                .weight(1f)
                 .fillMaxWidth()
+                .height(108.dp)
+                .padding(start = 20.dp, end = 20.dp, bottom = 32.dp, top = 0.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            BottomNavItem(
+                icon = Icons.Filled.MonitorHeart,
+                label = stringResource(R.string.bottom_nav_health),
+                onClick = onHealthClick,
+                iconTint = Color(0xFFE53935),
+                modifier = Modifier.weight(1f)
+            )
+            BottomNavItem(
+                icon = Icons.Filled.Devices,
+                label = stringResource(R.string.bottom_nav_device),
+                onClick = onDeviceClick,
+                modifier = Modifier.weight(1f)
+            )
+            BottomNavItem(
+                icon = Icons.Filled.Person,
+                label = stringResource(R.string.bottom_nav_profile),
+                onClick = onProfileClick,
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun BottomNavItem(
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    iconTint: Color = Color.White,
+    @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            tint = iconTint
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = Color.White
         )
     }
 }
@@ -268,215 +318,161 @@ fun MenuMetricsColumn(
     onTempClick: () -> Unit = {},
     @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
 ) {
-    LazyColumn(
+    Column(
         modifier = modifier,
-        contentPadding = PaddingValues(12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        item {
-            Row(modifier = modifier) {
-                Box(Modifier.weight(0.5f)) {
-                    MetricBox24h(
-                        title = "Body temperature",
-                        unit = "temperature",
-                        bars = tempBars,
-                        onClick = onTempClick,
-                        valueFormatter = { v -> String.format("%.1f", v) },
-                        nullAsZero = false,
-                        scaleFromMin = true,
-                        maxBarRatio = 0.85f,
-                        barColor = Color(0xFFF59E0B),
-                        icon = Icons.Filled.DeviceThermostat,
-                        fullHeightBars = true,
-                        showMinMaxLabels = false,
-                        referenceValue = 36.6f,
-                        referenceRange = 0.5f,
-                        colorCurve = 1.2f,
-                        colorStrength = 1.4f,
-                        lowColorMix = 0.5f,
-                        highColorMix = 0.75f
-                    )
-                }
-                Spacer(Modifier.width(5.dp))
+        Row(modifier = Modifier.fillMaxWidth()) {
+            Box(Modifier.weight(0.5f)) {
+                MetricBox24h(
+                    title = "Body temperature",
+                    unit = "temperature",
+                    bars = tempBars,
+                    onClick = onTempClick,
+                    valueFormatter = { v -> String.format("%.1f", v) },
+                    nullAsZero = false,
+                    scaleFromMin = true,
+                    maxBarRatio = 0.85f,
+                    barColor = Color(0xFFF59E0B),
+                    icon = Icons.Filled.DeviceThermostat,
+                    fullHeightBars = true,
+                    showMinMaxLabels = false,
+                    referenceValue = 36.6f,
+                    referenceRange = 0.5f,
+                    colorCurve = 1.2f,
+                    colorStrength = 1.4f,
+                    lowColorMix = 0.5f,
+                    highColorMix = 0.75f
+                )
+            }
+            Spacer(Modifier.width(5.dp))
 
-                Box(Modifier.weight(0.5f)) {
-                    MetricBox24h(
-                        title = "Heart rate",
-                        unit = "rate",
-                        bars = hrBars,
-                        onClick = onHrClick,
-                        valueFormatter = { it.toInt().toString() },
-                        nullAsZero = false,
-                        scaleFromMin = false,
-                        maxBarRatio = 0.80f,
-                        barColor = Color(0xFFE53935),
-                        icon = Icons.Filled.MonitorHeart,
-                        fullHeightBars = true,
-                        showMinMaxLabels = false,
-                        useReferenceGradient = true,
-                        referenceValue = 70f,
-                        referenceRange = 15f,
-                        colorCurve = 1.3f,
-                        colorStrength = 1.2f,
-                        highColorMix = 0.65f,
-                        lowColorMix = 0.3f
-                    )
-                }
+            Box(Modifier.weight(0.5f)) {
+                MetricBox24h(
+                    title = "Heart rate",
+                    unit = "rate",
+                    bars = hrBars,
+                    onClick = onHrClick,
+                    valueFormatter = { it.toInt().toString() },
+                    nullAsZero = false,
+                    scaleFromMin = false,
+                    maxBarRatio = 0.80f,
+                    barColor = Color(0xFFE53935),
+                    icon = Icons.Filled.MonitorHeart,
+                    fullHeightBars = true,
+                    showMinMaxLabels = false,
+                    useReferenceGradient = true,
+                    referenceValue = 70f,
+                    referenceRange = 15f,
+                    colorCurve = 1.3f,
+                    colorStrength = 1.2f,
+                    highColorMix = 0.65f,
+                    lowColorMix = 0.3f
+                )
             }
         }
 
-        item {
-            Row {
-                val spo2Min =
-                    (spo2Bars.filterNotNull().minOrNull()?.minus(1f) ?: 0f).coerceAtLeast(0f)
-                Box(Modifier.weight(0.5f)) {
-                    MetricBox24h(
-                        title = "Blood oxygen",
-                        unit = "oxygen",
-                        bars = spo2Bars,
-                        onClick = onSpo2Click,
-                        valueFormatter = { it.toInt().toString() },
-                        nullAsZero = false,
-                        scaleFromMin = true,
-                        yMinOverride = spo2Min,
-                        yMaxOverride = 100f,
-                        barColor = Color(0xFF0284C7),
-                        icon = Icons.Filled.Bloodtype,
-                        fullHeightBars = true,
-                        showMinMaxLabels = false,
-                        useReferenceGradient = true,
-                        referenceValue = 98f,
-                        referenceRange = 7.0f,
-                        colorCurve = 1.3f,
-                        colorStrength = 1.3f,
-                        highColorMix = 0.25f,
-                        lowColorMix = 0.4f,
-                        lowColorTarget = Color.Black
-                    )
-                }
-                Spacer(Modifier.width(5.dp))
+        Row(modifier = Modifier.fillMaxWidth()) {
+            val spo2Min =
+                (spo2Bars.filterNotNull().minOrNull()?.minus(1f) ?: 0f).coerceAtLeast(0f)
+            Box(Modifier.weight(0.5f)) {
+                MetricBox24h(
+                    title = "Blood oxygen",
+                    unit = "oxygen",
+                    bars = spo2Bars,
+                    onClick = onSpo2Click,
+                    valueFormatter = { it.toInt().toString() },
+                    nullAsZero = false,
+                    scaleFromMin = true,
+                    yMinOverride = spo2Min,
+                    yMaxOverride = 100f,
+                    barColor = Color(0xFF0284C7),
+                    icon = Icons.Filled.Bloodtype,
+                    fullHeightBars = true,
+                    showMinMaxLabels = false,
+                    useReferenceGradient = true,
+                    referenceValue = 98f,
+                    referenceRange = 7.0f,
+                    colorCurve = 1.3f,
+                    colorStrength = 1.3f,
+                    highColorMix = 0.25f,
+                    lowColorMix = 0.4f,
+                    lowColorTarget = Color.Black
+                )
+            }
+            Spacer(Modifier.width(5.dp))
 
-                Box(Modifier.weight(0.5f)) {
-                    MetricBox24h(
-                        title = "Skin conductance",
-                        unit = "conductance",
-                        bars = gsrBars,
-                        onClick = onGsrClick,
-                        valueFormatter = { it.toInt().toString() },
-                        nullAsZero = false,
-                        scaleFromMin = false,
-                        maxBarRatio = 0.80f,
-                        barColor = Color(0xFF6366F1),
-                        icon = Icons.Filled.SsidChart,
-                        fullHeightBars = true,
-                        showMinMaxLabels = false,
-                        lowColorMix = 0.14f,
-                        highColorMix = 0.14f,
-                        colorCurve = 2.2f
-                    )
-                }
+            Box(Modifier.weight(0.5f)) {
+                MetricBox24h(
+                    title = "Skin conductance",
+                    unit = "conductance",
+                    bars = gsrBars,
+                    onClick = onGsrClick,
+                    valueFormatter = { it.toInt().toString() },
+                    nullAsZero = false,
+                    scaleFromMin = false,
+                    maxBarRatio = 0.80f,
+                    barColor = Color(0xFF6366F1),
+                    icon = Icons.Filled.SsidChart,
+                    fullHeightBars = true,
+                    showMinMaxLabels = false,
+                    lowColorMix = 0.14f,
+                    highColorMix = 0.14f,
+                    colorCurve = 2.2f
+                )
             }
         }
     }
 }
 
 @Composable
-private fun MenuActionItem(
-    text: String,
-    shape: Shape,
-    onClick: () -> Unit,
-    onLongClick: (() -> Unit)? = null
-) {
-    val interaction = remember { MutableInteractionSource() }
-    val pressed by interaction.collectIsPressedAsState()
+private fun trendTextFromBars(
+    bars: List<Float?>,
+    unit: String,
+    decimals: Int
+): String? {
+    val lastIndex = bars.indexOfLast { it != null }
+    if (lastIndex <= 0) return null
 
-    Surface(
-        modifier = Modifier
-            .clip(shape)
-            .combinedClickable(
-                interactionSource = interaction,
-                indication = LocalIndication.current,
-                onClick = onClick,
-                onLongClick = onLongClick
-            ),
-        shape = shape,
-        color = if (pressed) DarkGray700 else DarkGray850
-    ) {
-        Box(
-            Modifier
-                .padding(horizontal = 20.dp)
-                .heightIn(min = 56.dp),
-            contentAlignment = Alignment.CenterStart
-        ) {
-            Text(
-                text = text,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                maxLines = 1,
-                overflow = TextOverflow.Clip,
-                color = Color.White,
-                style = MaterialTheme.typography.bodyLarge
-            )
-        }
-    }
+    val last = bars[lastIndex] ?: return null
+    val prevIndex = (lastIndex - 1 downTo 0).firstOrNull { bars[it] != null } ?: return null
+    val prev = bars[prevIndex] ?: return null
+
+    return buildTrendText(prev.toDouble(), last.toDouble(), unit, decimals)
 }
 
-@Composable
-private fun AlphaOverlay(modifier: Modifier){
-    Box(
-        modifier = modifier
-    )
+private fun buildTrendText(
+    previous: Double,
+    current: Double,
+    unit: String,
+    decimals: Int
+): String {
+    val diff = current - previous
+    val threshold = 0.5 * 10.0.pow(-decimals.toDouble())
+    if (abs(diff) < threshold) return "- stable"
+
+    val absDiff = abs(diff)
+    val diffText = formatNumber(absDiff, decimals)
+    val sign = if (diff > 0) "+" else "-"
+
+    return "$sign$diffText $unit"
 }
 
+private fun formatNumber(value: Double, decimals: Int): String {
+    val safeDecimals = decimals.coerceIn(0, 4)
+    return String.format(Locale.US, "%.${safeDecimals}f", value)
+}
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun TopMenuBar(
-    onPlusClicked : () -> Unit
-){
-    Box {
-        TopAppBar(
-            title = {
-                Column(
-                    modifier = Modifier.fillMaxHeight(),
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Text(
-                        stringResource(R.string.main_screen_title),
-                        fontFamily = interFamily,
-                        fontWeight = FontWeight.Normal,
-                        textAlign = TextAlign.Center,
-                        fontSize = 40.sp
-                    )
-                }
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(100.dp),
-            navigationIcon = { /* no impl */ },
-            actions = {
-                Column(
-                    modifier = Modifier.fillMaxHeight(),
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    IconButton(
-                        onClick = onPlusClicked
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = stringResource(R.string.connect_band_menu_button),
-                            tint = Color.White
-                        )
-                    }
-                }
-            },
-            colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = Color.Black,
-                scrolledContainerColor = Color.Black,
-                navigationIconContentColor = Color.White,
-                titleContentColor = Color.White,
-                actionIconContentColor = Color.White
-            )
-        )
+private fun formatUpdatedSubtitle(epochMillis: Long?): String {
+    if (epochMillis == null) return "No data yet"
+
+    val now = System.currentTimeMillis()
+    val diff = (now - epochMillis).coerceAtLeast(0L)
+    return when {
+        diff < 60_000L -> "Updated just now"
+        diff < 3_600_000L -> "Updated ${diff / 60_000L} min ago"
+        diff < 86_400_000L -> "Updated ${diff / 3_600_000L} h ago"
+        else -> "Updated ${diff / 86_400_000L} d ago"
     }
 }
 
@@ -499,8 +495,23 @@ private fun MenuBodyPreview() {
                 gsrBars = gsrBars,
                 hrBars = hrBars,
                 spo2Bars = spo2Bars,
-                tempBars = tempBars
+                tempBars = tempBars,
+                lastUpdatedEpoch = System.currentTimeMillis()
             )
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun BottomNavBarPreview() {
+    EngineeringThesisTheme {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(Color.Black)
+        ) {
+            BottomNavBar()
         }
     }
 }

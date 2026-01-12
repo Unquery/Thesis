@@ -6,4 +6,7 @@
     <string name="connect_band_screen_title">Connect</string>
     <string name="scanning">Finding bands...</string>
     <string name="no_bands_found">No bands found</string>
+    <string name="bottom_nav_health">Health</string>
+    <string name="bottom_nav_device">Device</string>
+    <string name="bottom_nav_profile">Profile</string>
 </resources>

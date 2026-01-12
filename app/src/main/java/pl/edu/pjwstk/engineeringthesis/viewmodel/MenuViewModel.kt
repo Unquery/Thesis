@@ -77,6 +77,25 @@ class MenuViewModel @Inject constructor(
     val todayTempBars: StateFlow<List<Float?>> =
         todayBars { userId, start, end -> tempRepo.observeHourlyAvg(userId, start, end) }
 
+    val todayLatestEpoch: StateFlow<Long?> =
+        activeUserId
+            .flatMapLatest { userId ->
+                if (userId == null) {
+                    flowOf(null)
+                } else {
+                    val (start, end) = todayRangeMillis()
+                    combine(
+                        gsrRepo.observeLatest(userId, start, end).map { it?.epoch },
+                        hrRepo.observeLatest(userId, start, end).map { it?.epoch },
+                        spo2Repo.observeLatest(userId, start, end).map { it?.epoch },
+                        tempRepo.observeLatest(userId, start, end).map { it?.epoch }
+                    ) { gsr, hr, spo2, temp ->
+                        listOfNotNull(gsr, hr, spo2, temp).maxOrNull()
+                    }
+                }
+            }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
     fun seedMock() {
         seedMockActiveUserAndTodayAll(profileRepo, gsrRepo, hrRepo, spo2Repo, tempRepo)
     }
