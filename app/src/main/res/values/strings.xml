@@ -115,5 +115,5 @@
     <string name="time_18_00">18:00</string>
     <string name="time_24_00">24:00</string>
 
-    <string name="unit_percent">%%</string>
+    <string name="unit_percent">%</string>
 </resources>
