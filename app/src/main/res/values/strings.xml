@@ -86,9 +86,15 @@
     <string name="scan_state_idle">Idle</string>
     <string name="scan_repeat">Repeat scanning</string>
     <string name="scan_try_move_closer">Try moving closer or tapping repeat.</string>
+    <string name="connected_device_title">Connected device</string>
+    <string name="connected_device_none">No connected device</string>
     <string name="band_unknown">Unknown</string>
     <string name="band_rssi_format">%1$d dBm</string>
     <string name="band_connect">Connect</string>
+    <string name="band_disconnect">Disconnect</string>
+    <string name="band_status_connected">Connected</string>
+    <string name="band_status_sleeping">Sleeping</string>
+    <string name="band_status_disconnect_pending">Disconnect pending</string>
 
     <string name="charts_back">Back</string>
     <string name="charts_today">Today</string>
