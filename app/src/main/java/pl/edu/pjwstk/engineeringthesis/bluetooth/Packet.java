@@ -4,7 +4,6 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.List;
 
-/** One newline-delimited JSON packet from the ESP32. */
 public class Packet {
     public final List<Float> temps;
     public final List<Integer> gsr;
