@@ -4,38 +4,56 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.unit.dp
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import pl.edu.pjwstk.engineeringthesis.viewmodel.ProfileOnboardingViewModel
-import java.time.Instant
-import java.time.LocalDate
-import java.time.ZoneId
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringArrayResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import pl.edu.pjwstk.engineeringthesis.R
+import pl.edu.pjwstk.engineeringthesis.font.interFamily
+import pl.edu.pjwstk.engineeringthesis.viewmodel.ProfileOnboardingViewModel
+import pl.edu.pjwstk.engineeringthesis.viewmodel.ProfileViewModel
+import java.time.Instant
+import java.time.LocalDate
+import java.time.Period
+import java.time.ZoneId
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,9 +67,16 @@ fun ProfileOnboardingScreen(
         LaunchedEffect(Unit) { onDone() }
     }
 
-    Scaffold(topBar = { CenterAlignedTopAppBar(title = { Text("Profile setup") }) }) { pad ->
+    Scaffold(
+        topBar = {
+            CenterAlignedTopAppBar(title = { Text(stringResource(R.string.profile_setup_title)) })
+        }
+    ) { pad ->
         Box(Modifier.fillMaxSize().padding(pad).padding(16.dp)) {
             when (s.step) {
+                ProfileOnboardingViewModel.Step.Name ->
+                    NameStep(s.name, vm::setName, vm::next, s.canNext)
+
                 ProfileOnboardingViewModel.Step.Gender ->
                     GenderStep(s.gender, vm::selectGender, vm::next, s.canNext)
 
@@ -68,10 +93,28 @@ fun ProfileOnboardingScreen(
 }
 
 @Composable
+private fun NameStep(value: String, onChange: (String) -> Unit, onNext: () -> Unit, canNext: Boolean) {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Text(stringResource(R.string.profile_question_name), style = MaterialTheme.typography.titleLarge)
+        OutlinedTextField(
+            value = value,
+            onValueChange = { onChange(it.take(40)) },
+            label = { Text(stringResource(R.string.profile_label_name)) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(Modifier.weight(1f))
+        Button(onClick = onNext, enabled = canNext, modifier = Modifier.fillMaxWidth().height(56.dp)) {
+            Text(stringResource(R.string.action_next))
+        }
+    }
+}
+
+@Composable
 private fun GenderStep(selected: String?, onSelect: (String) -> Unit, onNext: () -> Unit, canNext: Boolean) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text("What’s your gender?", style = MaterialTheme.typography.titleLarge)
-        val opts = listOf("Male", "Female", "Other", "Prefer not to say")
+        Text(stringResource(R.string.profile_question_gender), style = MaterialTheme.typography.titleLarge)
+        val opts = stringArrayResource(R.array.gender_options).toList()
         opts.forEach { g ->
             FilterChip(
                 selected = selected == g,
@@ -81,7 +124,7 @@ private fun GenderStep(selected: String?, onSelect: (String) -> Unit, onNext: ()
         }
         Spacer(Modifier.weight(1f))
         Button(onClick = onNext, enabled = canNext, modifier = Modifier.fillMaxWidth().height(56.dp)) {
-            Text("Next")
+            Text(stringResource(R.string.action_next))
         }
     }
 }
@@ -124,20 +167,20 @@ private fun BirthDateStep(
                         onChange(days)
                         open = false
                     }
-                ) { Text("OK") }
+                ) { Text(stringResource(R.string.action_ok)) }
             },
-            dismissButton = { TextButton({ open = false }) { Text("Cancel") } }
+            dismissButton = { TextButton({ open = false }) { Text(stringResource(R.string.action_cancel)) } }
         ) {
             DatePicker(state = state, showModeToggle = false)
         }
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text("Your date of birth", style = MaterialTheme.typography.titleLarge)
-        Button(onClick = { open = true }) { Text("Pick date") }
+        Text(stringResource(R.string.profile_question_birth_date), style = MaterialTheme.typography.titleLarge)
+        Button(onClick = { open = true }) { Text(stringResource(R.string.profile_pick_date)) }
         Spacer(Modifier.weight(1f))
         Button(onClick = onNext, enabled = canNext, modifier = Modifier.fillMaxWidth().height(56.dp)) {
-            Text("Next")
+            Text(stringResource(R.string.action_next))
         }
     }
 }
@@ -146,18 +189,434 @@ private fun BirthDateStep(
 @Composable
 private fun HeightStep(value: String, onChange: (String) -> Unit, onNext: () -> Unit, canNext: Boolean) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text("Your height (cm)", style = MaterialTheme.typography.titleLarge)
+        Text(
+            stringResource(R.string.profile_question_height, stringResource(R.string.unit_cm)),
+            style = MaterialTheme.typography.titleLarge
+        )
         OutlinedTextField(
             value = value,
             onValueChange = { onChange(it.filter(Char::isDigit).take(3)) },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             singleLine = true,
-            suffix = { Text("cm") },
+            suffix = { Text(stringResource(R.string.unit_cm)) },
             modifier = Modifier.fillMaxWidth()
         )
         Spacer(Modifier.weight(1f))
         Button(onClick = onNext, enabled = canNext, modifier = Modifier.fillMaxWidth().height(56.dp)) {
-            Text("Save")
+            Text(stringResource(R.string.action_save))
         }
     }
+}
+
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ProfileScreen(
+    onHealthClick: () -> Unit = {},
+    onDeviceClick: () -> Unit = {},
+    onProfileClick: () -> Unit = {},
+    vm: ProfileViewModel = hiltViewModel()
+) {
+    val profile by vm.activeProfile.collectAsStateWithLifecycle()
+
+    var editing by remember { mutableStateOf<EditField?>(null) }
+    var nameInput by remember { mutableStateOf("") }
+    var genderInput by remember { mutableStateOf("") }
+    var heightInput by remember { mutableStateOf("") }
+    var birthDateInput by remember { mutableStateOf<Long?>(null) }
+    var editError by remember { mutableStateOf<Int?>(null) }
+
+    val openNameEdit = {
+        nameInput = profile?.name.orEmpty()
+        editError = null
+        editing = EditField.Name
+    }
+    val openGenderEdit = {
+        genderInput = profile?.gender.orEmpty()
+        editError = null
+        editing = EditField.Gender
+    }
+    val openBirthDateEdit = {
+        birthDateInput = profile?.birthDateEpochDays?.takeIf { it > 0 }
+        editError = null
+        editing = EditField.BirthDate
+    }
+    val openHeightEdit = {
+        heightInput = profile?.heightCm?.takeIf { it > 0 }?.toString().orEmpty()
+        editError = null
+        editing = EditField.Height
+    }
+
+    Scaffold(
+        topBar = { TopProfileScreenBar() },
+        bottomBar = {
+            BottomNavBar(
+                onHealthClick = onHealthClick,
+                onDeviceClick = onDeviceClick,
+                onProfileClick = onProfileClick,
+                healthTint = Color.White,
+                deviceTint = Color.White,
+                profileTint = Color(0xFFF59E0B)
+            )
+        }
+    ) { pad ->
+        val contentModifier = Modifier
+            .fillMaxSize()
+            .padding(pad)
+            .padding(16.dp)
+
+        if (profile == null) {
+            Box(contentModifier, contentAlignment = Alignment.Center) {
+                Text(stringResource(R.string.profile_no_active), style = MaterialTheme.typography.titleMedium)
+            }
+        } else {
+            val current = profile!!
+            Column(
+                contentModifier,
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                ProfileField(
+                    label = stringResource(R.string.profile_label_name),
+                    value = current.name.takeIf { it.isNotBlank() } ?: stringResource(R.string.profile_not_set),
+                    onEdit = openNameEdit
+                )
+                ProfileField(
+                    label = stringResource(R.string.profile_label_gender),
+                    value = current.gender.takeIf { it.isNotBlank() } ?: stringResource(R.string.profile_not_set),
+                    onEdit = openGenderEdit
+                )
+                ProfileField(
+                    label = stringResource(R.string.profile_label_birth_date),
+                    value = formatBirthDate(current.birthDateEpochDays),
+                    onEdit = openBirthDateEdit
+                )
+                ProfileField(
+                    label = stringResource(R.string.profile_label_height),
+                    value = formatHeight(current.heightCm),
+                    onEdit = openHeightEdit
+                )
+            }
+        }
+    }
+
+    when (editing) {
+        EditField.Name -> NameEditDialog(
+            value = nameInput,
+            onValueChange = {
+                nameInput = it
+                editError = null
+            },
+            errorText = editError,
+            onDismiss = { editing = null },
+            onSave = {
+                val err = vm.updateName(nameInput)
+                if (err == null) {
+                    editing = null
+                } else {
+                    editError = err
+                }
+            }
+        )
+
+        EditField.Gender -> GenderEditDialog(
+            options = stringArrayResource(R.array.gender_options).toList(),
+            selected = genderInput,
+            onSelect = {
+                genderInput = it
+                editError = null
+            },
+            errorText = editError,
+            onDismiss = { editing = null },
+            onSave = {
+                val err = vm.updateGender(genderInput)
+                if (err == null) {
+                    editing = null
+                } else {
+                    editError = err
+                }
+            }
+        )
+
+        EditField.BirthDate -> BirthDateEditDialog(
+            selectedEpochDays = birthDateInput,
+            errorText = editError,
+            onDismiss = { editing = null },
+            onSave = { epochDays ->
+                val err = vm.updateBirthDate(epochDays)
+                if (err == null) {
+                    editing = null
+                } else {
+                    editError = err
+                }
+            }
+        )
+
+        EditField.Height -> HeightEditDialog(
+            value = heightInput,
+            onValueChange = {
+                heightInput = it.filter(Char::isDigit).take(3)
+                editError = null
+            },
+            errorText = editError,
+            onDismiss = { editing = null },
+            onSave = {
+                val height = heightInput.toIntOrNull()
+                val err = if (height == null) {
+                    R.string.profile_error_enter_valid_height
+                } else {
+                    vm.updateHeight(height)
+                }
+                if (err == null) {
+                    editing = null
+                } else {
+                    editError = err
+                }
+            }
+        )
+
+        null -> Unit
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TopProfileScreenBar() {
+    Box {
+        TopAppBar(
+            title = {
+                Column(
+                    modifier = Modifier.fillMaxHeight(),
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = stringResource(R.string.profile_title),
+                        fontFamily = interFamily,
+                        textAlign = TextAlign.Center,
+                        fontSize = 40.sp
+                    )
+                }
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(100.dp),
+            navigationIcon = { /* no impl */ },
+            colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = Color(0xFF0F172A),
+                scrolledContainerColor = Color(0xFF0F172A),
+                navigationIconContentColor = Color.White,
+                titleContentColor = Color.White,
+                actionIconContentColor = Color.White
+            )
+        )
+    }
+}
+
+private enum class EditField {
+    Name,
+    Gender,
+    BirthDate,
+    Height
+}
+
+@Composable
+private fun ProfileField(
+    label: String,
+    value: String,
+    onEdit: () -> Unit
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = {},
+        label = { Text(label) },
+        readOnly = true,
+        singleLine = true,
+        trailingIcon = {
+            IconButton(onClick = onEdit) {
+                Icon(
+                    imageVector = Icons.Outlined.Edit,
+                    contentDescription = stringResource(R.string.profile_edit_content_description, label)
+                )
+            }
+        },
+        modifier = Modifier.fillMaxWidth()
+    )
+}
+
+@Composable
+private fun NameEditDialog(
+    value: String,
+    onValueChange: (String) -> Unit,
+    errorText: Int?,
+    onDismiss: () -> Unit,
+    onSave: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.profile_edit_name_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = value,
+                    onValueChange = onValueChange,
+                    label = { Text(stringResource(R.string.profile_label_name)) },
+                    singleLine = true,
+                    isError = errorText != null,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                if (errorText != null) {
+                    Text(stringResource(errorText), color = MaterialTheme.colorScheme.error)
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onSave,
+                enabled = value.trim().isNotEmpty()
+            ) { Text(stringResource(R.string.action_save)) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } }
+    )
+}
+
+@Composable
+private fun GenderEditDialog(
+    options: List<String>,
+    selected: String,
+    onSelect: (String) -> Unit,
+    errorText: Int?,
+    onDismiss: () -> Unit,
+    onSave: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.profile_edit_gender_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                options.forEach { option ->
+                    FilterChip(
+                        selected = selected == option,
+                        onClick = { onSelect(option) },
+                        label = { Text(option) }
+                    )
+                }
+                if (errorText != null) {
+                    Text(stringResource(errorText), color = MaterialTheme.colorScheme.error)
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onSave,
+                enabled = selected.isNotBlank()
+            ) { Text(stringResource(R.string.action_save)) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } }
+    )
+}
+
+@Composable
+private fun HeightEditDialog(
+    value: String,
+    onValueChange: (String) -> Unit,
+    errorText: Int?,
+    onDismiss: () -> Unit,
+    onSave: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.profile_edit_height_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = value,
+                    onValueChange = onValueChange,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true,
+                    suffix = { Text(stringResource(R.string.unit_cm)) },
+                    isError = errorText != null,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                if (errorText != null) {
+                    Text(stringResource(errorText), color = MaterialTheme.colorScheme.error)
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onSave,
+                enabled = value.toIntOrNull() != null
+            ) { Text(stringResource(R.string.action_save)) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun BirthDateEditDialog(
+    selectedEpochDays: Long?,
+    errorText: Int?,
+    onDismiss: () -> Unit,
+    onSave: (Long) -> Unit
+) {
+    val nowYear = remember { LocalDate.now().year }
+    val initMillis = remember(selectedEpochDays) {
+        selectedEpochDays?.let {
+            LocalDate.ofEpochDay(it)
+                .atStartOfDay(ZoneId.systemDefault())
+                .toInstant().toEpochMilli()
+        }
+    }
+    val state = rememberDatePickerState(
+        initialSelectedDateMillis = initMillis,
+        yearRange = 1900..nowYear,
+        initialDisplayMode = androidx.compose.material3.DisplayMode.Picker
+    )
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(
+                enabled = state.selectedDateMillis != null,
+                onClick = {
+                    val days = state.selectedDateMillis?.let {
+                        Instant.ofEpochMilli(it)
+                            .atZone(ZoneId.systemDefault())
+                            .toLocalDate()
+                            .toEpochDay()
+                    }
+                    if (days != null) {
+                        onSave(days)
+                    }
+                }
+            ) { Text(stringResource(R.string.action_save)) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } }
+    ) {
+        Column {
+            DatePicker(state = state, showModeToggle = false)
+            if (errorText != null) {
+                Text(
+                    text = stringResource(errorText),
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun formatHeight(heightCm: Int): String {
+    if (heightCm <= 0) return stringResource(R.string.profile_not_set)
+    val unit = stringResource(R.string.unit_cm)
+    return stringResource(R.string.profile_height_value, heightCm, unit)
+}
+
+@Composable
+private fun formatBirthDate(epochDays: Long): String {
+    if (epochDays <= 0) return stringResource(R.string.profile_not_set)
+    val date = LocalDate.ofEpochDay(epochDays)
+    val years = Period.between(date, LocalDate.now()).years
+    return stringResource(R.string.profile_birth_date_value, date.toString(), years)
 }
