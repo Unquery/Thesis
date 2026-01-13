@@ -7,6 +7,7 @@ import androidx.room.Update
 import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
 import pl.edu.pjwstk.engineeringthesis.data.db.entity.TempSampleEntity
+import pl.edu.pjwstk.engineeringthesis.model.DailyAvg
 import pl.edu.pjwstk.engineeringthesis.model.HourlyAvg
 import pl.edu.pjwstk.engineeringthesis.model.MetricSummary
 
@@ -60,7 +61,6 @@ interface TempSampleDao {
         lastEpoch: Long
     ): Flow<List<TempSampleEntity>>
 
-    // delete
     @Query("DELETE FROM temp_sample WHERE id = :id")
     suspend fun removeTempSample(id: Int)
 
@@ -70,7 +70,6 @@ interface TempSampleDao {
     @Query("DELETE FROM temp_sample")
     suspend fun removeAllTempSamples()
 
-    // dashboard: 24 bars avg/hour (epoch assumed millis)
     @Query(
         """
         SELECT 
@@ -90,7 +89,25 @@ interface TempSampleDao {
         endEpoch: Long
     ): Flow<List<HourlyAvg>>
 
-    // dashboard: latest sample in range
+    @Query(
+        """
+        SELECT
+            strftime('%Y-%m-%d', datetime(epoch / 1000, 'unixepoch', 'localtime')) AS date,
+            AVG(CAST(temperature AS REAL)) AS avg
+        FROM temp_sample
+        WHERE userId = :userId
+          AND epoch >= :startEpoch
+          AND epoch < :endEpoch
+        GROUP BY date
+        ORDER BY date
+        """
+    )
+    fun observeDailyAvg(
+        userId: Int,
+        startEpoch: Long,
+        endEpoch: Long
+    ): Flow<List<DailyAvg>>
+
     @Query("""
         SELECT * FROM temp_sample
         WHERE userId = :userId
@@ -104,7 +121,6 @@ interface TempSampleDao {
         endEpoch: Long
     ): Flow<TempSampleEntity?>
 
-    // dashboard: summary in range
     @Query("""
         SELECT 
             AVG(CAST(temperature AS REAL)) AS avg,

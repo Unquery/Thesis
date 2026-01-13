@@ -7,6 +7,7 @@ import androidx.room.Update
 import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
 import pl.edu.pjwstk.engineeringthesis.data.db.entity.SpO2SampleEntity
+import pl.edu.pjwstk.engineeringthesis.model.DailyAvg
 import pl.edu.pjwstk.engineeringthesis.model.HourlyAvg
 import pl.edu.pjwstk.engineeringthesis.model.MetricSummary
 
@@ -30,7 +31,6 @@ interface SpO2SampleDao {
     @Query("SELECT * FROM spo2_sample WHERE epoch >= :firstEpoch AND epoch < :lastEpoch")
     suspend fun getSpO2Samples(firstEpoch: Long, lastEpoch: Long): List<SpO2SampleEntity>
 
-    // --- user-scoped range (very useful for dashboard) ---
     @Transaction
     @Query("""
         SELECT * FROM spo2_sample
@@ -56,7 +56,6 @@ interface SpO2SampleDao {
         lastEpoch: Long
     ): Flow<List<SpO2SampleEntity>>
 
-    // --- delete ---
     @Query("DELETE FROM spo2_sample WHERE id = :id")
     suspend fun removeSpO2Sample(id: Int)
 
@@ -66,7 +65,6 @@ interface SpO2SampleDao {
     @Query("DELETE FROM spo2_sample")
     suspend fun removeAllSpO2Samples()
 
-    // --- 24 bars: average per hour (epoch assumed millis) ---
     @Query(
         """
         SELECT 
@@ -86,7 +84,25 @@ interface SpO2SampleDao {
         endEpoch: Long
     ): Flow<List<HourlyAvg>>
 
-    // --- latest in range ---
+    @Query(
+        """
+        SELECT
+            strftime('%Y-%m-%d', datetime(epoch / 1000, 'unixepoch', 'localtime')) AS date,
+            AVG(CAST(spo2 AS REAL)) AS avg
+        FROM spo2_sample
+        WHERE userId = :userId
+          AND epoch >= :startEpoch
+          AND epoch < :endEpoch
+        GROUP BY date
+        ORDER BY date
+        """
+    )
+    fun observeDailyAvg(
+        userId: Int,
+        startEpoch: Long,
+        endEpoch: Long
+    ): Flow<List<DailyAvg>>
+
     @Query("""
         SELECT * FROM spo2_sample
         WHERE userId = :userId
@@ -100,7 +116,6 @@ interface SpO2SampleDao {
         endEpoch: Long
     ): Flow<SpO2SampleEntity?>
 
-    // --- summary in range ---
     @Query("""
         SELECT 
             AVG(CAST(spo2 AS REAL)) AS avg,

@@ -9,14 +9,12 @@ import pl.edu.pjwstk.engineeringthesis.data.db.entity.UserProfileEntity
 
 @Dao
 interface UserProfileDao {
-    // --- Create/Update ---
     @Upsert
     suspend fun upsert(entity: UserProfileEntity)
 
     @Insert
     suspend fun insert(entity: UserProfileEntity): Long
 
-    // --- Read ---
     @Query("SELECT * FROM user_profile WHERE id = :id")
     suspend fun getById(id: Int): UserProfileEntity?
 
@@ -26,7 +24,6 @@ interface UserProfileDao {
     @Query("SELECT * FROM user_profile ORDER BY id ASC")
     suspend fun getAll(): List<UserProfileEntity>
 
-    // ---------- active profile ----------
     @Query("SELECT * FROM user_profile WHERE isActive = 1 LIMIT 1")
     suspend fun getActive(): UserProfileEntity?
 
@@ -52,7 +49,6 @@ interface UserProfileDao {
         return newId
     }
 
-    // --- Observe (optional but very useful for UI) ---
     @Query("SELECT * FROM user_profile WHERE id = :id")
     fun observeById(id: Int): kotlinx.coroutines.flow.Flow<UserProfileEntity?>
 
@@ -62,18 +58,18 @@ interface UserProfileDao {
     @Query("SELECT * FROM user_profile ORDER BY id ASC")
     fun observeAll(): kotlinx.coroutines.flow.Flow<List<UserProfileEntity>>
 
-    // --- Exists ---
     @Query("SELECT EXISTS(SELECT 1 FROM user_profile)")
     suspend fun existsAny(): Boolean
 
-    // --- Delete ---
     @Query("DELETE FROM user_profile WHERE id = :id")
     suspend fun deleteById(id: Int)
 
     @Query("DELETE FROM user_profile")
     suspend fun clearAll()
 
-    // --- Optional partial updates (handy for settings screens) ---
+    @Query("UPDATE user_profile SET name = :name WHERE id = :id")
+    suspend fun setName(id: Int, name: String)
+
     @Query("UPDATE user_profile SET gender = :gender WHERE id = :id")
     suspend fun setGender(id: Int, gender: String)
 
