@@ -116,6 +116,7 @@ class MenuViewModel @Inject constructor(
         val zone = ZoneId.of("Europe/Warsaw")
         val start = LocalDate.now(zone).atStartOfDay(zone).toInstant().toEpochMilli()
         val end = LocalDate.now(zone).plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
+        val seedEnd = minOf(end, System.currentTimeMillis())
 
         val active = profileRepo.getActive()
         val userId = active?.id ?: profileRepo.insertAndActivate(
@@ -140,7 +141,7 @@ class MenuViewModel @Inject constructor(
 
         fun hourWindow(hour: Int): Pair<Long, Long> {
             val s = start + hour * 60 * 60 * 1000L
-            val e = (s + 60 * 60 * 1000L).coerceAtMost(end)
+            val e = (s + 60 * 60 * 1000L).coerceAtMost(seedEnd)
             return s to e
         }
 
@@ -151,7 +152,7 @@ class MenuViewModel @Inject constructor(
         val step = 10 * 60 * 1000L // one value every 10 minutes
 
         var t = start
-        while (t < end) {
+        while (t < seedEnd) {
             val isHigh = (t >= highStart && t < highEnd)
             val isLow = !isHigh && (t >= lowStart && t < lowEnd)
 
