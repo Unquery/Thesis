@@ -102,7 +102,6 @@ class ConnectBandViewModel @Inject constructor(
                     try {
                         connectTo(address)
                     } catch (_: SecurityException) {
-                        // ignore, permissions already checked before scan
                     }
                 }
             }
