@@ -32,6 +32,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -56,6 +57,7 @@ import pl.edu.pjwstk.engineeringthesis.util.ChartMetric
 import pl.edu.pjwstk.engineeringthesis.ui.theme.EngineeringThesisTheme
 import pl.edu.pjwstk.engineeringthesis.viewmodel.MenuViewModel
 import java.util.Locale
+import kotlinx.coroutines.delay
 import kotlin.math.abs
 import kotlin.math.pow
 
@@ -131,7 +133,8 @@ private fun MenuBody(
     val lastSpo2 = spo2Bars.lastOrNull { it != null }
     val lastGsr = gsrBars.lastOrNull { it != null }
 
-    val headerSubtitle = formatUpdatedSubtitle(lastUpdatedEpoch)
+    val nowMillis = rememberNowMillis()
+    val headerSubtitle = formatUpdatedSubtitle(lastUpdatedEpoch, nowMillis)
 
     val tempTrend = trendTextFromBars(tempBars, stringResource(R.string.unit_celsius), 1)
     val hrTrend = trendTextFromBars(hrBars, stringResource(R.string.unit_bpm), 0)
@@ -455,6 +458,18 @@ fun MenuMetricsColumn(
 }
 
 @Composable
+private fun rememberNowMillis(tickMs: Long = 60_000L): Long {
+    var now by remember { mutableStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(tickMs) {
+        while (true) {
+            delay(tickMs)
+            now = System.currentTimeMillis()
+        }
+    }
+    return now
+}
+
+@Composable
 private fun trendTextFromBars(
     bars: List<Float?>,
     unit: String,
@@ -494,11 +509,10 @@ private fun formatNumber(value: Double, decimals: Int): String {
 }
 
 @Composable
-private fun formatUpdatedSubtitle(epochMillis: Long?): String {
+private fun formatUpdatedSubtitle(epochMillis: Long?, nowMillis: Long): String {
     if (epochMillis == null) return stringResource(R.string.menu_no_data_yet)
 
-    val now = System.currentTimeMillis()
-    val diff = (now - epochMillis).coerceAtLeast(0L)
+    val diff = (nowMillis - epochMillis).coerceAtLeast(0L)
     return when {
         diff < 60_000L -> stringResource(R.string.menu_updated_just_now)
         diff < 3_600_000L -> stringResource(R.string.menu_updated_minutes_ago, diff / 60_000L)
