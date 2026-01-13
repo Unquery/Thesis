@@ -18,6 +18,7 @@ lottieCompose = "6.4.0"
 navigationCompose = "2.9.6"
 room_version = "2.8.4"
 uiTextGoogleFonts = "<latest>"
+ycharts = "2.1.0"
 
 [libraries]
 #noinspection SimilarGradleDependency
@@ -56,6 +57,7 @@ androidx-material3 = { group = "androidx.compose.material3", name = "material3" 
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerializationJson" }
 lottie-compose = { module = "com.airbnb.android:lottie-compose", version.ref = "lottieCompose" }
 material3 = { module = "androidx.compose.material3:material3" }
+ycharts = { module = "co.yml:ycharts", version.ref = "ycharts" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

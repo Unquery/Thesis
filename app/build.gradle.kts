@@ -110,5 +110,8 @@ dependencies {
     //Extended icons
     implementation(libs.androidx.material.icons.extended)
 
+    //YCharts
+    implementation (libs.ycharts)
+
 
 }
