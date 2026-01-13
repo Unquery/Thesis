@@ -32,8 +32,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -73,8 +75,11 @@ import pl.edu.pjwstk.engineeringthesis.viewmodel.ScanUiState
 
 @Composable
 fun ConnectBandScreen(
-    vmBluetoothPermission : BluetoothPermissionViewModel = hiltViewModel(),
-    vmConnectBand : ConnectBandViewModel = hiltViewModel()
+    onHealthClick: () -> Unit = {},
+    onDeviceClick: () -> Unit = {},
+    onProfileClick: () -> Unit = {},
+    vmBluetoothPermission: BluetoothPermissionViewModel = hiltViewModel(),
+    vmConnectBand: ConnectBandViewModel = hiltViewModel()
 ) {
 
     val state by vmBluetoothPermission.state.collectAsStateWithLifecycle()
@@ -112,16 +117,18 @@ fun ConnectBandScreen(
     Box(Modifier.fillMaxSize()) {
 
         Scaffold(
-            containerColor = Color.Black,
+            containerColor = MaterialTheme.colorScheme.background,
             topBar = {
                 TopConnectScreenBar()
             },
             bottomBar = {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(70.dp)
-                        .background(Color.DarkGray)
+                BottomNavBar(
+                    onHealthClick = onHealthClick,
+                    onDeviceClick = onDeviceClick,
+                    onProfileClick = onProfileClick,
+                    healthTint = Color.White,
+                    deviceTint = Color(0xFF0284C7),
+                    profileTint = Color.White
                 )
             }
 
@@ -130,7 +137,7 @@ fun ConnectBandScreen(
                 Modifier
                     .padding(inner)
                     .fillMaxSize()
-                    .background(Color.Black)
+                    .background(MaterialTheme.colorScheme.background)
             ){
                 ScanStatusPanel(
                     modifier = Modifier.fillMaxSize(),
@@ -167,8 +174,8 @@ private fun TopConnectScreenBar(){
                 .height(100.dp),
             navigationIcon = { /* no impl */ },
             colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = Color.Black,
-                scrolledContainerColor = Color.Black,
+                containerColor = Color(0xFF0F172A),
+                scrolledContainerColor = Color(0xFF0F172A),
                 navigationIconContentColor = Color.White,
                 titleContentColor = Color.White,
                 actionIconContentColor = Color.White
@@ -187,7 +194,7 @@ private fun ScanStatusPanel(
     onRepeat: () -> Unit
 ) {
     Column(
-        modifier.fillMaxSize().background(Color(0xFF2E2E2E)).padding(16.dp)
+        modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).padding(16.dp)
     ) {
         Row(
             Modifier.fillMaxWidth(),
@@ -196,10 +203,10 @@ private fun ScanStatusPanel(
         ) {
             Text(
                 text = when (state) {
-                    ScanUiState.Scanning  -> "Scanning…"
-                    ScanUiState.Connected -> "Connected"
-                    ScanUiState.Empty     -> "Found ${bands.size} bands"
-                    ScanUiState.Idle      -> "Idle"
+                    ScanUiState.Scanning  -> stringResource(R.string.scan_state_scanning)
+                    ScanUiState.Connected -> stringResource(R.string.scan_state_connected)
+                    ScanUiState.Empty     -> stringResource(R.string.scan_state_found_bands, bands.size)
+                    ScanUiState.Idle      -> stringResource(R.string.scan_state_idle)
                 },
                 color = Color.White,
                 fontFamily = interFamily,
@@ -208,7 +215,13 @@ private fun ScanStatusPanel(
             )
 
             if (state != ScanUiState.Scanning) {
-                Button(onClick = onRepeat) { Text("Repeat scanning") }
+                Button(
+                    onClick = onRepeat,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF111827),
+                        contentColor = Color.White
+                    )
+                ) { Text(stringResource(R.string.scan_repeat)) }
             }
         }
 
@@ -233,7 +246,7 @@ private fun ScanStatusPanel(
         } else if (state == ScanUiState.Empty) {
             Spacer(Modifier.height(16.dp))
             Text(
-                text = "Try moving closer or tapping repeat.",
+                text = stringResource(R.string.scan_try_move_closer),
                 color = Color.White, fontFamily = interFamily
             )
             Spacer(Modifier.height(8.dp))
@@ -279,7 +292,7 @@ private fun BandRow(band: Band, onClick: () -> Unit) {
         ) {
             Column(Modifier.weight(1f)) {
                 Text(
-                    text = band.name ?: "Unknown",
+                    text = band.name ?: stringResource(R.string.band_unknown),
                     color = Color.White,
                     fontFamily = interFamily,
                     fontWeight = FontWeight.SemiBold
@@ -291,7 +304,11 @@ private fun BandRow(band: Band, onClick: () -> Unit) {
                     fontSize = 12.sp
                 )
             }
-            Text(text = "${band.rssi} dBm", color = Color.White, fontFamily = interFamily)
+            Text(
+                text = stringResource(R.string.band_rssi_format, band.rssi),
+                color = Color.White,
+                fontFamily = interFamily
+            )
             Spacer(modifier = Modifier.width(spacerWidth))
         }
 
@@ -315,7 +332,7 @@ private fun BandRow(band: Band, onClick: () -> Unit) {
             ) {
                 Icon(
                     imageVector = Icons.Default.Add,
-                    contentDescription = "Connect",
+                    contentDescription = stringResource(R.string.band_connect),
                     tint = Color.Black
                 )
             }
