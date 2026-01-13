@@ -31,6 +31,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -70,6 +71,7 @@ import pl.edu.pjwstk.engineeringthesis.font.interFamily
 import pl.edu.pjwstk.engineeringthesis.ui.theme.EngineeringThesisTheme
 import pl.edu.pjwstk.engineeringthesis.viewmodel.Band
 import pl.edu.pjwstk.engineeringthesis.viewmodel.BluetoothPermissionViewModel
+import pl.edu.pjwstk.engineeringthesis.viewmodel.ConnectedDevice
 import pl.edu.pjwstk.engineeringthesis.viewmodel.ConnectBandViewModel
 import pl.edu.pjwstk.engineeringthesis.viewmodel.ScanUiState
 
@@ -86,6 +88,7 @@ fun ConnectBandScreen(
 
     val scanState by vmConnectBand.scanState.collectAsStateWithLifecycle()
     val bands by vmConnectBand.bands.collectAsStateWithLifecycle()
+    val connectedDevice by vmConnectBand.connectedDevice.collectAsStateWithLifecycle()
 
     val launcher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -139,13 +142,22 @@ fun ConnectBandScreen(
                     .fillMaxSize()
                     .background(MaterialTheme.colorScheme.background)
             ){
-                ScanStatusPanel(
-                    modifier = Modifier.fillMaxSize(),
-                    state = scanState,
-                    bands = bands,
-                    onBandClick = { vmConnectBand.connectTo(it.address) },
-                    onRepeat = { vmConnectBand.repeatScan() }
-                )
+                Column(
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    ScanStatusPanel(
+                        modifier = Modifier.weight(1f),
+                        state = scanState,
+                        bands = bands,
+                        onBandClick = { vmConnectBand.connectTo(it.address) },
+                        onRepeat = { vmConnectBand.repeatScan() }
+                    )
+                    ConnectedDevicePanel(
+                        modifier = Modifier.weight(1f),
+                        device = connectedDevice,
+                        onDisconnect = { vmConnectBand.requestDisconnect() }
+                    )
+                }
             }
         }
     }
@@ -255,6 +267,106 @@ private fun ScanStatusPanel(
 }
 
 @Composable
+private fun ConnectedDevicePanel(
+    modifier: Modifier = Modifier,
+    device: ConnectedDevice?,
+    onDisconnect: () -> Unit
+) {
+    Column(
+        modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).padding(16.dp)
+    ) {
+        Text(
+            text = stringResource(R.string.connected_device_title),
+            color = Color.White,
+            fontFamily = interFamily,
+            fontWeight = FontWeight.Medium,
+            fontSize = 20.sp
+        )
+        Spacer(Modifier.height(12.dp))
+        if (device == null) {
+            Text(
+                text = stringResource(R.string.connected_device_none),
+                color = Color.White,
+                fontFamily = interFamily
+            )
+        } else {
+            ConnectedDeviceRow(device = device, onDisconnect = onDisconnect)
+        }
+    }
+}
+
+@Composable
+private fun ConnectedDeviceRow(
+    device: ConnectedDevice,
+    onDisconnect: () -> Unit
+) {
+    var rowHeight by remember { mutableIntStateOf(0) }
+    val statusText = when {
+        device.disconnectPending -> stringResource(R.string.band_status_disconnect_pending)
+        device.isConnected -> stringResource(R.string.band_status_connected)
+        else -> stringResource(R.string.band_status_sleeping)
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+    ) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .background(Color(0xFF3A3A3A))
+                .onSizeChanged { size -> rowHeight = size.height }
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = device.name ?: stringResource(R.string.band_unknown),
+                    color = Color.White,
+                    fontFamily = interFamily,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = device.address,
+                    color = Color.LightGray,
+                    fontFamily = interFamily,
+                    fontSize = 12.sp
+                )
+                Text(
+                    text = statusText,
+                    color = Color.LightGray,
+                    fontFamily = interFamily,
+                    fontSize = 12.sp
+                )
+            }
+            Spacer(modifier = Modifier.width(68.dp))
+        }
+
+        Box(
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .height(with(LocalDensity.current) { rowHeight.toDp() })
+                .width(56.dp)
+                .background(Color(0xFFEF4444), RoundedCornerShape(10.dp))
+                .clickable(
+                    indication = null,
+                    interactionSource = remember { MutableInteractionSource() }
+                ) {
+                    if (!device.disconnectPending) onDisconnect()
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Close,
+                contentDescription = stringResource(R.string.band_disconnect),
+                tint = Color.White
+            )
+        }
+    }
+}
+
+@Composable
 private fun BandRow(band: Band, onClick: () -> Unit) {
     var showAction by remember { mutableStateOf(false) }
     var rowHeight by remember { mutableIntStateOf(0) }
@@ -327,7 +439,10 @@ private fun BandRow(band: Band, onClick: () -> Unit) {
                     .clickable(
                         indication = null,
                         interactionSource = remember { MutableInteractionSource() }
-                    ) { onClick() },
+                    ) {
+                        showAction = false
+                        onClick()
+                    },
                 contentAlignment = Alignment.Center
             ) {
                 Icon(

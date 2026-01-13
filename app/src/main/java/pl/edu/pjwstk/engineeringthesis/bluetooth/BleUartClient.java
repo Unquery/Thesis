@@ -357,7 +357,7 @@ public class BleUartClient {
     }
 
     @SuppressLint("MissingPermission")
-    private void disconnect() {
+    public void disconnect() {
         try { if (gatt != null && hasConnectPermission()) gatt.disconnect(); } catch (Exception ignored) {}
         try { if (gatt != null) gatt.close(); } catch (Exception ignored) {}
         gatt = null; txChar = null;  rxChar = null; connected = false;

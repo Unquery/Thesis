@@ -46,6 +46,16 @@ data class Band(
     val rssi: Int = Int.MIN_VALUE
 )
 
+
+data class ConnectedDevice(
+    val address: String,
+    val name: String? = null,
+    val lastConnectedAt: Long,
+    val isConnected: Boolean,
+    val disconnectPending: Boolean,
+    val disconnectRequestedAt: Long? = null
+)
+
 @HiltViewModel
 class ConnectBandViewModel @Inject constructor(
     @ApplicationContext private val ctx: Context,
@@ -63,12 +73,24 @@ class ConnectBandViewModel @Inject constructor(
     val bands: StateFlow<List<Band>> = _bands
 
     private var scanJob: Job? = null
+    private var reconnectJob: Job? = null
     @Volatile private var gotConnection = false
 
     private val prefs by lazy {
         ctx.getSharedPreferences("ble_band_prefs", Context.MODE_PRIVATE)
     }
     private val KEY_LAST_BAND_ADDR = "last_band_address"
+    private val KEY_CONNECTED_ADDR = "connected_band_address"
+    private val KEY_CONNECTED_NAME = "connected_band_name"
+    private val KEY_CONNECTED_LAST_CONNECTED = "connected_band_last_connected"
+    private val KEY_CONNECTED_DISCONNECT_PENDING = "connected_band_disconnect_pending"
+    private val KEY_CONNECTED_DISCONNECT_REQUESTED = "connected_band_disconnect_requested_at"
+
+    private val disconnectTimeoutMs = 3 * 60 * 1000L
+
+    private val _connectedDevice = MutableStateFlow(loadConnectedDevice())
+    val connectedDevice: StateFlow<ConnectedDevice?> = _connectedDevice
+
 
     private var preferredAddress: String? =
         prefs.getString(KEY_LAST_BAND_ADDR, null)
@@ -76,6 +98,120 @@ class ConnectBandViewModel @Inject constructor(
     private fun savePreferredAddress(addr: String) {
         preferredAddress = addr
         prefs.edit() { putString(KEY_LAST_BAND_ADDR, addr) }
+    }
+
+    private fun clearPreferredAddress() {
+        preferredAddress = null
+        prefs.edit() { remove(KEY_LAST_BAND_ADDR) }
+    }
+
+    private fun loadConnectedDevice(): ConnectedDevice? {
+        val addr = prefs.getString(KEY_CONNECTED_ADDR, null) ?: return null
+        val name = prefs.getString(KEY_CONNECTED_NAME, null)
+        val lastConnected = prefs.getLong(KEY_CONNECTED_LAST_CONNECTED, System.currentTimeMillis())
+        val pending = prefs.getBoolean(KEY_CONNECTED_DISCONNECT_PENDING, false)
+        val requestedAt = prefs.getLong(KEY_CONNECTED_DISCONNECT_REQUESTED, 0L)
+        val resolvedRequestedAt = when {
+            requestedAt > 0L -> requestedAt
+            pending -> System.currentTimeMillis()
+            else -> 0L
+        }
+        return ConnectedDevice(
+            address = addr,
+            name = name,
+            lastConnectedAt = lastConnected,
+            isConnected = false,
+            disconnectPending = pending,
+            disconnectRequestedAt = resolvedRequestedAt.takeIf { it > 0L }
+        )
+    }
+
+    private fun persistConnectedDevice(device: ConnectedDevice?) {
+        prefs.edit {
+            if (device == null) {
+                remove(KEY_CONNECTED_ADDR)
+                remove(KEY_CONNECTED_NAME)
+                remove(KEY_CONNECTED_LAST_CONNECTED)
+                remove(KEY_CONNECTED_DISCONNECT_PENDING)
+                remove(KEY_CONNECTED_DISCONNECT_REQUESTED)
+            } else {
+                putString(KEY_CONNECTED_ADDR, device.address)
+                putString(KEY_CONNECTED_NAME, device.name)
+                putLong(KEY_CONNECTED_LAST_CONNECTED, device.lastConnectedAt)
+                putBoolean(KEY_CONNECTED_DISCONNECT_PENDING, device.disconnectPending)
+                putLong(KEY_CONNECTED_DISCONNECT_REQUESTED, device.disconnectRequestedAt ?: 0L)
+            }
+        }
+    }
+
+    private fun setConnectedDevice(device: ConnectedDevice?) {
+        _connectedDevice.value = device
+        persistConnectedDevice(device)
+    }
+
+    private fun updateConnectedDevice(transform: (ConnectedDevice) -> ConnectedDevice) {
+        val current = _connectedDevice.value ?: return
+        setConnectedDevice(transform(current))
+    }
+
+    private fun resolveBandName(address: String): String? {
+        val fromList = _bands.value.firstOrNull { it.address == address }?.name
+        return fromList ?: _connectedDevice.value?.name
+    }
+
+    private fun markConnected(address: String, name: String? = null) {
+        val now = System.currentTimeMillis()
+        val existing = _connectedDevice.value
+        val keepPending = existing?.address == address && existing.disconnectPending
+        val resolvedName = name ?: resolveBandName(address)
+        setConnectedDevice(
+            ConnectedDevice(
+                address = address,
+                name = resolvedName,
+                lastConnectedAt = now,
+                isConnected = true,
+                disconnectPending = keepPending,
+                disconnectRequestedAt = if (keepPending) existing?.disconnectRequestedAt else null
+            )
+        )
+    }
+
+    private fun clearConnectedDevice(clearPreferred: Boolean) {
+        setConnectedDevice(null)
+        if (clearPreferred) {
+            clearPreferredAddress()
+        }
+    }
+
+    private fun startDisconnectCleanup() {
+        viewModelScope.launch {
+            while (isActive) {
+                delay(5_000)
+                val device = _connectedDevice.value ?: continue
+                if (!device.disconnectPending || device.isConnected) continue
+                val requestedAt = device.disconnectRequestedAt ?: continue
+                if (System.currentTimeMillis() - requestedAt >= disconnectTimeoutMs) {
+                    clearConnectedDevice(clearPreferred = true)
+                }
+            }
+        }
+    }
+
+    private fun startReconnectSequence(
+        attempts: Int = 3,
+        timeoutMs: Long = 8_000L,
+        pauseMs: Long = 1_000L
+    ) {
+        reconnectJob?.cancel()
+        reconnectJob = viewModelScope.launch {
+            repeat(attempts) {
+                val device = _connectedDevice.value
+                if (preferredAddress == null && device == null) return@launch
+                if (device != null && device.isConnected) return@launch
+                startScanWithTimeout(timeoutMs)
+                delay(timeoutMs + pauseMs)
+            }
+        }
     }
 
     private val client = BleUartClient(
@@ -97,6 +233,12 @@ class ConnectBandViewModel @Inject constructor(
                 if (idx >= 0) updated[idx] = updated[idx].copy(name = name, rssi = rssi)
                 else updated += Band(address, name, rssi)
                 _bands.value = updated.sortedByDescending { it.rssi }
+                val connected = _connectedDevice.value
+                if (connected != null && connected.address == address && !name.isNullOrEmpty()) {
+                    if (connected.name != name) {
+                        updateConnectedDevice { it.copy(name = name) }
+                    }
+                }
                 val preferred = preferredAddress
                 if (!gotConnection && preferred != null && preferred == address) {
                     try {
@@ -110,13 +252,21 @@ class ConnectBandViewModel @Inject constructor(
                 gotConnection = true
                 _scanState.value = ScanUiState.Connected
                 savePreferredAddress(address)
+                val existing = _connectedDevice.value
+                if (existing != null && existing.address == address && existing.disconnectPending) {
+                    disconnectCurrent()
+                    clearConnectedDevice(clearPreferred = true)
+                    return
+                }
+                markConnected(address)
             }
             override fun onDisconnected() {
+                updateConnectedDevice { it.copy(isConnected = false) }
                 _scanState.value = ScanUiState.Idle
                 if (preferredAddress != null) {
                     viewModelScope.launch {
                         delay(1000)
-                        startScanWithTimeout(20_000L)
+                        startReconnectSequence(attempts = 3, timeoutMs = 20_000L, pauseMs = 2_000L)
                     }
                 }
             }
@@ -153,6 +303,10 @@ class ConnectBandViewModel @Inject constructor(
         })
     }
 
+    init {
+        startDisconnectCleanup()
+    }
+
     fun startAfterPermissionsGranted(timeoutMs: Long = 8000L) {
         val needed: List<String> =
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -168,7 +322,11 @@ class ConnectBandViewModel @Inject constructor(
         }
         if (missing.isNotEmpty()) return
 
-        startScanWithTimeout(timeoutMs)
+        if (preferredAddress != null || _connectedDevice.value != null) {
+            startReconnectSequence(timeoutMs = timeoutMs)
+        } else {
+            startScanWithTimeout(timeoutMs)
+        }
     }
 
     fun startScanWithTimeout(timeoutMs: Long = 20000L) {
@@ -200,6 +358,19 @@ class ConnectBandViewModel @Inject constructor(
         _scanState.value = ScanUiState.Idle
     }
 
+    fun requestDisconnect() {
+        val device = _connectedDevice.value ?: return
+        if (device.disconnectPending) return
+        if (device.isConnected) {
+            disconnectCurrent()
+            clearConnectedDevice(clearPreferred = true)
+            return
+        }
+        val now = System.currentTimeMillis()
+        setConnectedDevice(device.copy(disconnectPending = true, disconnectRequestedAt = now))
+        startReconnectSequence(attempts = 3, timeoutMs = 20_000L, pauseMs = 2_000L)
+    }
+
     override fun onCleared() {
         super.onCleared()
         stop()
@@ -209,6 +380,13 @@ class ConnectBandViewModel @Inject constructor(
         try {
             client.connect(address)
         } catch (_ : SecurityException){
+        }
+    }
+
+    private fun disconnectCurrent() {
+        try {
+            client.disconnect()
+        } catch (_: SecurityException) {
         }
     }
 }
