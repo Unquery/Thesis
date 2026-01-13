@@ -9,4 +9,111 @@
     <string name="bottom_nav_health">Health</string>
     <string name="bottom_nav_device">Device</string>
     <string name="bottom_nav_profile">Profile</string>
+
+    <string name="action_ok">OK</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_save">Save</string>
+    <string name="action_next">Next</string>
+
+    <string name="splash_title_smart_band">Smart Band</string>
+
+    <string name="profile_setup_title">Profile setup</string>
+    <string name="profile_question_name">What is your name?</string>
+    <string name="profile_question_gender">What is your gender?</string>
+    <string name="profile_question_birth_date">Your date of birth</string>
+    <string name="profile_question_height">Your height (%1$s)</string>
+    <string name="profile_pick_date">Pick date</string>
+    <string name="profile_label_name">Name</string>
+    <string name="profile_label_gender">Gender</string>
+    <string name="profile_label_birth_date">Birth date</string>
+    <string name="profile_label_height">Height</string>
+    <string name="profile_title">Profile</string>
+    <string name="profile_no_active">No active profile.</string>
+    <string name="profile_not_set">Not set</string>
+    <string name="profile_edit_content_description">Edit %1$s</string>
+    <string name="profile_edit_name_title">Edit name</string>
+    <string name="profile_edit_gender_title">Edit gender</string>
+    <string name="profile_edit_height_title">Edit height</string>
+    <string name="profile_error_enter_valid_height">Enter a valid height</string>
+    <string name="profile_height_value">%1$d %2$s</string>
+    <string name="profile_birth_date_value">%1$s (%2$d y)</string>
+
+    <string name="gender_male">Male</string>
+    <string name="gender_female">Female</string>
+    <string name="gender_other">Other</string>
+    <string name="gender_prefer_not">Prefer not to say</string>
+    <string-array name="gender_options">
+        <item>@string/gender_male</item>
+        <item>@string/gender_female</item>
+        <item>@string/gender_other</item>
+        <item>@string/gender_prefer_not</item>
+    </string-array>
+
+    <string name="error_name_empty">Name cannot be empty</string>
+    <string name="error_name_too_long">Name is too long</string>
+    <string name="error_no_active_profile">No active profile</string>
+    <string name="error_gender_empty">Gender cannot be empty</string>
+    <string name="error_height_range">Height must be between 100 and 250 cm</string>
+    <string name="error_birth_date_future">Birth date cannot be in the future</string>
+    <string name="error_age_range">Age must be between 5 and 120</string>
+
+    <string name="menu_last_measurements">Last measurements</string>
+    <string name="menu_updated_just_now">Updated just now</string>
+    <string name="menu_updated_minutes_ago">Updated %1$d min ago</string>
+    <string name="menu_updated_hours_ago">Updated %1$d h ago</string>
+    <string name="menu_updated_days_ago">Updated %1$d d ago</string>
+    <string name="menu_no_data_yet">No data yet</string>
+    <string name="trend_stable">- stable</string>
+    <string name="trend_change_format">%1$s%2$s %3$s</string>
+    <string name="metric_body_temperature">Body temperature</string>
+    <string name="metric_heart_rate">Heart rate</string>
+    <string name="metric_blood_oxygen">Blood oxygen</string>
+    <string name="metric_skin_conductance">Skin conductance</string>
+    <string name="unit_celsius">C</string>
+    <string name="unit_bpm">bpm</string>
+    <string name="unit_us">uS</string>
+    <string name="unit_cm">cm</string>
+    <string name="unit_temperature_label">temperature</string>
+    <string name="unit_rate_label">rate</string>
+    <string name="unit_oxygen_label">oxygen</string>
+    <string name="unit_conductance_label">conductance</string>
+    <string name="menu_detail_info">See detailed information about %1$s</string>
+    <string name="value_placeholder">--</string>
+
+    <string name="scan_state_scanning">Scanning...</string>
+    <string name="scan_state_connected">Connected</string>
+    <string name="scan_state_found_bands">Found %1$d bands</string>
+    <string name="scan_state_idle">Idle</string>
+    <string name="scan_repeat">Repeat scanning</string>
+    <string name="scan_try_move_closer">Try moving closer or tapping repeat.</string>
+    <string name="band_unknown">Unknown</string>
+    <string name="band_rssi_format">%1$d dBm</string>
+    <string name="band_connect">Connect</string>
+
+    <string name="charts_back">Back</string>
+    <string name="charts_today">Today</string>
+    <string name="charts_range_day">Day</string>
+    <string name="charts_range_week">Week</string>
+    <string name="charts_range_month">Month</string>
+    <string name="charts_choose_day">Choose day</string>
+    <string name="charts_no_data_today">No data for today.</string>
+    <string name="charts_no_data_day">No data for this day.</string>
+    <string name="charts_no_data_week">No data for this week.</string>
+    <string name="charts_no_data_month">No data for this month.</string>
+    <string name="charts_last_7_days">Last 7 days</string>
+    <string name="charts_avg_format">Avg %1$s %2$s</string>
+    <string name="charts_min_max_format">Min %1$s  Max %2$s</string>
+    <string name="charts_selection_day_format">%1$s  %2$s %3$s</string>
+    <string name="charts_selection_range_format">%1$s  %2$s %3$s</string>
+    <string name="charts_selection_value_only_format">%1$s %2$s</string>
+    <string name="charts_value_no_data">No data</string>
+
+    <string name="time_00_00">00:00</string>
+    <string name="time_01_00">01:00</string>
+    <string name="time_06_00">06:00</string>
+    <string name="time_12_00">12:00</string>
+    <string name="time_18_00">18:00</string>
+    <string name="time_24_00">24:00</string>
+
+    <string name="unit_percent">%%</string>
 </resources>
