@@ -117,7 +117,6 @@ class MenuViewModel @Inject constructor(
         val start = LocalDate.now(zone).atStartOfDay(zone).toInstant().toEpochMilli()
         val end = LocalDate.now(zone).plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
 
-        // 1) Get active user or create+activate one
         val active = profileRepo.getActive()
         val userId = active?.id ?: profileRepo.insertAndActivate(
             UserProfile(
@@ -136,9 +135,8 @@ class MenuViewModel @Inject constructor(
 
         if (hasGsrToday && hasHrToday && hasSpo2Today && hasTempToday) return@launch
 
-        // ---- Spike windows (1 hour each) ----
-        val highHour = 14 // 14:00–15:00
-        val lowHour = 4   // 04:00–05:00  (change as you want)
+        val highHour = 14
+        val lowHour = 4
 
         fun hourWindow(hour: Int): Pair<Long, Long> {
             val s = start + hour * 60 * 60 * 1000L
@@ -155,40 +153,40 @@ class MenuViewModel @Inject constructor(
         var t = start
         while (t < end) {
             val isHigh = (t >= highStart && t < highEnd)
-            val isLow = !isHigh && (t >= lowStart && t < lowEnd) // high wins if overlap
+            val isLow = !isHigh && (t >= lowStart && t < lowEnd)
 
             if (!hasGsrToday) {
                 val gsrValue = when {
-                    isHigh -> 1100 + rnd.nextInt(700)  // 1100..1799
-                    isLow  -> 20 + rnd.nextInt(60)     // 20..79 (very low)
-                    else   -> 200 + rnd.nextInt(350)   // 200..549
+                    isHigh -> 1100 + rnd.nextInt(700)
+                    isLow  -> 20 + rnd.nextInt(60)
+                    else   -> 200 + rnd.nextInt(350)
                 }
                 gsrRepo.upsert(GsrSample(id = 0, userId = userId, epoch = t, gsr = gsrValue))
             }
 
             if (!hasHrToday) {
                 val hrValue = when {
-                    isHigh -> 125f + rnd.nextInt(35)   // 125..159
-                    isLow  -> 42f + rnd.nextInt(10)    // 42..51 (very low)
-                    else   -> 55f + rnd.nextInt(35)    // 55..89
+                    isHigh -> 125f + rnd.nextInt(35)
+                    isLow  -> 42f + rnd.nextInt(10)
+                    else   -> 55f + rnd.nextInt(35)
                 }
                 hrRepo.upsert(HearthRateSample(id = 0, userId = userId, epoch = t, hearthRate = hrValue))
             }
 
             if (!hasSpo2Today) {
                 val spo2Value = when {
-                    isHigh -> 98 + rnd.nextInt(3)      // 98..100
-                    isLow  -> 86 + rnd.nextInt(5)      // 86..90 (very low)
-                    else   -> 92 + rnd.nextInt(6)      // 92..97
+                    isHigh -> 98 + rnd.nextInt(3)
+                    isLow  -> 86 + rnd.nextInt(5)
+                    else   -> 92 + rnd.nextInt(6)
                 }
                 spo2Repo.upsert(SpO2Sample(id = 0, userId = userId, epoch = t, spo2 = spo2Value))
             }
 
             if (!hasTempToday) {
                 val tempValue = when {
-                    isHigh -> 38.2f + (rnd.nextInt(11) / 10f) // 38.2..39.2
-                    isLow  -> 35.2f + (rnd.nextInt(6) / 10f)  // 35.2..35.7 (very low)
-                    else   -> 36.2f + (rnd.nextInt(8) / 10f)  // 36.2..36.9
+                    isHigh -> 38.2f + (rnd.nextInt(11) / 10f)
+                    isLow  -> 35.2f + (rnd.nextInt(6) / 10f)
+                    else   -> 36.2f + (rnd.nextInt(8) / 10f)
                 }
                 tempRepo.upsert(TempSample(id = 0, userId = userId, epoch = t, temperature = tempValue))
             }
