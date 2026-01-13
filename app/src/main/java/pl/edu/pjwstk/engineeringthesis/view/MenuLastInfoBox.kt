@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -37,6 +38,7 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.shape.RoundedCornerShape
+import pl.edu.pjwstk.engineeringthesis.R
 import pl.edu.pjwstk.engineeringthesis.font.interFamily
 import pl.edu.pjwstk.engineeringthesis.ui.theme.EngineeringThesisTheme
 import kotlin.math.abs
@@ -59,8 +61,8 @@ data class MeasurementCircleItem(
 fun LastMeasurementsCirclesBox(
     items: List<MeasurementCircleItem>,
     modifier: Modifier = Modifier,
-    headerTitle: String = "Last measurements",
-    headerSubtitle: String = "Updated 2 min ago",
+    headerTitle: String,
+    headerSubtitle: String,
     columns: Int = 2,
     circleSize: Dp = 110.dp,
     circleStroke: Dp = 4.dp,
@@ -230,8 +232,9 @@ private fun dynamicRangeColor(
     }
 }
 
+@Composable
 private fun formatValue(v: Double?, decimals: Int): String {
-    if (v == null) return "--"
+    if (v == null) return stringResource(R.string.value_placeholder)
 
     val d = decimals.coerceIn(0, 4)
     return "%.${d}f".format(v)
@@ -243,12 +246,14 @@ private fun LastMeasurementsCirclesBoxPreview() {
     EngineeringThesisTheme {
         LastMeasurementsCirclesBox(
             modifier = Modifier.padding(16.dp),
+            headerTitle = stringResource(R.string.menu_last_measurements),
+            headerSubtitle = stringResource(R.string.menu_updated_minutes_ago, 2),
             items = listOf(
                 MeasurementCircleItem(
-                    title = "Body temperature",
+                    title = stringResource(R.string.metric_body_temperature),
                     value = 36.7,
-                    unit = "C",
-                    trendText = "- stable",
+                    unit = stringResource(R.string.unit_celsius),
+                    trendText = stringResource(R.string.trend_stable),
                     icon = Icons.Filled.DeviceThermostat,
                     baseColor = Color(0xFFF59E0B),
                     normalMin = 36.1,
@@ -258,10 +263,15 @@ private fun LastMeasurementsCirclesBoxPreview() {
                     decimals = 1
                 ),
                 MeasurementCircleItem(
-                    title = "Heart rate",
+                    title = stringResource(R.string.metric_heart_rate),
                     value = 72.0,
-                    unit = "bpm",
-                    trendText = "▲ +3 bpm",
+                    unit = stringResource(R.string.unit_bpm),
+                    trendText = stringResource(
+                        R.string.trend_change_format,
+                        "+",
+                        "3",
+                        stringResource(R.string.unit_bpm)
+                    ),
                     icon = Icons.Filled.MonitorHeart,
                     baseColor = Color(0xFFE53935),
                     normalMin = 60.0,
@@ -271,10 +281,10 @@ private fun LastMeasurementsCirclesBoxPreview() {
                     decimals = 0
                 ),
                 MeasurementCircleItem(
-                    title = "Blood oxygen",
+                    title = stringResource(R.string.metric_blood_oxygen),
                     value = 98.0,
-                    unit = "%",
-                    trendText = "- stable",
+                    unit = stringResource(R.string.unit_percent),
+                    trendText = stringResource(R.string.trend_stable),
                     icon = Icons.Filled.Bloodtype,
                     baseColor = Color(0xFF0284C7),
                     normalMin = 95.0,
@@ -284,10 +294,15 @@ private fun LastMeasurementsCirclesBoxPreview() {
                     decimals = 0
                 ),
                 MeasurementCircleItem(
-                    title = "Skin conductance",
+                    title = stringResource(R.string.metric_skin_conductance),
                     value = 512.0,
-                    unit = "uS",
-                    trendText = "▼ -12 uS",
+                    unit = stringResource(R.string.unit_us),
+                    trendText = stringResource(
+                        R.string.trend_change_format,
+                        "-",
+                        "12",
+                        stringResource(R.string.unit_us)
+                    ),
                     icon = Icons.Filled.SsidChart,
                     baseColor = Color(0xFF6366F1),
                     normalMin = 200.0,
@@ -307,12 +322,19 @@ private fun LastMeasurementsCirclesBoxLowValuesPreview() {
     EngineeringThesisTheme {
         LastMeasurementsCirclesBox(
             modifier = Modifier.padding(16.dp),
+            headerTitle = stringResource(R.string.menu_last_measurements),
+            headerSubtitle = stringResource(R.string.menu_updated_minutes_ago, 2),
             items = listOf(
                 MeasurementCircleItem(
-                    title = "Body temperature",
+                    title = stringResource(R.string.metric_body_temperature),
                     value = 35.0,
-                    unit = "C",
-                    trendText = "▼ -0.5 C",
+                    unit = stringResource(R.string.unit_celsius),
+                    trendText = stringResource(
+                        R.string.trend_change_format,
+                        "-",
+                        "0.5",
+                        stringResource(R.string.unit_celsius)
+                    ),
                     icon = Icons.Filled.DeviceThermostat,
                     baseColor = Color(0xFFF59E0B),
                     normalMin = 36.1,
@@ -322,10 +344,15 @@ private fun LastMeasurementsCirclesBoxLowValuesPreview() {
                     decimals = 1
                 ),
                 MeasurementCircleItem(
-                    title = "Heart rate",
+                    title = stringResource(R.string.metric_heart_rate),
                     value = 45.0,
-                    unit = "bpm",
-                    trendText = "▼ -15 bpm",
+                    unit = stringResource(R.string.unit_bpm),
+                    trendText = stringResource(
+                        R.string.trend_change_format,
+                        "-",
+                        "15",
+                        stringResource(R.string.unit_bpm)
+                    ),
                     icon = Icons.Filled.MonitorHeart,
                     baseColor = Color(0xFFE53935),
                     normalMin = 60.0,
@@ -335,10 +362,15 @@ private fun LastMeasurementsCirclesBoxLowValuesPreview() {
                     decimals = 0
                 ),
                 MeasurementCircleItem(
-                    title = "Blood oxygen",
+                    title = stringResource(R.string.metric_blood_oxygen),
                     value = 88.0,
-                    unit = "%",
-                    trendText = "▼ -6 %",
+                    unit = stringResource(R.string.unit_percent),
+                    trendText = stringResource(
+                        R.string.trend_change_format,
+                        "-",
+                        "6",
+                        stringResource(R.string.unit_percent)
+                    ),
                     icon = Icons.Filled.Bloodtype,
                     baseColor = Color(0xFF0284C7),
                     normalMin = 95.0,
@@ -348,10 +380,15 @@ private fun LastMeasurementsCirclesBoxLowValuesPreview() {
                     decimals = 0
                 ),
                 MeasurementCircleItem(
-                    title = "Skin conductance",
+                    title = stringResource(R.string.metric_skin_conductance),
                     value = 120.0,
-                    unit = "uS",
-                    trendText = "▼ -80 uS",
+                    unit = stringResource(R.string.unit_us),
+                    trendText = stringResource(
+                        R.string.trend_change_format,
+                        "-",
+                        "80",
+                        stringResource(R.string.unit_us)
+                    ),
                     icon = Icons.Filled.SsidChart,
                     baseColor = Color(0xFF6366F1),
                     normalMin = 200.0,
@@ -371,12 +408,19 @@ private fun LastMeasurementsCirclesBoxHighValuesPreview() {
     EngineeringThesisTheme {
         LastMeasurementsCirclesBox(
             modifier = Modifier.padding(16.dp),
+            headerTitle = stringResource(R.string.menu_last_measurements),
+            headerSubtitle = stringResource(R.string.menu_updated_minutes_ago, 2),
             items = listOf(
                 MeasurementCircleItem(
-                    title = "Body temperature",
+                    title = stringResource(R.string.metric_body_temperature),
                     value = 39.0,
-                    unit = "C",
-                    trendText = "▲ +1.8 C",
+                    unit = stringResource(R.string.unit_celsius),
+                    trendText = stringResource(
+                        R.string.trend_change_format,
+                        "+",
+                        "1.8",
+                        stringResource(R.string.unit_celsius)
+                    ),
                     icon = Icons.Filled.DeviceThermostat,
                     baseColor = Color(0xFFF59E0B),
                     normalMin = 36.1,
@@ -386,10 +430,15 @@ private fun LastMeasurementsCirclesBoxHighValuesPreview() {
                     decimals = 1
                 ),
                 MeasurementCircleItem(
-                    title = "Heart rate",
+                    title = stringResource(R.string.metric_heart_rate),
                     value = 130.0,
-                    unit = "bpm",
-                    trendText = "▲ +45 bpm",
+                    unit = stringResource(R.string.unit_bpm),
+                    trendText = stringResource(
+                        R.string.trend_change_format,
+                        "+",
+                        "45",
+                        stringResource(R.string.unit_bpm)
+                    ),
                     icon = Icons.Filled.MonitorHeart,
                     baseColor = Color(0xFFE53935),
                     normalMin = 60.0,
@@ -399,10 +448,15 @@ private fun LastMeasurementsCirclesBoxHighValuesPreview() {
                     decimals = 0
                 ),
                 MeasurementCircleItem(
-                    title = "Blood oxygen",
+                    title = stringResource(R.string.metric_blood_oxygen),
                     value = 100.0,
-                    unit = "%",
-                    trendText = "▲ +3 %",
+                    unit = stringResource(R.string.unit_percent),
+                    trendText = stringResource(
+                        R.string.trend_change_format,
+                        "+",
+                        "3",
+                        stringResource(R.string.unit_percent)
+                    ),
                     icon = Icons.Filled.Bloodtype,
                     baseColor = Color(0xFF0284C7),
                     normalMin = 95.0,
@@ -412,10 +466,15 @@ private fun LastMeasurementsCirclesBoxHighValuesPreview() {
                     decimals = 0
                 ),
                 MeasurementCircleItem(
-                    title = "Skin conductance",
+                    title = stringResource(R.string.metric_skin_conductance),
                     value = 1400.0,
-                    unit = "uS",
-                    trendText = "▲ +420 uS",
+                    unit = stringResource(R.string.unit_us),
+                    trendText = stringResource(
+                        R.string.trend_change_format,
+                        "+",
+                        "420",
+                        stringResource(R.string.unit_us)
+                    ),
                     icon = Icons.Filled.SsidChart,
                     baseColor = Color(0xFF6366F1),
                     normalMin = 200.0,
