@@ -49,6 +49,10 @@ class ProfileRepositoryImpl @Inject constructor(
         dao.clearAll()
     }
 
+    override suspend fun setName(id: Int, name: String) {
+        dao.setName(id, name)
+    }
+
     override suspend fun setGender(id: Int, gender: String) {
         dao.setGender(id, gender)
     }
@@ -81,6 +85,7 @@ class ProfileRepositoryImpl @Inject constructor(
 private fun UserProfileEntity.toDomain(): UserProfile =
     UserProfile(
         id = id,
+        name = name,
         gender = gender,
         birthDateEpochDays = birthDateEpochDays,
         heightCm = heightCm,
@@ -90,6 +95,7 @@ private fun UserProfileEntity.toDomain(): UserProfile =
 private fun UserProfile.toEntity(): UserProfileEntity =
     UserProfileEntity(
         id = id,
+        name = name,
         gender = gender,
         birthDateEpochDays = birthDateEpochDays,
         heightCm = heightCm,

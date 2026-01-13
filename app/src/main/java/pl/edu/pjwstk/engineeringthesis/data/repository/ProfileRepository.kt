@@ -27,6 +27,7 @@ interface ProfileRepository {
     suspend fun deleteById(id: Int)
     suspend fun clearAll()
 
+    suspend fun setName(id: Int, name: String)
     suspend fun setGender(id: Int, gender: String)
     suspend fun setBirthDateEpochDays(id: Int, birthDateEpochDays: Long)
     suspend fun setHeightCm(id: Int, heightCm: Int)
