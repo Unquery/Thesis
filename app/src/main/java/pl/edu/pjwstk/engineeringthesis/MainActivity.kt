@@ -21,8 +21,10 @@ import androidx.navigation.compose.rememberNavController
 import dagger.hilt.android.AndroidEntryPoint
 import pl.edu.pjwstk.engineeringthesis.ui.theme.EngineeringThesisTheme
 import pl.edu.pjwstk.engineeringthesis.util.Menu
+import pl.edu.pjwstk.engineeringthesis.util.chartsDestination
 import pl.edu.pjwstk.engineeringthesis.util.connectBandDestination
 import pl.edu.pjwstk.engineeringthesis.util.menuDestination
+import pl.edu.pjwstk.engineeringthesis.util.profileDestination
 import pl.edu.pjwstk.engineeringthesis.view.ProfileOnboardingScreen
 import pl.edu.pjwstk.engineeringthesis.view.SplashOverlay
 import pl.edu.pjwstk.engineeringthesis.viewmodel.ProfileGateViewModel
@@ -76,8 +78,9 @@ fun Navigation(){
     NavHost(navController = navController, startDestination = Menu){
         menuDestination(navController)
 
-        connectBandDestination()
+        connectBandDestination(navController)
+        chartsDestination(navController)
+        profileDestination(navController)
 
-        //Todo Other screens
     }
 }
