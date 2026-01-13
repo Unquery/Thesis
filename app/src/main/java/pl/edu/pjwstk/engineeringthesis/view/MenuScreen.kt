@@ -52,6 +52,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import pl.edu.pjwstk.engineeringthesis.R
+import pl.edu.pjwstk.engineeringthesis.util.ChartMetric
 import pl.edu.pjwstk.engineeringthesis.ui.theme.EngineeringThesisTheme
 import pl.edu.pjwstk.engineeringthesis.viewmodel.MenuViewModel
 import java.util.Locale
@@ -62,6 +63,9 @@ import kotlin.math.pow
 @Composable
 fun MenuScreen(
     onConnectBandClick: () -> Unit,
+    onHealthClick: () -> Unit = {},
+    onProfileClick: () -> Unit = {},
+    onMetricClick: (ChartMetric) -> Unit = {},
     vm: MenuViewModel = hiltViewModel()
 ) {
     val gsrBars by vm.todayGsrBars.collectAsState()
@@ -73,10 +77,12 @@ fun MenuScreen(
     Box(Modifier.fillMaxSize()) {
 
         Scaffold(
-            containerColor = Color.Black,
+            containerColor = MaterialTheme.colorScheme.background,
             bottomBar = {
                 BottomNavBar(
-                    onDeviceClick = onConnectBandClick
+                    onHealthClick = onHealthClick,
+                    onDeviceClick = onConnectBandClick,
+                    onProfileClick = onProfileClick
                 )
             }
 
@@ -85,14 +91,15 @@ fun MenuScreen(
                 Modifier
                     .padding(inner)
                     .fillMaxSize()
-                    .background(Color.Black)
+                    .background(MaterialTheme.colorScheme.background)
             ){
                 MenuBody(
                     gsrBars = gsrBars,
                     hrBars = hrBars,
                     spo2Bars = spo2Bars,
                     tempBars = tempBars,
-                    lastUpdatedEpoch = lastUpdatedEpoch
+                    lastUpdatedEpoch = lastUpdatedEpoch,
+                    onMetricClick = onMetricClick
                 )
             }
         }
@@ -105,7 +112,8 @@ private fun MenuBody(
     hrBars: List<Float?>,
     spo2Bars: List<Float?>,
     tempBars: List<Float?>,
-    lastUpdatedEpoch: Long?
+    lastUpdatedEpoch: Long?,
+    onMetricClick: (ChartMetric) -> Unit
 ) {
     var stretchTarget by remember { mutableFloatStateOf(0f) }
     var isDragging by remember { mutableStateOf(false) }
@@ -125,16 +133,16 @@ private fun MenuBody(
 
     val headerSubtitle = formatUpdatedSubtitle(lastUpdatedEpoch)
 
-    val tempTrend = trendTextFromBars(tempBars, "C", 1)
-    val hrTrend = trendTextFromBars(hrBars, "bpm", 0)
-    val spo2Trend = trendTextFromBars(spo2Bars, "%", 0)
-    val gsrTrend = trendTextFromBars(gsrBars, "uS", 0)
+    val tempTrend = trendTextFromBars(tempBars, stringResource(R.string.unit_celsius), 1)
+    val hrTrend = trendTextFromBars(hrBars, stringResource(R.string.unit_bpm), 0)
+    val spo2Trend = trendTextFromBars(spo2Bars, stringResource(R.string.unit_percent), 0)
+    val gsrTrend = trendTextFromBars(gsrBars, stringResource(R.string.unit_us), 0)
 
     val lastItems = listOf(
         MeasurementCircleItem(
-            title = "Body temperature",
+            title = stringResource(R.string.metric_body_temperature),
             value = lastTemp?.toDouble(),
-            unit = "C",
+            unit = stringResource(R.string.unit_celsius),
             trendText = tempTrend,
             icon = Icons.Filled.DeviceThermostat,
             baseColor = Color(0xFFF59E0B),
@@ -145,9 +153,9 @@ private fun MenuBody(
             decimals = 1
         ),
         MeasurementCircleItem(
-            title = "Heart rate",
+            title = stringResource(R.string.metric_heart_rate),
             value = lastHr?.toDouble(),
-            unit = "bpm",
+            unit = stringResource(R.string.unit_bpm),
             trendText = hrTrend,
             icon = Icons.Filled.MonitorHeart,
             baseColor = Color(0xFFE53935),
@@ -158,9 +166,9 @@ private fun MenuBody(
             decimals = 0
         ),
         MeasurementCircleItem(
-            title = "Blood oxygen",
+            title = stringResource(R.string.metric_blood_oxygen),
             value = lastSpo2?.toDouble(),
-            unit = "%",
+            unit = stringResource(R.string.unit_percent),
             trendText = spo2Trend,
             icon = Icons.Filled.Bloodtype,
             baseColor = Color(0xFF0284C7),
@@ -171,9 +179,9 @@ private fun MenuBody(
             decimals = 0
         ),
         MeasurementCircleItem(
-            title = "Skin conductance",
+            title = stringResource(R.string.metric_skin_conductance),
             value = lastGsr?.toDouble(),
-            unit = "uS",
+            unit = stringResource(R.string.unit_us),
             trendText = gsrTrend,
             icon = Icons.Filled.SsidChart,
             baseColor = Color(0xFF6366F1),
@@ -221,6 +229,7 @@ private fun MenuBody(
         LastMeasurementsCirclesBox(
             items = lastItems,
             modifier = Modifier.fillMaxWidth(),
+            headerTitle = stringResource(R.string.menu_last_measurements),
             headerSubtitle = headerSubtitle
         )
 
@@ -229,17 +238,24 @@ private fun MenuBody(
             hrBars = hrBars,
             spo2Bars = spo2Bars,
             tempBars = tempBars,
+            onGsrClick = { onMetricClick(ChartMetric.Gsr) },
+            onHrClick = { onMetricClick(ChartMetric.HeartRate) },
+            onSpo2Click = { onMetricClick(ChartMetric.SpO2) },
+            onTempClick = { onMetricClick(ChartMetric.Temperature) },
             modifier = Modifier.fillMaxWidth()
         )
     }
 }
 
 @Composable
-private fun BottomNavBar(
+fun BottomNavBar(
     modifier: Modifier = Modifier,
     onHealthClick: () -> Unit = {},
     onDeviceClick: () -> Unit = {},
-    onProfileClick: () -> Unit = {}
+    onProfileClick: () -> Unit = {},
+    healthTint: Color = Color(0xFFE53935),
+    deviceTint: Color = Color.White,
+    profileTint: Color = Color.White
 ) {
     Surface(
         modifier = modifier,
@@ -257,19 +273,21 @@ private fun BottomNavBar(
                 icon = Icons.Filled.MonitorHeart,
                 label = stringResource(R.string.bottom_nav_health),
                 onClick = onHealthClick,
-                iconTint = Color(0xFFE53935),
+                iconTint = healthTint,
                 modifier = Modifier.weight(1f)
             )
             BottomNavItem(
                 icon = Icons.Filled.Devices,
                 label = stringResource(R.string.bottom_nav_device),
                 onClick = onDeviceClick,
+                iconTint = deviceTint,
                 modifier = Modifier.weight(1f)
             )
             BottomNavItem(
                 icon = Icons.Filled.Person,
                 label = stringResource(R.string.bottom_nav_profile),
                 onClick = onProfileClick,
+                iconTint = profileTint,
                 modifier = Modifier.weight(1f)
             )
         }
@@ -318,6 +336,9 @@ fun MenuMetricsColumn(
     onTempClick: () -> Unit = {},
     @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
 ) {
+    val leftTimeLabel = stringResource(R.string.time_00_00)
+    val rightTimeLabel = stringResource(R.string.time_24_00)
+
     Column(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -325,8 +346,10 @@ fun MenuMetricsColumn(
         Row(modifier = Modifier.fillMaxWidth()) {
             Box(Modifier.weight(0.5f)) {
                 MetricBox24h(
-                    title = "Body temperature",
-                    unit = "temperature",
+                    title = stringResource(R.string.metric_body_temperature),
+                    unit = stringResource(R.string.unit_temperature_label),
+                    leftTimeLabel = leftTimeLabel,
+                    rightTimeLabel = rightTimeLabel,
                     bars = tempBars,
                     onClick = onTempClick,
                     valueFormatter = { v -> String.format("%.1f", v) },
@@ -349,8 +372,10 @@ fun MenuMetricsColumn(
 
             Box(Modifier.weight(0.5f)) {
                 MetricBox24h(
-                    title = "Heart rate",
-                    unit = "rate",
+                    title = stringResource(R.string.metric_heart_rate),
+                    unit = stringResource(R.string.unit_rate_label),
+                    leftTimeLabel = leftTimeLabel,
+                    rightTimeLabel = rightTimeLabel,
                     bars = hrBars,
                     onClick = onHrClick,
                     valueFormatter = { it.toInt().toString() },
@@ -377,8 +402,10 @@ fun MenuMetricsColumn(
                 (spo2Bars.filterNotNull().minOrNull()?.minus(1f) ?: 0f).coerceAtLeast(0f)
             Box(Modifier.weight(0.5f)) {
                 MetricBox24h(
-                    title = "Blood oxygen",
-                    unit = "oxygen",
+                    title = stringResource(R.string.metric_blood_oxygen),
+                    unit = stringResource(R.string.unit_oxygen_label),
+                    leftTimeLabel = leftTimeLabel,
+                    rightTimeLabel = rightTimeLabel,
                     bars = spo2Bars,
                     onClick = onSpo2Click,
                     valueFormatter = { it.toInt().toString() },
@@ -404,8 +431,10 @@ fun MenuMetricsColumn(
 
             Box(Modifier.weight(0.5f)) {
                 MetricBox24h(
-                    title = "Skin conductance",
-                    unit = "conductance",
+                    title = stringResource(R.string.metric_skin_conductance),
+                    unit = stringResource(R.string.unit_conductance_label),
+                    leftTimeLabel = leftTimeLabel,
+                    rightTimeLabel = rightTimeLabel,
                     bars = gsrBars,
                     onClick = onGsrClick,
                     valueFormatter = { it.toInt().toString() },
@@ -441,6 +470,7 @@ private fun trendTextFromBars(
     return buildTrendText(prev.toDouble(), last.toDouble(), unit, decimals)
 }
 
+@Composable
 private fun buildTrendText(
     previous: Double,
     current: Double,
@@ -449,13 +479,13 @@ private fun buildTrendText(
 ): String {
     val diff = current - previous
     val threshold = 0.5 * 10.0.pow(-decimals.toDouble())
-    if (abs(diff) < threshold) return "- stable"
+    if (abs(diff) < threshold) return stringResource(R.string.trend_stable)
 
     val absDiff = abs(diff)
     val diffText = formatNumber(absDiff, decimals)
     val sign = if (diff > 0) "+" else "-"
 
-    return "$sign$diffText $unit"
+    return stringResource(R.string.trend_change_format, sign, diffText, unit)
 }
 
 private fun formatNumber(value: Double, decimals: Int): String {
@@ -463,16 +493,17 @@ private fun formatNumber(value: Double, decimals: Int): String {
     return String.format(Locale.US, "%.${safeDecimals}f", value)
 }
 
+@Composable
 private fun formatUpdatedSubtitle(epochMillis: Long?): String {
-    if (epochMillis == null) return "No data yet"
+    if (epochMillis == null) return stringResource(R.string.menu_no_data_yet)
 
     val now = System.currentTimeMillis()
     val diff = (now - epochMillis).coerceAtLeast(0L)
     return when {
-        diff < 60_000L -> "Updated just now"
-        diff < 3_600_000L -> "Updated ${diff / 60_000L} min ago"
-        diff < 86_400_000L -> "Updated ${diff / 3_600_000L} h ago"
-        else -> "Updated ${diff / 86_400_000L} d ago"
+        diff < 60_000L -> stringResource(R.string.menu_updated_just_now)
+        diff < 3_600_000L -> stringResource(R.string.menu_updated_minutes_ago, diff / 60_000L)
+        diff < 86_400_000L -> stringResource(R.string.menu_updated_hours_ago, diff / 3_600_000L)
+        else -> stringResource(R.string.menu_updated_days_ago, diff / 86_400_000L)
     }
 }
 
@@ -488,7 +519,7 @@ private fun MenuBodyPreview() {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black)
+                .background(MaterialTheme.colorScheme.background)
                 .padding(12.dp)
         ) {
             MenuBody(
@@ -496,7 +527,8 @@ private fun MenuBodyPreview() {
                 hrBars = hrBars,
                 spo2Bars = spo2Bars,
                 tempBars = tempBars,
-                lastUpdatedEpoch = System.currentTimeMillis()
+                lastUpdatedEpoch = System.currentTimeMillis(),
+                onMetricClick = {}
             )
         }
     }
