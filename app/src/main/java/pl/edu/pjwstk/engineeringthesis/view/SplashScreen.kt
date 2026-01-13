@@ -24,6 +24,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.airbnb.lottie.compose.LottieAnimation
@@ -78,62 +79,13 @@ fun SplashOverlay(
                     modifier = Modifier.size(108.dp)
                 )
                 Spacer(Modifier.height(16.dp))
-                Text("Smart Band", fontSize = 20.sp, color = Color.White, style = MaterialTheme.typography.headlineMedium)
+                Text(
+                    stringResource(R.string.splash_title_smart_band),
+                    fontSize = 20.sp,
+                    color = Color.White,
+                    style = MaterialTheme.typography.headlineMedium
+                )
             }
         }
     }
 }
-
-
-//????
-
-//@Composable
-//fun SplashOverlay2(
-//    onGone: () -> Unit,
-//    holdMs: Long = 1200,
-//    exitMs: Int = 400
-//) {
-//    val comp by rememberLottieComposition(LottieCompositionSpec.RawRes(R.raw.loading))
-//    val visibleState = remember { MutableTransitionState(true) }
-//
-//    LaunchedEffect(Unit) {
-//        delay(holdMs)
-//        visibleState.targetState = false
-//        snapshotFlow { visibleState.isIdle && !visibleState.currentState && !visibleState.targetState }
-//            .first { it }
-//        onGone()
-//    }
-//
-//    AnimatedVisibility(
-//        modifier = Modifier.fillMaxSize(),
-//        visibleState = visibleState,
-//        exit = slideOutVertically(
-//            targetOffsetY = { -it }, // slide up (negative direction)
-//            animationSpec = tween(exitMs, easing = FastOutSlowInEasing)
-//        ) + fadeOut(
-//            animationSpec = tween(exitMs, easing = FastOutSlowInEasing)
-//        )
-//    ) {
-//        Box(
-//            Modifier
-//                .fillMaxSize()
-//                .background(MaterialTheme.colorScheme.background)
-//        ) {
-//            Column(
-//                modifier = Modifier
-//                    .align(Alignment.Center)
-//                    .offset(y = 36.dp)
-//                    .padding(horizontal = 24.dp),
-//                horizontalAlignment = Alignment.CenterHorizontally
-//            ) {
-//                LottieAnimation(
-//                    composition = comp,
-//                    iterations = LottieConstants.IterateForever,
-//                    modifier = Modifier.size(72.dp)
-//                )
-//                Spacer(Modifier.height(16.dp))
-//                Text("Smart Band", style = MaterialTheme.typography.headlineMedium)
-//            }
-//        }
-//    }
-//}
