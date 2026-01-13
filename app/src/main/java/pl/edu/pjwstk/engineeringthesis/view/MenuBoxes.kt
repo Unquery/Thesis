@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -28,6 +29,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.TextUnit
 import pl.edu.pjwstk.engineeringthesis.font.interFamily
+import pl.edu.pjwstk.engineeringthesis.R
 import androidx.compose.ui.geometry.CornerRadius
 import kotlin.math.pow
 
@@ -71,8 +73,8 @@ fun MetricBox24h(
     colorStrength: Float = 1.0f,
     lowColorTarget : Color = Color.White,
 
-    leftTimeLabel: String = "00:00",
-    rightTimeLabel: String = "24:00",
+    leftTimeLabel: String,
+    rightTimeLabel: String,
 
     valueFormatter: (Float) -> String = { v -> v.toInt().toString() },
 
@@ -117,7 +119,7 @@ fun MetricBox24h(
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically){
                     Text(
                         modifier = Modifier.weight(1f),
-                        text = "See detailed information about $unit",
+                        text = stringResource(R.string.menu_detail_info, unit.orEmpty()),
                         fontFamily = fontFamily,
                         style = MaterialTheme.typography.bodySmall,
                         color = Color.White.copy(alpha = 0.7f)
@@ -137,7 +139,6 @@ fun MetricBox24h(
             val density = LocalDensity.current
             val labelColor = Color.White.copy(alpha = 0.75f)
 
-            // --- precompute scale + colors OUTSIDE canvas (so we can show labels in Column) ---
             val normalizedBars = bars.take(24).let { list ->
                 if (list.size < 24) list + List(24 - list.size) { null } else list
             }
@@ -265,7 +266,6 @@ fun MetricBox24h(
                         }
                     }
 
-                    // time labels
                     drawIntoCanvas { canvas ->
                         val paint = android.graphics.Paint().apply {
                             isAntiAlias = true
@@ -286,13 +286,12 @@ fun MetricBox24h(
                     }
                 }
 
-                // Right min/max labels OUTSIDE the canvas (no reserved empty space inside chart)
                 if (showMinMaxLabels && finiteVals.isNotEmpty()) {
                     Spacer(Modifier.width(8.dp))
                     Column(
                         modifier = Modifier
                             .height(chartHeight)
-                            .padding(bottom = 18.dp), // aligns bottom label with chartBottom
+                            .padding(bottom = 18.dp),
                         verticalArrangement = Arrangement.SpaceBetween,
                         horizontalAlignment = Alignment.End
                     ) {
