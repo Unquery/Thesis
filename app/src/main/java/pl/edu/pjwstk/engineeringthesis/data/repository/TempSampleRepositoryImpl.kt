@@ -4,6 +4,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import pl.edu.pjwstk.engineeringthesis.data.db.DiaryDB
 import pl.edu.pjwstk.engineeringthesis.data.db.entity.TempSampleEntity
+import pl.edu.pjwstk.engineeringthesis.model.DailyAvg
 import pl.edu.pjwstk.engineeringthesis.model.HourlyAvg
 import pl.edu.pjwstk.engineeringthesis.model.MetricSummary
 import pl.edu.pjwstk.engineeringthesis.model.TempSample
@@ -57,6 +58,9 @@ class TempSampleRepositoryImpl @Inject constructor(
 
     override fun observeHourlyAvg(userId: Int, startEpoch: Long, endEpoch: Long): Flow<List<HourlyAvg>> =
         dao.observeHourlyAvg(userId, startEpoch, endEpoch)
+
+    override fun observeDailyAvg(userId: Int, startEpoch: Long, endEpoch: Long): Flow<List<DailyAvg>> =
+        dao.observeDailyAvg(userId, startEpoch, endEpoch)
 
     override fun observeLatest(userId: Int, startEpoch: Long, endEpoch: Long): Flow<TempSample?> =
         dao.observeLatestInRange(userId, startEpoch, endEpoch).map { it?.toDomain() }

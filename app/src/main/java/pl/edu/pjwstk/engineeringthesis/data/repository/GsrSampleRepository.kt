@@ -1,6 +1,7 @@
 package pl.edu.pjwstk.engineeringthesis.data.repository
 
 import kotlinx.coroutines.flow.Flow
+import pl.edu.pjwstk.engineeringthesis.model.DailyAvg
 import pl.edu.pjwstk.engineeringthesis.model.GsrSample
 import pl.edu.pjwstk.engineeringthesis.model.HourlyAvg
 import pl.edu.pjwstk.engineeringthesis.model.MetricSummary
@@ -26,6 +27,7 @@ interface GsrSampleRepository {
 
     // dashboard helpers
     fun observeHourlyAvg(userId: Int, startEpoch: Long, endEpoch: Long): Flow<List<HourlyAvg>>
+    fun observeDailyAvg(userId: Int, startEpoch: Long, endEpoch: Long): Flow<List<DailyAvg>>
     fun observeLatest(userId: Int, startEpoch: Long, endEpoch: Long): Flow<GsrSample?>
     fun observeSummary(userId: Int, startEpoch: Long, endEpoch: Long): Flow<MetricSummary>
 

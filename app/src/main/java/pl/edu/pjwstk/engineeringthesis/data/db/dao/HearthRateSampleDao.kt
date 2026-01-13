@@ -7,6 +7,7 @@ import androidx.room.Update
 import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
 import pl.edu.pjwstk.engineeringthesis.data.db.entity.HearthRateSampleEntity
+import pl.edu.pjwstk.engineeringthesis.model.DailyAvg
 import pl.edu.pjwstk.engineeringthesis.model.HourlyAvg
 import pl.edu.pjwstk.engineeringthesis.model.MetricSummary
 
@@ -18,7 +19,6 @@ interface HearthRateSampleDao {
     @Update
     suspend fun update(sample: HearthRateSampleEntity)
 
-    // read
     @Transaction
     @Query("SELECT * FROM hearth_rate_sample WHERE id = :id")
     suspend fun getById(id: Int): HearthRateSampleEntity?
@@ -60,7 +60,6 @@ interface HearthRateSampleDao {
         lastEpoch: Long
     ): Flow<List<HearthRateSampleEntity>>
 
-    // delete
     @Query("DELETE FROM hearth_rate_sample WHERE id = :id")
     suspend fun removeById(id: Int)
 
@@ -70,7 +69,6 @@ interface HearthRateSampleDao {
     @Query("DELETE FROM hearth_rate_sample")
     suspend fun removeAll()
 
-    // dashboard: 24 bars (avg per hour) — epoch assumed millis
     @Query(
         """
         SELECT 
@@ -90,7 +88,25 @@ interface HearthRateSampleDao {
         endEpoch: Long
     ): Flow<List<HourlyAvg>>
 
-    // dashboard: latest in range
+    @Query(
+        """
+        SELECT
+            strftime('%Y-%m-%d', datetime(epoch / 1000, 'unixepoch', 'localtime')) AS date,
+            AVG(CAST(hearthRate AS REAL)) AS avg
+        FROM hearth_rate_sample
+        WHERE userId = :userId
+          AND epoch >= :startEpoch
+          AND epoch < :endEpoch
+        GROUP BY date
+        ORDER BY date
+        """
+    )
+    fun observeDailyAvg(
+        userId: Int,
+        startEpoch: Long,
+        endEpoch: Long
+    ): Flow<List<DailyAvg>>
+
     @Query("""
         SELECT * FROM hearth_rate_sample
         WHERE userId = :userId
@@ -104,7 +120,6 @@ interface HearthRateSampleDao {
         endEpoch: Long
     ): Flow<HearthRateSampleEntity?>
 
-    // dashboard: summary in range
     @Query("""
         SELECT 
             AVG(CAST(hearthRate AS REAL)) AS avg,

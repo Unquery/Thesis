@@ -4,6 +4,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import pl.edu.pjwstk.engineeringthesis.data.db.DiaryDB
 import pl.edu.pjwstk.engineeringthesis.data.db.entity.GsrSampleEntity
+import pl.edu.pjwstk.engineeringthesis.model.DailyAvg
 import pl.edu.pjwstk.engineeringthesis.model.GsrSample
 import pl.edu.pjwstk.engineeringthesis.model.HourlyAvg
 import pl.edu.pjwstk.engineeringthesis.model.MetricSummary
@@ -71,6 +72,14 @@ class GsrSampleRepositoryImpl @Inject constructor(
         endEpoch: Long
     ): Flow<List<HourlyAvg>> {
         return dao.observeHourlyAvg(userId, startEpoch, endEpoch)
+    }
+
+    override fun observeDailyAvg(
+        userId: Int,
+        startEpoch: Long,
+        endEpoch: Long
+    ): Flow<List<DailyAvg>> {
+        return dao.observeDailyAvg(userId, startEpoch, endEpoch)
     }
 
     override fun observeLatest(
