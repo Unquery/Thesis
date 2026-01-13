@@ -105,7 +105,6 @@ public class BleUartClient {
         return ContextCompat.checkSelfPermission(appCtx, p) == PackageManager.PERMISSION_GRANTED;
     }
 
-    // ---------- Public API ----------
     @SuppressLint("MissingPermission")
     public void startScan() {
         if (!hasScanPermission()) {
