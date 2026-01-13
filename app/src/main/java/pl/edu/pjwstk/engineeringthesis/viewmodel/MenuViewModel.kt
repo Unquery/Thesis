@@ -77,6 +77,7 @@ class MenuViewModel @Inject constructor(
     val todayTempBars: StateFlow<List<Float?>> =
         todayBars { userId, start, end -> tempRepo.observeHourlyAvg(userId, start, end) }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     val todayLatestEpoch: StateFlow<Long?> =
         activeUserId
             .flatMapLatest { userId ->
