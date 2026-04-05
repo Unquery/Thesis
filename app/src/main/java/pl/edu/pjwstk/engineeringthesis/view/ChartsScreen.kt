@@ -189,12 +189,21 @@ fun ChartsScreen(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = rangeLabel,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = Color.White.copy(alpha = 0.9f),
-                    modifier = Modifier.weight(1f)
-                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = rangeLabel,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = Color.White.copy(alpha = 0.9f)
+                    )
+                    val normalSummary = formatNormalSummary(ui, uiUnit)
+                    if (normalSummary.isNotEmpty()) {
+                        Text(
+                            text = normalSummary,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.White.copy(alpha = 0.68f)
+                        )
+                    }
+                }
                 Text(
                     text = formatSummaryAvg(summary, ui.decimals, uiUnit),
                     style = MaterialTheme.typography.bodyMedium,
@@ -357,7 +366,10 @@ private data class MetricUi(
     @StringRes val unitRes: Int,
     val decimals: Int,
     val color: Color,
-    val yAxisMinPadding: Float = 0f
+    val yAxisMinPadding: Float = 0f,
+    val normalCenter: Float? = null,
+    val normalMin: Float? = null,
+    val normalMax: Float? = null
 )
 
 private const val Y_AXIS_STEPS = 5
@@ -443,14 +455,20 @@ private fun metricUi(metric: ChartMetric): MetricUi = when (metric) {
         titleRes = R.string.metric_body_temperature,
         unitRes = R.string.unit_celsius,
         decimals = 1,
-        color = Color(0xFFF59E0B)
+        color = Color(0xFFF59E0B),
+        normalCenter = 37.0f,
+        normalMin = 36.5f,
+        normalMax = 37.3f
     )
 
     ChartMetric.HeartRate -> MetricUi(
         titleRes = R.string.metric_heart_rate,
         unitRes = R.string.unit_bpm,
         decimals = 0,
-        color = Color(0xFFE53935)
+        color = Color(0xFFE53935),
+        normalCenter = 80f,
+        normalMin = 60f,
+        normalMax = 100f
     )
 
     ChartMetric.SpO2 -> MetricUi(
@@ -458,14 +476,18 @@ private fun metricUi(metric: ChartMetric): MetricUi = when (metric) {
         unitRes = R.string.unit_percent,
         decimals = 0,
         color = Color(0xFF0284C7),
-        yAxisMinPadding = 2f
+        yAxisMinPadding = 2f,
+        normalMin = 97f,
+        normalMax = 100f
     )
 
     ChartMetric.Gsr -> MetricUi(
         titleRes = R.string.metric_skin_conductance,
         unitRes = R.string.unit_us,
         decimals = 0,
-        color = Color(0xFF6366F1)
+        color = Color(0xFF6366F1),
+        normalMin = 200f,
+        normalMax = 900f
     )
 }
 
@@ -574,6 +596,26 @@ private fun formatSummaryMinMax(summary: ChartSummary, decimals: Int, unit: Stri
     val max = summary.max?.let { formatValue(it, decimals) }
         ?: stringResource(R.string.value_placeholder)
     return stringResource(R.string.charts_min_max_format, min, max)
+}
+
+@Composable
+private fun formatNormalSummary(ui: MetricUi, unit: String): String {
+    val min = ui.normalMin ?: return ""
+    val max = ui.normalMax ?: return ""
+    val minText = formatValue(min, ui.decimals)
+    val maxText = formatValue(max, ui.decimals)
+    val center = ui.normalCenter
+    return if (center != null) {
+        stringResource(
+            R.string.charts_normal_center_range_format,
+            formatValue(center, ui.decimals),
+            minText,
+            maxText,
+            unit
+        )
+    } else {
+        stringResource(R.string.charts_normal_range_format, minText, maxText, unit)
+    }
 }
 
 private fun buildLineChartData(
