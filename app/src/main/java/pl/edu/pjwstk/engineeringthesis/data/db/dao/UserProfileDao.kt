@@ -79,6 +79,9 @@ interface UserProfileDao {
     @Query("UPDATE user_profile SET heightCm = :heightCm WHERE id = :id")
     suspend fun setHeightCm(id: Int, heightCm: Int)
 
+    @Query("UPDATE user_profile SET weightKg = :weightKg WHERE id = :id")
+    suspend fun setWeightKg(id: Int, weightKg: Float)
+
     @Query("SELECT COALESCE(MAX(id), 0) + 1 FROM user_profile")
     suspend fun getNextId(): Int
 
