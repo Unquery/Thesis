@@ -36,6 +36,7 @@ public class BleUartClient {
             UUID.fromString("6E400002-B5A3-F393-E0A9-E50E24DCCA9E");
 
     private final Context appCtx;
+    private final BluetoothAdapter adapter;
     private final UUID serviceUuid;
     private final UUID txUuid;
     private final UUID rxUuid;
@@ -72,6 +73,7 @@ public class BleUartClient {
                          UUID txUuid,
                          UUID rxUuid) {
         this.appCtx = ctx.getApplicationContext();
+        this.adapter = adapter;
         this.serviceUuid = serviceUuid;
         this.txUuid = txUuid;
         this.rxUuid = rxUuid != null ? rxUuid : DEFAULT_NUS_RX;
@@ -141,11 +143,32 @@ public class BleUartClient {
     @SuppressLint("MissingPermission")
     public void connect(String address) {
         if (!hasConnectPermission()) throw new SecurityException("Connect permission not granted");
-        BluetoothDevice dev = found.get(address);
-        if (dev == null) { notifyErr("Device not in scan list: " + address, null); return; }
+        BluetoothDevice dev = resolveDevice(address);
+        if (dev == null) { notifyErr("Device unavailable: " + address, null); return; }
         stop();
+        closeCurrentGatt();
         timePushedThisConn = false;
         gatt = dev.connectGatt(appCtx, false, gattCb, BluetoothDevice.TRANSPORT_LE);
+    }
+
+    private BluetoothDevice resolveDevice(String address) {
+        BluetoothDevice dev = found.get(address);
+        if (dev != null) return dev;
+        if (adapter == null) return null;
+        try {
+            return adapter.getRemoteDevice(address);
+        } catch (IllegalArgumentException iae) {
+            notifyErr("Invalid device address: " + address, iae);
+            return null;
+        }
+    }
+
+    private void closeCurrentGatt() {
+        try { if (gatt != null) gatt.close(); } catch (Exception ignored) {}
+        gatt = null;
+        txChar = null;
+        rxChar = null;
+        connected = false;
     }
     @SuppressLint("MissingPermission")
     public void pushEpochNow() {
