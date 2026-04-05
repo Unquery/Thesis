@@ -65,6 +65,10 @@ class ProfileRepositoryImpl @Inject constructor(
         dao.setHeightCm(id, heightCm)
     }
 
+    override suspend fun setWeightKg(id: Int, weightKg: Float) {
+        dao.setWeightKg(id, weightKg)
+    }
+
     override suspend fun getActive(): UserProfile? =
         dao.getActive()?.toDomain()
 
@@ -89,6 +93,7 @@ private fun UserProfileEntity.toDomain(): UserProfile =
         gender = gender,
         birthDateEpochDays = birthDateEpochDays,
         heightCm = heightCm,
+        weightKg = weightKg,
         isActive = isActive
     )
 
@@ -99,5 +104,6 @@ private fun UserProfile.toEntity(): UserProfileEntity =
         gender = gender,
         birthDateEpochDays = birthDateEpochDays,
         heightCm = heightCm,
+        weightKg = weightKg,
         isActive = isActive
     )
