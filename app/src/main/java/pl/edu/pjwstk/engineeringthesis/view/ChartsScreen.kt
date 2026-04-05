@@ -1,6 +1,7 @@
 package pl.edu.pjwstk.engineeringthesis.view
 
 import androidx.annotation.StringRes
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -10,7 +11,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -26,12 +28,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -42,12 +41,13 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.TextMeasurer
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -63,12 +63,10 @@ import co.yml.charts.ui.linechart.model.LineChartData
 import co.yml.charts.ui.linechart.model.LinePlotData
 import co.yml.charts.ui.linechart.model.LineStyle
 import co.yml.charts.ui.linechart.model.LineType
-import co.yml.charts.ui.linechart.model.SelectionHighlightPoint
-import co.yml.charts.ui.linechart.model.SelectionHighlightPopUp
-import co.yml.charts.ui.linechart.model.ShadowUnderLine
 import pl.edu.pjwstk.engineeringthesis.R
 import pl.edu.pjwstk.engineeringthesis.util.ChartMetric
 import pl.edu.pjwstk.engineeringthesis.util.ChartRange
+import pl.edu.pjwstk.engineeringthesis.viewmodel.ChartBucketRange
 import pl.edu.pjwstk.engineeringthesis.viewmodel.ChartSummary
 import pl.edu.pjwstk.engineeringthesis.viewmodel.ChartsViewModel
 import java.time.Instant
@@ -98,17 +96,13 @@ fun ChartsScreen(
     val uiUnit = stringResource(ui.unitRes)
 
     val range = chartState.range
-    val rawPoints = chartState.points
+    val rawBuckets = chartState.points
     val rangeDates = chartState.dates
     val summary = chartState.summary
     val baseDate = chartState.baseDate
 
-    val points = remember(rawPoints, range) {
-        if (range == ChartRange.Day) {
-            toHalfHourIndex(withHalfHourPoints(normalizeToHours0to24(rawPoints)))
-        } else {
-            rawPoints.sortedBy { it.x }
-        }
+    val buckets = remember(rawBuckets) {
+        rawBuckets.sortedBy { it.x }
     }
 
     val textMeasurer = rememberTextMeasurer()
@@ -229,12 +223,15 @@ fun ChartsScreen(
                         .fillMaxWidth()
                         .padding(12.dp)
                 ) {
-                    val yAxisInset = remember(density, textMeasurer) {
-                        computeYAxisInset(density, textMeasurer)
+                    val yAxisSpec = remember(buckets, ui) {
+                        buildYAxisSpec(buckets, ui)
+                    }
+                    val yAxisInset = remember(density, textMeasurer, yAxisSpec) {
+                        computeYAxisInset(density, textMeasurer, yAxisSpec)
                     }
 
                     val plotWidth = remember(maxWidth, yAxisInset) {
-                        (maxWidth - yAxisInset).coerceAtLeast(160.dp)
+                        (maxWidth - yAxisInset - LINE_CHART_END_PADDING).coerceAtLeast(160.dp)
                     }
 
                     val axisStepSize = remember(plotWidth, xAxisSteps) { plotWidth / xAxisSteps }
@@ -247,49 +244,23 @@ fun ChartsScreen(
                         }
                     }
 
-                    val selectionDayFormat = stringResource(R.string.charts_selection_day_format)
-                    val selectionRangeFormat = stringResource(R.string.charts_selection_range_format)
-                    val selectionValueOnlyFormat = stringResource(R.string.charts_selection_value_only_format)
-                    val time24Label = stringResource(R.string.time_24_00)
-                    val selectionLabel = remember(
-                        range,
-                        rangeDates,
-                        ui.decimals,
-                        uiUnit,
-                        selectionDayFormat,
-                        selectionRangeFormat,
-                        selectionValueOnlyFormat,
-                        time24Label
-                    ) {
-                        buildSelectionLabel(
-                            range,
-                            rangeDates,
-                            ui.decimals,
-                            uiUnit,
-                            selectionDayFormat,
-                            selectionRangeFormat,
-                            selectionValueOnlyFormat,
-                            time24Label
-                        )
-                    }
-
                     val chartData = remember(
-                        points,
+                        buckets,
                         ui,
                         axisStepSize,
                         xAxisSteps,
                         xAxisLabels,
-                        selectionLabel,
-                        xMax
+                        xMax,
+                        yAxisSpec
                     ) {
                         buildLineChartData(
-                            points = points,
+                            buckets = buckets,
                             ui = ui,
                             axisStepSize = axisStepSize,
                             xAxisSteps = xAxisSteps,
                             xAxisLabels = xAxisLabels,
-                            selectionLabel = selectionLabel,
-                            xMax = xMax
+                            xMax = xMax,
+                            yAxisSpec = yAxisSpec
                         )
                     }
 
@@ -302,7 +273,7 @@ fun ChartsScreen(
                             modifier = Modifier.matchParentSize(),
                             lineChartData = chartData
                         )
-                        if (rawPoints.isEmpty()) {
+                        if (rawBuckets.isEmpty()) {
                             Box(
                                 modifier = Modifier.matchParentSize(),
                                 contentAlignment = Alignment.Center
@@ -385,7 +356,8 @@ private data class MetricUi(
     @StringRes val titleRes: Int,
     @StringRes val unitRes: Int,
     val decimals: Int,
-    val color: Color
+    val color: Color,
+    val yAxisMinPadding: Float = 0f
 )
 
 private const val Y_AXIS_STEPS = 5
@@ -401,6 +373,9 @@ private val BULLET_RADIUS = 2.dp
 private val AXIS_LABEL_COLOR = Color.White.copy(alpha = 0.72f)
 private val Y_AXIS_LINE_COLOR = Color.White.copy(alpha = 0.2f)
 private val CHART_BACKGROUND_COLOR = Color.Black
+private val LINE_CHART_PADDING_RIGHT = 10.dp
+private val LINE_CHART_CONTAINER_PADDING_END = 15.dp
+private val LINE_CHART_END_PADDING = LINE_CHART_PADDING_RIGHT + LINE_CHART_CONTAINER_PADDING_END
 private val RANGE_SELECTED_BG = Color(0xFF111827)
 private val RANGE_BORDER_COLOR = Color.White.copy(alpha = 0.28f)
 
@@ -408,6 +383,12 @@ private data class AxisRange(
     val min: Float,
     val max: Float,
     val step: Float
+)
+
+private data class YAxisSpec(
+    val range: AxisRange,
+    val labelFontSize: TextUnit,
+    val labels: List<String>
 )
 
 @Composable
@@ -444,15 +425,17 @@ private fun RangeButton(
 
 private fun computeYAxisInset(
     density: Density,
-    textMeasurer: TextMeasurer
+    textMeasurer: TextMeasurer,
+    yAxisSpec: YAxisSpec
 ): Dp {
-    val labelStyle = TextStyle(fontSize = Y_AXIS_LABEL_FONT_SIZE)
-    val sampleWidthPx =
-        textMeasurer.measure(AnnotatedString("100"), style = labelStyle).size.width
-    val labelWidthDp = with(density) { sampleWidthPx.toDp() }
+    val labelStyle = TextStyle(fontSize = yAxisSpec.labelFontSize)
+    val maxLabelWidthPx = yAxisSpec.labels.maxOfOrNull { label ->
+        textMeasurer.measure(AnnotatedString(label), style = labelStyle).size.width
+    } ?: 0
+    val labelWidthDp = with(density) { maxLabelWidthPx.toDp() }
 
-    val safety = 6.dp
-    return labelWidthDp + Y_AXIS_LABEL_PADDING + Y_AXIS_OFFSET + Y_AXIS_START_PADDING + safety
+    // Round up slightly to avoid fractional-width slack that would enable a tiny horizontal pan.
+    return labelWidthDp + Y_AXIS_LABEL_PADDING + Y_AXIS_OFFSET + 1.dp
 }
 
 private fun metricUi(metric: ChartMetric): MetricUi = when (metric) {
@@ -474,7 +457,8 @@ private fun metricUi(metric: ChartMetric): MetricUi = when (metric) {
         titleRes = R.string.metric_blood_oxygen,
         unitRes = R.string.unit_percent,
         decimals = 0,
-        color = Color(0xFF0284C7)
+        color = Color(0xFF0284C7),
+        yAxisMinPadding = 2f
     )
 
     ChartMetric.Gsr -> MetricUi(
@@ -567,6 +551,12 @@ private fun monthLabelMap(dates: List<LocalDate>): Map<Int, String> {
             labelIndices.add(index)
         }
     }
+    if (dates[lastIndex].dayOfMonth == 30) {
+        val day29Index = dates.indexOfFirst { it.dayOfMonth == 29 }
+        if (day29Index >= 0) {
+            labelIndices.remove(day29Index)
+        }
+    }
     return labelIndices.associateWith { index -> dates[index].dayOfMonth.toString() }
 }
 
@@ -587,32 +577,20 @@ private fun formatSummaryMinMax(summary: ChartSummary, decimals: Int, unit: Stri
 }
 
 private fun buildLineChartData(
-    points: List<Point>,
+    buckets: List<ChartBucketRange>,
     ui: MetricUi,
     axisStepSize: Dp,
     xAxisSteps: Int,
     xAxisLabels: Map<Int, String>,
-    selectionLabel: (Float, Float) -> String,
-    xMax: Float
+    xMax: Float,
+    yAxisSpec: YAxisSpec
 ): LineChartData {
     val axisLabelColor = AXIS_LABEL_COLOR
     val xAxisLineColor = Color.Transparent
     val yAxisLineColor = Y_AXIS_LINE_COLOR
 
-    val range = if (points.isEmpty()) {
-        AxisRange(min = 0f, max = 1f, step = 0.2f)
-    } else {
-        val yMin = points.minOf { it.y }
-        val yMax = points.maxOf { it.y }
-        niceAxisRange(yMin, yMax, Y_AXIS_STEPS)
-    }
+    val range = yAxisSpec.range
     val yAxisLabelPadding = Y_AXIS_LABEL_PADDING
-    val yAxisLabelFontSize =
-        if (max(abs(range.min), abs(range.max)) >= LARGE_Y_LABEL_THRESHOLD) {
-            SMALL_Y_AXIS_LABEL_FONT_SIZE
-        } else {
-            Y_AXIS_LABEL_FONT_SIZE
-        }
 
     val xAxisData = AxisData.Builder()
         .steps(xAxisSteps)
@@ -630,7 +608,7 @@ private fun buildLineChartData(
 
     val yAxisData = AxisData.Builder()
         .steps(Y_AXIS_STEPS)
-        .axisLabelFontSize(yAxisLabelFontSize)
+        .axisLabelFontSize(yAxisSpec.labelFontSize)
         .labelAndAxisLinePadding(yAxisLabelPadding)
         .axisLabelColor(axisLabelColor)
         .axisLineColor(yAxisLineColor)
@@ -638,10 +616,7 @@ private fun buildLineChartData(
         .axisOffset(Y_AXIS_OFFSET)
         .startPadding(Y_AXIS_START_PADDING)
         .axisPosition(Gravity.LEFT)
-        .labelData { index ->
-            val v = range.min + (range.step * index)
-            formatValue(v, ui.decimals)
-        }
+        .labelData { index -> yAxisSpec.labels.getOrElse(index) { "" } }
         .build()
 
     val boundsLine = Line(
@@ -657,42 +632,74 @@ private fun buildLineChartData(
         )
     )
 
-    val mainLine = if (points.isEmpty()) {
-        null
-    } else {
-        Line(
-            dataPoints = points,
-            lineStyle = LineStyle(
-                lineType = LineType.SmoothCurve(),
-                color = ui.color,
-                width = 3.2f
-            ),
-            intersectionPoint = IntersectionPoint(color = ui.color, radius = BULLET_RADIUS),
-            selectionHighlightPoint = SelectionHighlightPoint(color = ui.color, radius = 4.dp),
-            selectionHighlightPopUp = SelectionHighlightPopUp(
-                backgroundColor = Color(0xFF0F172A),
-                labelColor = Color.White,
-                popUpLabel = selectionLabel
-            ),
-            shadowUnderLine = ShadowUnderLine(color = ui.color, alpha = 0.14f)
-        )
+    val rangeLines = buckets.map { bucket ->
+        buildBucketRangeLine(bucket, ui)
     }
 
     return LineChartData(
         linePlotData = LinePlotData(
-            lines = if (mainLine == null) listOf(boundsLine) else listOf(boundsLine, mainLine)
+            lines = listOf(boundsLine) + rangeLines
         ),
         xAxisData = xAxisData,
         yAxisData = yAxisData,
         isZoomAllowed = false,
+        paddingRight = LINE_CHART_PADDING_RIGHT,
+        containerPaddingEnd = LINE_CHART_CONTAINER_PADDING_END,
         gridLines = GridLines(
-            color = Color.White.copy(alpha = 0.12f),
+            color = Color.White.copy(alpha = 0.02f),
             lineWidth = 1.dp,
             pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f),
             enableHorizontalLines = true,
             enableVerticalLines = false
         ),
         backgroundColor = Color.Transparent
+    )
+}
+
+private fun buildBucketRangeLine(bucket: ChartBucketRange, ui: MetricUi): Line {
+    val lowPoint = Point(x = bucket.x, y = bucket.minY, description = "")
+    val highPoint = Point(x = bucket.x, y = bucket.maxY, description = "")
+    val dataPoints = if (abs(bucket.maxY - bucket.minY) < 0.0001f) {
+        listOf(lowPoint)
+    } else {
+        listOf(lowPoint, highPoint)
+    }
+    return Line(
+        dataPoints = dataPoints,
+        lineStyle = LineStyle(
+            lineType = LineType.Straight(),
+            color = ui.color,
+            width = 2.8f
+        ),
+        intersectionPoint = IntersectionPoint(color = ui.color, radius = BULLET_RADIUS)
+    )
+}
+
+private fun buildYAxisSpec(buckets: List<ChartBucketRange>, ui: MetricUi): YAxisSpec {
+    val range = if (buckets.isEmpty()) {
+        AxisRange(min = 0f, max = 1f, step = 0.2f)
+    } else {
+        val yMin = (buckets.minOf { it.minY } - ui.yAxisMinPadding).coerceAtLeast(0f)
+        val yMax = buckets.maxOf { it.maxY }
+        if (ui.yAxisMinPadding > 0f) {
+            exactMinAxisRange(yMin, yMax, Y_AXIS_STEPS, ui.decimals)
+        } else {
+            niceAxisRange(yMin, yMax, Y_AXIS_STEPS)
+        }
+    }
+    val labelFontSize =
+        if (max(abs(range.min), abs(range.max)) >= LARGE_Y_LABEL_THRESHOLD) {
+            SMALL_Y_AXIS_LABEL_FONT_SIZE
+        } else {
+            Y_AXIS_LABEL_FONT_SIZE
+        }
+    val labels = (0..Y_AXIS_STEPS).map { index ->
+        formatValue(range.min + (range.step * index), ui.decimals)
+    }
+    return YAxisSpec(
+        range = range,
+        labelFontSize = labelFontSize,
+        labels = labels
     )
 }
 
@@ -718,13 +725,19 @@ private fun normalizeToHours0to24(points: List<Point>): List<Point> {
 private fun withHalfHourPoints(points: List<Point>): List<Point> {
     if (points.isEmpty()) return points
     val sorted = points.sortedBy { it.x }
+    if (sorted.size == 1) return sorted
     val byExactX = sorted.associateBy { it.x }
     val result = ArrayList<Point>(X_AXIS_STEPS + 1)
     var prev = sorted.first()
     var nextIndex = 1
     var next = sorted.getOrNull(nextIndex)
-    var x = 0f
-    while (x <= 24f + 0.0001f) {
+    val startX = sorted.first().x
+    val endX = sorted.last().x
+    var x = startX
+
+    // Smooth only within the observed range. Extrapolating to 24:00 makes
+    // the chart look like future hours have data when they do not.
+    while (x <= endX + 0.0001f) {
         while (next != null && x > next.x) {
             prev = next
             nextIndex++
@@ -756,6 +769,18 @@ private fun withHalfHourPoints(points: List<Point>): List<Point> {
         )
         x += HALF_HOUR_STEP
     }
+
+    if (result.lastOrNull()?.x != endX) {
+        val lastPoint = sorted.last()
+        result.add(
+            Point(
+                x = lastPoint.x,
+                y = lastPoint.y,
+                description = lastPoint.description
+            )
+        )
+    }
+
     return result
 }
 
@@ -788,23 +813,36 @@ private fun formatValue(value: Float, decimals: Int): String {
 private fun niceAxisRange(minY: Float, maxY: Float, steps: Int): AxisRange {
     val minVal = min(minY, maxY)
     val maxVal = max(minY, maxY)
+    val safeSteps = steps.coerceAtLeast(1)
 
     if (minVal == maxVal) {
         val bump = if (minVal == 0f) 1f else kotlin.math.abs(minVal) * 0.1f
-        val step = niceNum((2f * bump) / steps, round = true).coerceAtLeast(0.0001f)
-        val axisMin = floor((minVal - bump) / step) * step
-        val axisMax = ceil((maxVal + bump) / step) * step
-        return AxisRange(axisMin, axisMax, step)
+        val niceStep = niceNum((2f * bump) / safeSteps, round = true).coerceAtLeast(0.0001f)
+        val axisMin = floor((minVal - bump) / niceStep) * niceStep
+        val axisMax = ceil((maxVal + bump) / niceStep) * niceStep
+        val axisStep = ((axisMax - axisMin) / safeSteps).coerceAtLeast(0.0001f)
+        return AxisRange(axisMin, axisMax, axisStep)
     }
 
     val rawRange = (maxVal - minVal).coerceAtLeast(0.0001f)
     val niceRange = niceNum(rawRange, round = false)
-    val step = niceNum(niceRange / steps, round = true).coerceAtLeast(0.0001f)
+    val niceStep = niceNum(niceRange / safeSteps, round = true).coerceAtLeast(0.0001f)
 
-    val axisMin = floor(minVal / step) * step
-    val axisMax = ceil(maxVal / step) * step
+    val axisMin = floor(minVal / niceStep) * niceStep
+    val axisMax = ceil(maxVal / niceStep) * niceStep
+    val axisStep = ((axisMax - axisMin) / safeSteps).coerceAtLeast(0.0001f)
 
-    return AxisRange(axisMin, axisMax, step)
+    return AxisRange(axisMin, axisMax, axisStep)
+}
+
+private fun exactMinAxisRange(minY: Float, maxY: Float, steps: Int, decimals: Int): AxisRange {
+    val safeSteps = steps.coerceAtLeast(1)
+    val axisMin = min(minY, maxY)
+    val rawRange = (maxY - axisMin).coerceAtLeast(0.0001f)
+    val minStep = if (decimals == 0) 1f else 0.0001f
+    val axisStep = max(rawRange / safeSteps, minStep)
+    val axisMax = axisMin + (axisStep * safeSteps)
+    return AxisRange(axisMin, axisMax, axisStep)
 }
 
 private fun niceNum(range: Float, round: Boolean): Float {
