@@ -54,6 +54,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.Period
 import java.time.ZoneId
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -85,6 +86,9 @@ fun ProfileOnboardingScreen(
 
                 ProfileOnboardingViewModel.Step.Height ->
                     HeightStep(s.heightCm, vm::setHeight, vm::next, s.canNext)
+
+                ProfileOnboardingViewModel.Step.Weight ->
+                    WeightStep(s.weightKg, vm::setWeight, vm::next, s.canNext)
 
                 ProfileOnboardingViewModel.Step.Done -> {}
             }
@@ -203,6 +207,28 @@ private fun HeightStep(value: String, onChange: (String) -> Unit, onNext: () -> 
         )
         Spacer(Modifier.weight(1f))
         Button(onClick = onNext, enabled = canNext, modifier = Modifier.fillMaxWidth().height(56.dp)) {
+            Text(stringResource(R.string.action_next))
+        }
+    }
+}
+
+@Composable
+private fun WeightStep(value: String, onChange: (String) -> Unit, onNext: () -> Unit, canNext: Boolean) {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Text(
+            stringResource(R.string.profile_question_weight, stringResource(R.string.unit_kg)),
+            style = MaterialTheme.typography.titleLarge
+        )
+        OutlinedTextField(
+            value = value,
+            onValueChange = { onChange(filterWeightInput(it)) },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            singleLine = true,
+            suffix = { Text(stringResource(R.string.unit_kg)) },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(Modifier.weight(1f))
+        Button(onClick = onNext, enabled = canNext, modifier = Modifier.fillMaxWidth().height(56.dp)) {
             Text(stringResource(R.string.action_save))
         }
     }
@@ -223,6 +249,7 @@ fun ProfileScreen(
     var nameInput by remember { mutableStateOf("") }
     var genderInput by remember { mutableStateOf("") }
     var heightInput by remember { mutableStateOf("") }
+    var weightInput by remember { mutableStateOf("") }
     var birthDateInput by remember { mutableStateOf<Long?>(null) }
     var editError by remember { mutableStateOf<Int?>(null) }
 
@@ -245,6 +272,11 @@ fun ProfileScreen(
         heightInput = profile?.heightCm?.takeIf { it > 0 }?.toString().orEmpty()
         editError = null
         editing = EditField.Height
+    }
+    val openWeightEdit = {
+        weightInput = profile?.weightKg?.takeIf { it > 0f }?.let(::formatWeightInput).orEmpty()
+        editError = null
+        editing = EditField.Weight
     }
 
     Scaffold(
@@ -294,6 +326,11 @@ fun ProfileScreen(
                     label = stringResource(R.string.profile_label_height),
                     value = formatHeight(current.heightCm),
                     onEdit = openHeightEdit
+                )
+                ProfileField(
+                    label = stringResource(R.string.profile_label_weight),
+                    value = formatWeight(current.weightKg),
+                    onEdit = openWeightEdit
                 )
             }
         }
@@ -374,6 +411,29 @@ fun ProfileScreen(
             }
         )
 
+        EditField.Weight -> WeightEditDialog(
+            value = weightInput,
+            onValueChange = {
+                weightInput = filterWeightInput(it)
+                editError = null
+            },
+            errorText = editError,
+            onDismiss = { editing = null },
+            onSave = {
+                val weight = weightInput.toFloatOrNull()
+                val err = if (weight == null) {
+                    R.string.profile_error_enter_valid_weight
+                } else {
+                    vm.updateWeight(weight)
+                }
+                if (err == null) {
+                    editing = null
+                } else {
+                    editError = err
+                }
+            }
+        )
+
         null -> Unit
     }
 }
@@ -415,7 +475,8 @@ private enum class EditField {
     Name,
     Gender,
     BirthDate,
-    Height
+    Height,
+    Weight
 }
 
 @Composable
@@ -551,6 +612,74 @@ private fun HeightEditDialog(
     )
 }
 
+@Composable
+private fun WeightEditDialog(
+    value: String,
+    onValueChange: (String) -> Unit,
+    errorText: Int?,
+    onDismiss: () -> Unit,
+    onSave: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.profile_edit_weight_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = value,
+                    onValueChange = onValueChange,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true,
+                    suffix = { Text(stringResource(R.string.unit_kg)) },
+                    isError = errorText != null,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                if (errorText != null) {
+                    Text(stringResource(errorText), color = MaterialTheme.colorScheme.error)
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onSave,
+                enabled = value.toIntOrNull() != null
+            ) { Text(stringResource(R.string.action_save)) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } }
+    )
+}
+
+private fun filterWeightInput(input: String): String {
+    val filtered = buildString {
+        var hasDot = false
+        var decimals = 0
+        input.forEach { ch ->
+            when {
+                ch.isDigit() && (!hasDot || decimals < 1) -> {
+                    append(ch)
+                    if (hasDot) decimals++
+                }
+
+                ch == '.' && !hasDot -> {
+                    if (isEmpty()) append('0')
+                    append(ch)
+                    hasDot = true
+                }
+            }
+        }
+    }
+    return if (filtered.length > 4 && '.' !in filtered) filtered.take(3) else filtered
+}
+
+private fun formatWeightInput(weightKg: Float): String {
+    val rounded = String.format(Locale.US, "%.1f", weightKg)
+    return if (rounded.endsWith(".0")) {
+        rounded.dropLast(2)
+    } else {
+        rounded
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun BirthDateEditDialog(
@@ -611,6 +740,13 @@ private fun formatHeight(heightCm: Int): String {
     if (heightCm <= 0) return stringResource(R.string.profile_not_set)
     val unit = stringResource(R.string.unit_cm)
     return stringResource(R.string.profile_height_value, heightCm, unit)
+}
+
+@Composable
+private fun formatWeight(weightKg: Float): String {
+    if (weightKg <= 0f) return stringResource(R.string.profile_not_set)
+    val unit = stringResource(R.string.unit_kg)
+    return stringResource(R.string.profile_weight_value, formatWeightInput(weightKg), unit)
 }
 
 @Composable
