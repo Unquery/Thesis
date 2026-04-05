@@ -42,6 +42,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -89,6 +90,11 @@ fun ConnectBandScreen(
     val scanState by vmConnectBand.scanState.collectAsStateWithLifecycle()
     val bands by vmConnectBand.bands.collectAsStateWithLifecycle()
     val connectedDevice by vmConnectBand.connectedDevice.collectAsStateWithLifecycle()
+
+    DisposableEffect(vmConnectBand) {
+        vmConnectBand.onConnectScreenVisible()
+        onDispose { vmConnectBand.onConnectScreenHidden() }
+    }
 
     val launcher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
