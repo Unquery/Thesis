@@ -12,6 +12,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -32,11 +33,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -306,11 +309,26 @@ private fun ConnectedDeviceRow(
     device: ConnectedDevice,
     onDisconnect: () -> Unit
 ) {
+    var showAction by remember { mutableStateOf(false) }
+    var showDisconnectDialog by remember { mutableStateOf(false) }
     var rowHeight by remember { mutableIntStateOf(0) }
     val statusText = when {
         device.disconnectPending -> stringResource(R.string.band_status_disconnect_pending)
         device.isConnected -> stringResource(R.string.band_status_connected)
         else -> stringResource(R.string.band_status_sleeping)
+    }
+    val transition = updateTransition(targetState = showAction, label = "disconnect_action")
+    val spacerWidth by transition.animateDp(
+        transitionSpec = {
+            if (targetState) {
+                tween(durationMillis = 200)
+            } else {
+                tween(durationMillis = 400)
+            }
+        },
+        label = "disconnect_spacer"
+    ) { isVisible ->
+        if (isVisible) 68.dp else 0.dp
     }
 
     Box(
@@ -322,6 +340,7 @@ private fun ConnectedDeviceRow(
             Modifier
                 .fillMaxWidth()
                 .background(Color(0xFF3A3A3A))
+                .clickable(onClick = { showAction = !showAction })
                 .onSizeChanged { size -> rowHeight = size.height }
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -346,31 +365,83 @@ private fun ConnectedDeviceRow(
                     fontSize = 12.sp
                 )
             }
-            Spacer(modifier = Modifier.width(68.dp))
+            Spacer(modifier = Modifier.width(spacerWidth))
         }
 
-        Box(
+        transition.AnimatedVisibility(
+            visible = { it },
             modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .height(with(LocalDensity.current) { rowHeight.toDp() })
-                .width(56.dp)
-                .background(Color(0xFFEF4444), RoundedCornerShape(10.dp))
-                .clickable(
-                    indication = null,
-                    interactionSource = remember { MutableInteractionSource() }
-                ) {
-                    if (!device.disconnectPending) onDisconnect()
-                },
-            contentAlignment = Alignment.Center
+                .align(Alignment.CenterEnd),
+            enter = slideInHorizontally(initialOffsetX = { it }) + fadeIn(),
+            exit = slideOutHorizontally(targetOffsetX = { it }) + fadeOut()
         ) {
-            Icon(
-                imageVector = Icons.Filled.Close,
-                contentDescription = stringResource(R.string.band_disconnect),
-                tint = Color.White
+            Box(
+                modifier = Modifier
+                    .height(with(LocalDensity.current) { rowHeight.toDp() })
+                    .width(56.dp)
+                    .background(Color(0xFFEF4444), RoundedCornerShape(10.dp))
+                    .clickable(
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() }
+                    ) {
+                        showAction = false
+                        if (!device.disconnectPending) {
+                            showDisconnectDialog = true
+                        }
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Close,
+                    contentDescription = stringResource(R.string.band_disconnect),
+                    tint = Color.White
+                )
+            }
+        }
+
+        if (showDisconnectDialog) {
+            AlertDialog(
+                onDismissRequest = { showDisconnectDialog = false },
+                title = {
+                    Text(text = stringResource(R.string.band_disconnect_confirm_title))
+                },
+                confirmButton = {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        OutlinedButton(
+                            onClick = {
+                                showDisconnectDialog = false
+                                onDisconnect()
+                            },
+                            modifier = Modifier.width(124.dp),
+                            border = BorderStroke(2.dp, DIALOG_ACTION_COLOR),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = Color.White
+                            )
+                        ) {
+                            Text(text = stringResource(R.string.action_yes))
+                        }
+                        Spacer(modifier = Modifier.width(20.dp))
+                        Button(
+                            onClick = { showDisconnectDialog = false },
+                            modifier = Modifier.width(124.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = DIALOG_ACTION_COLOR,
+                                contentColor = Color.White
+                            )
+                        ) {
+                            Text(text = stringResource(R.string.action_no))
+                        }
+                    }
+                }
             )
         }
     }
 }
+
+private val DIALOG_ACTION_COLOR = Color(0xFF0F172A)
 
 @Composable
 private fun BandRow(band: Band, onClick: () -> Unit) {
