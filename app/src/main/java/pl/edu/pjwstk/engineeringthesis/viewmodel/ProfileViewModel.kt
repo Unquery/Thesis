@@ -22,7 +22,7 @@ class ProfileOnboardingViewModel @Inject constructor(
     private val repo: ProfileRepository
 ) : ViewModel() {
 
-    enum class Step { Name, Gender, BirthDate, Height, Done }
+    enum class Step { Name, Gender, BirthDate, Height, Weight, Done }
 
     data class UiState(
         val step: Step = Step.Name,
@@ -30,6 +30,7 @@ class ProfileOnboardingViewModel @Inject constructor(
         val gender: String? = null,
         val birthDateEpochDays: Long? = null,
         val heightCm: String = "",
+        val weightKg: String = "",
         val canNext: Boolean = false,
         val finished: Boolean = false
     )
@@ -66,12 +67,19 @@ class ProfileOnboardingViewModel @Inject constructor(
         _state.update { it.copy(heightCm = text, canNext = ok) }
     }
 
+    fun setWeight(text: String) {
+        val n = text.toFloatOrNull()
+        val ok = n != null && validWeightKg(n)
+        _state.update { it.copy(weightKg = text, canNext = ok) }
+    }
+
     fun next() {
         when (_state.value.step) {
             Step.Name      -> _state.update { it.copy(step = Step.Gender,    canNext = it.gender != null) }
             Step.Gender    -> _state.update { it.copy(step = Step.BirthDate, canNext = it.birthDateEpochDays?.let(::validAge) == true) }
             Step.BirthDate -> _state.update { it.copy(step = Step.Height,    canNext = it.heightCm.toIntOrNull()?.let { n -> n in 100..250 } == true) }
-            Step.Height    -> saveAndFinish()
+            Step.Height    -> _state.update { it.copy(step = Step.Weight,    canNext = it.weightKg.toFloatOrNull()?.let(::validWeightKg) == true) }
+            Step.Weight    -> saveAndFinish()
             Step.Done      -> Unit
         }
     }
@@ -85,6 +93,7 @@ class ProfileOnboardingViewModel @Inject constructor(
             gender = s.gender ?: "unspecified",
             birthDateEpochDays = s.birthDateEpochDays ?: 0L,
             heightCm = s.heightCm.toIntOrNull() ?: 0,
+            weightKg = s.weightKg.toFloatOrNull() ?: 0f,
             isActive = true
         )
         repo.insertAndActivate(profile)
@@ -96,6 +105,8 @@ class ProfileOnboardingViewModel @Inject constructor(
         val years = Period.between(birth, LocalDate.now()).years
         return years in 5..120
     }
+
+    private fun validWeightKg(weightKg: Float): Boolean = weightKg in 20f..300f
 }
 
 @HiltViewModel
@@ -140,6 +151,14 @@ class ProfileViewModel @Inject constructor(
         if (heightCm !in 100..250) return R.string.error_height_range
         val id = activeProfile.value?.id ?: return R.string.error_no_active_profile
         viewModelScope.launch { repo.setHeightCm(id, heightCm) }
+        return null
+    }
+
+    @StringRes
+    fun updateWeight(weightKg: Float): Int? {
+        if (weightKg !in 20f..300f) return R.string.error_weight_range
+        val id = activeProfile.value?.id ?: return R.string.error_no_active_profile
+        viewModelScope.launch { repo.setWeightKg(id, weightKg) }
         return null
     }
 
