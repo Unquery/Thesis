@@ -65,7 +65,6 @@ class BleConnectionManager @Inject constructor(
     }
 
     private val disconnectTimeoutMs = 3 * 60 * 1000L
-    private val sleepingTimeoutMs = disconnectTimeoutMs
 
     private val _connectedDevice = MutableStateFlow(loadConnectedDevice())
     val connectedDevice: StateFlow<ConnectedDevice?> = _connectedDevice
@@ -143,9 +142,7 @@ class BleConnectionManager @Inject constructor(
                 _scanState.value = ScanUiState.Idle
                 val device = _connectedDevice.value
                 if (
-                    isAppVisible &&
-                    device != null &&
-                    !device.disconnectPending &&
+                    shouldMaintainConnection(device) &&
                     reconnectJob?.isActive != true
                 ) {
                     startReconnectSequence(
@@ -241,6 +238,19 @@ class BleConnectionManager @Inject constructor(
         )
     }
 
+    fun resumeManagedSession(timeoutMs: Long = 20_000L) {
+        val device = _connectedDevice.value ?: return
+        if (!shouldMaintainConnection(device)) return
+        if (!hasBluetoothPermissions() || !isBluetoothEnabled()) return
+        if (device.isConnected || reconnectJob?.isActive == true) return
+
+        startReconnectSequence(
+            attempts = Int.MAX_VALUE,
+            timeoutMs = timeoutMs,
+            pauseMs = 2_000L
+        )
+    }
+
     fun startScanWithTimeout(timeoutMs: Long = 20_000L) {
         if (!isConnectScreenVisible) {
             _scanState.value = ScanUiState.Idle
@@ -283,12 +293,20 @@ class BleConnectionManager @Inject constructor(
 
     fun onAppHidden() {
         val connected = _connectedDevice.value
-        setReconnectOnNextOpen(connected?.isConnected == true && !connected.disconnectPending)
+        setReconnectOnNextOpen(shouldMaintainConnection(connected))
         isAppVisible = false
-        reconnectJob?.cancel()
         scanJob?.cancel()
-        client.stop()
-        _scanState.value = ScanUiState.Idle
+        if (_scanState.value == ScanUiState.Scanning) {
+            client.stop()
+            _scanState.value = if (connected?.isConnected == true) {
+                ScanUiState.Connected
+            } else {
+                ScanUiState.Idle
+            }
+        }
+        if (!shouldMaintainConnection(connected)) {
+            reconnectJob?.cancel()
+        }
     }
 
     fun onConnectScreenVisible() {
@@ -298,21 +316,29 @@ class BleConnectionManager @Inject constructor(
     fun onConnectScreenHidden() {
         isConnectScreenVisible = false
         scanJob?.cancel()
-        client.stop()
-        _scanState.value = ScanUiState.Idle
+        if (_scanState.value == ScanUiState.Scanning) {
+            client.stop()
+            val connected = _connectedDevice.value
+            _scanState.value = if (connected?.isConnected == true) {
+                ScanUiState.Connected
+            } else {
+                ScanUiState.Idle
+            }
+        }
     }
 
     fun requestDisconnect() {
         val device = _connectedDevice.value ?: return
-        if (device.disconnectPending) return
-        if (device.isConnected) {
-            disconnectCurrent()
-            clearConnectedDevice(clearPreferred = true)
-            return
-        }
-        val now = System.currentTimeMillis()
-        setConnectedDevice(device.copy(disconnectPending = true, disconnectRequestedAt = now))
-        startReconnectSequence(attempts = 3, timeoutMs = 20_000L, pauseMs = 2_000L)
+
+        // A manual disconnect should forget the band immediately and never schedule reconnect.
+        reconnectJob?.cancel()
+        scanJob?.cancel()
+        gotConnection = false
+        client.stop()
+        removeBandFromScanResults(device.address)
+        clearConnectedDevice(clearPreferred = true)
+        _scanState.value = ScanUiState.Idle
+        disconnectCurrent()
     }
 
     fun connectTo(address: String) {
@@ -487,11 +513,6 @@ class BleConnectionManager @Inject constructor(
                     if (now - requestedAt >= disconnectTimeoutMs) {
                         clearConnectedDevice(clearPreferred = true)
                     }
-                    continue
-                }
-                val sleepStartedAt = device.sleepStartedAt ?: continue
-                if (now - sleepStartedAt >= sleepingTimeoutMs) {
-                    clearConnectedDevice(clearPreferred = false)
                 }
             }
         }
@@ -504,9 +525,10 @@ class BleConnectionManager @Inject constructor(
     ) {
         reconnectJob?.cancel()
         reconnectJob = scope.launch {
+            var currentPauseMs = pauseMs
             repeat(attempts) {
-                if (!isAppVisible) return@launch
                 val device = _connectedDevice.value
+                if (!shouldMaintainConnection(device)) return@launch
                 if (preferredAddress == null && device == null) return@launch
                 if (device != null && device.isConnected) return@launch
                 val address = preferredAddress ?: device?.address ?: return@launch
@@ -514,12 +536,19 @@ class BleConnectionManager @Inject constructor(
                 connectTo(address)
 
                 val end = System.currentTimeMillis() + timeoutMs
-                while (isActive && isAppVisible && System.currentTimeMillis() < end && !gotConnection) {
+                while (
+                    isActive &&
+                    shouldMaintainConnection() &&
+                    System.currentTimeMillis() < end &&
+                    !gotConnection
+                ) {
                     delay(100)
                 }
 
                 if (gotConnection) return@launch
-                delay(pauseMs)
+                if (!shouldMaintainConnection()) return@launch
+                delay(currentPauseMs)
+                currentPauseMs = (currentPauseMs * 2).coerceAtMost(60_000L)
             }
         }
     }
@@ -529,6 +558,10 @@ class BleConnectionManager @Inject constructor(
             client.disconnect()
         } catch (_: SecurityException) {
         }
+    }
+
+    private fun shouldMaintainConnection(device: ConnectedDevice? = _connectedDevice.value): Boolean {
+        return device != null && !device.disconnectPending
     }
 
     private fun ensureForegroundServiceRunning() {
