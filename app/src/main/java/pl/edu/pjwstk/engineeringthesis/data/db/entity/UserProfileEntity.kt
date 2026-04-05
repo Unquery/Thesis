@@ -10,5 +10,6 @@ data class UserProfileEntity(
     val gender: String,
     val birthDateEpochDays: Long,
     val heightCm: Int,
+    val weightKg: Float = 0f,
     val isActive: Boolean = false
 )
