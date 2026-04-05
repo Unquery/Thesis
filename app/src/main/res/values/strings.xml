@@ -127,6 +127,8 @@
     <string name="charts_last_7_days">Last 7 days</string>
     <string name="charts_avg_format">Avg %1$s %2$s</string>
     <string name="charts_min_max_format">Min %1$s  Max %2$s</string>
+    <string name="charts_normal_range_format">Normal %1$s-%2$s %3$s</string>
+    <string name="charts_normal_center_range_format">Normal %1$s %4$s (%2$s-%3$s)</string>
     <string name="charts_selection_day_format">%1$s  %2$s %3$s</string>
     <string name="charts_selection_range_format">%1$s  %2$s %3$s</string>
     <string name="charts_selection_value_only_format">%1$s %2$s</string>
