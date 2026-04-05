@@ -4,7 +4,6 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
-import co.yml.charts.common.model.Point
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -21,23 +20,29 @@ import pl.edu.pjwstk.engineeringthesis.data.repository.HearthRateSampleRepositor
 import pl.edu.pjwstk.engineeringthesis.data.repository.ProfileRepository
 import pl.edu.pjwstk.engineeringthesis.data.repository.SpO2SampleRepository
 import pl.edu.pjwstk.engineeringthesis.data.repository.TempSampleRepository
-import pl.edu.pjwstk.engineeringthesis.model.DailyAvg
-import pl.edu.pjwstk.engineeringthesis.model.HourlyAvg
+import pl.edu.pjwstk.engineeringthesis.model.DailyMinMax
+import pl.edu.pjwstk.engineeringthesis.model.HourlyMinMax
 import pl.edu.pjwstk.engineeringthesis.util.ChartMetric
 import pl.edu.pjwstk.engineeringthesis.util.ChartRange
 import pl.edu.pjwstk.engineeringthesis.util.Charts
-import java.time.LocalDate
 import java.time.DayOfWeek
+import java.time.LocalDate
 import java.time.temporal.TemporalAdjusters
 import java.time.ZoneId
 import javax.inject.Inject
 
 data class ChartState(
     val range: ChartRange,
-    val points: List<Point>,
+    val points: List<ChartBucketRange>,
     val dates: List<LocalDate>,
     val summary: ChartSummary,
     val baseDate: LocalDate
+)
+
+data class ChartBucketRange(
+    val x: Float,
+    val minY: Float,
+    val maxY: Float
 )
 
 data class ChartSummary(
@@ -96,11 +101,11 @@ class ChartsViewModel @Inject constructor(
                     ChartRange.Day -> {
                         val (start, end) = rangeMillis(baseDate, baseDate.plusDays(1))
                         val summaryFlow = rawSummaryFlow(metric, userId, start, end)
-                        val pointsFlow = hourlyAvgFlow(metric, userId, start, end)
+                        val pointsFlow = hourlyMinMaxFlow(metric, userId, start, end)
                         combine(pointsFlow, summaryFlow) { rows, summary ->
                             ChartState(
                                 selectedRange,
-                                toHourlyPoints(rows),
+                                toHourlyBuckets(rows),
                                 emptyList(),
                                 summary,
                                 baseDate
@@ -112,11 +117,11 @@ class ChartsViewModel @Inject constructor(
                         val dates = weekDates(baseDate)
                         val (start, end) = rangeMillis(dates.first(), dates.last().plusDays(1))
                         val summaryFlow = rawSummaryFlow(metric, userId, start, end)
-                        val pointsFlow = dailyAvgFlow(metric, userId, start, end)
+                        val pointsFlow = dailyMinMaxFlow(metric, userId, start, end)
                         combine(pointsFlow, summaryFlow) { rows, summary ->
                             ChartState(
                                 selectedRange,
-                                toDailyPoints(rows, dates),
+                                toDailyBuckets(rows, dates),
                                 dates,
                                 summary,
                                 baseDate
@@ -128,11 +133,11 @@ class ChartsViewModel @Inject constructor(
                         val dates = monthDates(baseDate)
                         val (start, end) = rangeMillis(dates.first(), dates.last().plusDays(1))
                         val summaryFlow = rawSummaryFlow(metric, userId, start, end)
-                        val pointsFlow = dailyAvgFlow(metric, userId, start, end)
+                        val pointsFlow = dailyMinMaxFlow(metric, userId, start, end)
                         combine(pointsFlow, summaryFlow) { rows, summary ->
                             ChartState(
                                 selectedRange,
-                                toDailyPoints(rows, dates),
+                                toDailyBuckets(rows, dates),
                                 dates,
                                 summary,
                                 baseDate
@@ -153,28 +158,28 @@ class ChartsViewModel @Inject constructor(
             )
         )
 
-    private fun hourlyAvgFlow(
+    private fun hourlyMinMaxFlow(
         metric: ChartMetric,
         userId: Int,
         start: Long,
         end: Long
-    ): Flow<List<HourlyAvg>> = when (metric) {
-        ChartMetric.Temperature -> tempRepo.observeHourlyAvg(userId, start, end)
-        ChartMetric.HeartRate -> hrRepo.observeHourlyAvg(userId, start, end)
-        ChartMetric.SpO2 -> spo2Repo.observeHourlyAvg(userId, start, end)
-        ChartMetric.Gsr -> gsrRepo.observeHourlyAvg(userId, start, end)
+    ): Flow<List<HourlyMinMax>> = when (metric) {
+        ChartMetric.Temperature -> tempRepo.observeHourlyMinMax(userId, start, end)
+        ChartMetric.HeartRate -> hrRepo.observeHourlyMinMax(userId, start, end)
+        ChartMetric.SpO2 -> spo2Repo.observeHourlyMinMax(userId, start, end)
+        ChartMetric.Gsr -> gsrRepo.observeHourlyMinMax(userId, start, end)
     }
 
-    private fun dailyAvgFlow(
+    private fun dailyMinMaxFlow(
         metric: ChartMetric,
         userId: Int,
         start: Long,
         end: Long
-    ): Flow<List<DailyAvg>> = when (metric) {
-        ChartMetric.Temperature -> tempRepo.observeDailyAvg(userId, start, end)
-        ChartMetric.HeartRate -> hrRepo.observeDailyAvg(userId, start, end)
-        ChartMetric.SpO2 -> spo2Repo.observeDailyAvg(userId, start, end)
-        ChartMetric.Gsr -> gsrRepo.observeDailyAvg(userId, start, end)
+    ): Flow<List<DailyMinMax>> = when (metric) {
+        ChartMetric.Temperature -> tempRepo.observeDailyMinMax(userId, start, end)
+        ChartMetric.HeartRate -> hrRepo.observeDailyMinMax(userId, start, end)
+        ChartMetric.SpO2 -> spo2Repo.observeDailyMinMax(userId, start, end)
+        ChartMetric.Gsr -> gsrRepo.observeDailyMinMax(userId, start, end)
     }
 
     private fun rawSummaryFlow(
@@ -193,30 +198,31 @@ class ChartsViewModel @Inject constructor(
             .map { rows -> summaryFromValues(rows.map { it.gsr.toFloat() }) }
     }
 
-    private fun toHourlyPoints(rows: List<HourlyAvg>): List<Point> {
+    private fun toHourlyBuckets(rows: List<HourlyMinMax>): List<ChartBucketRange> {
         return rows
-            .filter { it.avg != null }
             .sortedBy { it.hour }
             .mapNotNull { row ->
-                val value = row.avg?.toFloat() ?: return@mapNotNull null
-                Point(
-                    x = row.hour.toFloat(),
-                    y = value,
-                    description = ""
+                val min = row.min?.toFloat() ?: return@mapNotNull null
+                val max = row.max?.toFloat() ?: return@mapNotNull null
+                ChartBucketRange(
+                    x = row.hour * 2f,
+                    minY = min,
+                    maxY = max
                 )
             }
     }
 
-    private fun toDailyPoints(rows: List<DailyAvg>, dates: List<LocalDate>): List<Point> {
+    private fun toDailyBuckets(rows: List<DailyMinMax>, dates: List<LocalDate>): List<ChartBucketRange> {
         if (rows.isEmpty()) return emptyList()
-        val avgByDate = rows.associate { LocalDate.parse(it.date) to it.avg }
-        return dates.mapIndexed { index, date ->
-            val avg = avgByDate[date]
-            val value = avg?.toFloat() ?: 0f
-            Point(
+        val rowsByDate = rows.associateBy { LocalDate.parse(it.date) }
+        return dates.mapIndexedNotNull { index, date ->
+            val row = rowsByDate[date] ?: return@mapIndexedNotNull null
+            val min = row.min?.toFloat() ?: return@mapIndexedNotNull null
+            val max = row.max?.toFloat() ?: return@mapIndexedNotNull null
+            ChartBucketRange(
                 x = index.toFloat(),
-                y = value,
-                description = ""
+                minY = min,
+                maxY = max
             )
         }
     }
