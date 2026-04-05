@@ -2,7 +2,9 @@ package pl.edu.pjwstk.engineeringthesis.data.repository
 
 import kotlinx.coroutines.flow.Flow
 import pl.edu.pjwstk.engineeringthesis.model.DailyAvg
+import pl.edu.pjwstk.engineeringthesis.model.DailyMinMax
 import pl.edu.pjwstk.engineeringthesis.model.HourlyAvg
+import pl.edu.pjwstk.engineeringthesis.model.HourlyMinMax
 import pl.edu.pjwstk.engineeringthesis.model.MetricSummary
 import pl.edu.pjwstk.engineeringthesis.model.TempSample
 
@@ -25,6 +27,8 @@ interface TempSampleRepository {
 
     fun observeHourlyAvg(userId: Int, startEpoch: Long, endEpoch: Long): Flow<List<HourlyAvg>>
     fun observeDailyAvg(userId: Int, startEpoch: Long, endEpoch: Long): Flow<List<DailyAvg>>
+    fun observeHourlyMinMax(userId: Int, startEpoch: Long, endEpoch: Long): Flow<List<HourlyMinMax>>
+    fun observeDailyMinMax(userId: Int, startEpoch: Long, endEpoch: Long): Flow<List<DailyMinMax>>
     fun observeLatest(userId: Int, startEpoch: Long, endEpoch: Long): Flow<TempSample?>
     fun observeSummary(userId: Int, startEpoch: Long, endEpoch: Long): Flow<MetricSummary>
 
