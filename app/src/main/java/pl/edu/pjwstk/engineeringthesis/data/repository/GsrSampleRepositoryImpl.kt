@@ -5,8 +5,10 @@ import kotlinx.coroutines.flow.map
 import pl.edu.pjwstk.engineeringthesis.data.db.DiaryDB
 import pl.edu.pjwstk.engineeringthesis.data.db.entity.GsrSampleEntity
 import pl.edu.pjwstk.engineeringthesis.model.DailyAvg
+import pl.edu.pjwstk.engineeringthesis.model.DailyMinMax
 import pl.edu.pjwstk.engineeringthesis.model.GsrSample
 import pl.edu.pjwstk.engineeringthesis.model.HourlyAvg
+import pl.edu.pjwstk.engineeringthesis.model.HourlyMinMax
 import pl.edu.pjwstk.engineeringthesis.model.MetricSummary
 import javax.inject.Inject
 
@@ -80,6 +82,22 @@ class GsrSampleRepositoryImpl @Inject constructor(
         endEpoch: Long
     ): Flow<List<DailyAvg>> {
         return dao.observeDailyAvg(userId, startEpoch, endEpoch)
+    }
+
+    override fun observeHourlyMinMax(
+        userId: Int,
+        startEpoch: Long,
+        endEpoch: Long
+    ): Flow<List<HourlyMinMax>> {
+        return dao.observeHourlyMinMax(userId, startEpoch, endEpoch)
+    }
+
+    override fun observeDailyMinMax(
+        userId: Int,
+        startEpoch: Long,
+        endEpoch: Long
+    ): Flow<List<DailyMinMax>> {
+        return dao.observeDailyMinMax(userId, startEpoch, endEpoch)
     }
 
     override fun observeLatest(
