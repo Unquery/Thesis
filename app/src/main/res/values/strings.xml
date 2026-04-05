@@ -95,6 +95,14 @@
     <string name="band_status_connected">Connected</string>
     <string name="band_status_sleeping">Sleeping</string>
     <string name="band_status_disconnect_pending">Disconnect pending</string>
+    <string name="ble_service_channel_name">Band connection</string>
+    <string name="ble_service_channel_description">Keeps the smart band connection active in the background.</string>
+    <string name="ble_service_title">Smart band active</string>
+    <string name="ble_service_text_idle">Waiting for a band session.</string>
+    <string name="ble_service_text_scanning">Scanning for your smart band.</string>
+    <string name="ble_service_text_connected">Connected to %1$s.</string>
+    <string name="ble_service_text_reconnecting">Reconnecting to %1$s.</string>
+    <string name="ble_service_text_disconnect_pending">Disconnecting from %1$s.</string>
 
     <string name="charts_back">Back</string>
     <string name="charts_today">Today</string>
