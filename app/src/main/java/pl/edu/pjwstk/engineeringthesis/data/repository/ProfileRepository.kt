@@ -31,4 +31,5 @@ interface ProfileRepository {
     suspend fun setGender(id: Int, gender: String)
     suspend fun setBirthDateEpochDays(id: Int, birthDateEpochDays: Long)
     suspend fun setHeightCm(id: Int, heightCm: Int)
+    suspend fun setWeightKg(id: Int, weightKg: Float)
 }
