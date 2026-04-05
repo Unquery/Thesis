@@ -1,7 +1,9 @@
 package pl.edu.pjwstk.engineeringthesis.modules
 
 import android.content.Context
+import androidx.room.migration.Migration
 import androidx.room.Room
+import androidx.sqlite.db.SupportSQLiteDatabase
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -15,6 +17,41 @@ import pl.edu.pjwstk.engineeringthesis.data.db.dao.SpO2SampleDao
 import pl.edu.pjwstk.engineeringthesis.data.db.dao.UserProfileDao
 import pl.edu.pjwstk.engineeringthesis.data.db.dao.TempSampleDao
 
+private val MIGRATION_11_12 = object : Migration(11, 12) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL(
+            "ALTER TABLE user_profile ADD COLUMN weightKg INTEGER NOT NULL DEFAULT 0"
+        )
+    }
+}
+
+private val MIGRATION_12_13 = object : Migration(12, 13) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS user_profile_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                name TEXT NOT NULL,
+                gender TEXT NOT NULL,
+                birthDateEpochDays INTEGER NOT NULL,
+                heightCm INTEGER NOT NULL,
+                weightKg REAL NOT NULL DEFAULT 0,
+                isActive INTEGER NOT NULL
+            )
+            """.trimIndent()
+        )
+        database.execSQL(
+            """
+            INSERT INTO user_profile_new (id, name, gender, birthDateEpochDays, heightCm, weightKg, isActive)
+            SELECT id, name, gender, birthDateEpochDays, heightCm, CAST(weightKg AS REAL), isActive
+            FROM user_profile
+            """.trimIndent()
+        )
+        database.execSQL("DROP TABLE user_profile")
+        database.execSQL("ALTER TABLE user_profile_new RENAME TO user_profile")
+    }
+}
+
 @Module
 @InstallIn(SingletonComponent::class)
 object DbModule {
@@ -23,6 +60,7 @@ object DbModule {
     @Singleton
     fun provideDb(@ApplicationContext ctx: Context): DiaryDB =
         Room.databaseBuilder(ctx, DiaryDB::class.java, "diary.db")
+            .addMigrations(MIGRATION_11_12, MIGRATION_12_13)
             .fallbackToDestructiveMigration(false)
             .build()
 
