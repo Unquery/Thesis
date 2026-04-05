@@ -68,6 +68,9 @@ fun MetricBox24h(
     barHeightFraction: Float = 0.75f,
     colorCurve: Float = 2.0f,
     useReferenceGradient: Boolean = false,
+    useNormalRangeGradient: Boolean = false,
+    normalMinValue: Float? = null,
+    normalMaxValue: Float? = null,
     referenceValue: Float? = null,
     referenceRange: Float = 1f,
     colorStrength: Float = 1.0f,
@@ -217,6 +220,32 @@ fun MetricBox24h(
 
                         val c = when {
                             isMissing || finiteVals.isEmpty() -> barColor
+
+                            useNormalRangeGradient &&
+                                normalMinValue != null &&
+                                normalMaxValue != null -> {
+                                val range = referenceRange.coerceAtLeast(0.0001f)
+                                val below = (normalMinValue - barValue).coerceAtLeast(0f)
+                                val above = (barValue - normalMaxValue).coerceAtLeast(0f)
+
+                                when {
+                                    below > 0f -> {
+                                        val tLow = (below / range)
+                                            .coerceIn(0f, 1f)
+                                            .pow(colorCurve)
+                                        lerp(barColor, lowColor, (tLow * colorStrength).coerceIn(0f, 1f))
+                                    }
+
+                                    above > 0f -> {
+                                        val tHigh = (above / range)
+                                            .coerceIn(0f, 1f)
+                                            .pow(colorCurve)
+                                        lerp(barColor, highColor, (tHigh * colorStrength).coerceIn(0f, 1f))
+                                    }
+
+                                    else -> barColor
+                                }
+                            }
 
                             useReferenceGradient && referenceValue != null -> {
                                 val ref = referenceValue
