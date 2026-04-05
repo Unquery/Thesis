@@ -7,6 +7,7 @@ import pl.edu.pjwstk.engineeringthesis.view.ChartsScreen
 import pl.edu.pjwstk.engineeringthesis.view.ConnectBandScreen
 import pl.edu.pjwstk.engineeringthesis.view.MenuScreen
 import pl.edu.pjwstk.engineeringthesis.view.ProfileScreen
+import pl.edu.pjwstk.engineeringthesis.viewmodel.ConnectBandViewModel
 
 
 fun NavGraphBuilder.menuDestination(navController: NavController){
@@ -19,12 +20,16 @@ fun NavGraphBuilder.menuDestination(navController: NavController){
     }
 }
 
-fun NavGraphBuilder.connectBandDestination(navController: NavController){
+fun NavGraphBuilder.connectBandDestination(
+    navController: NavController,
+    vmConnectBand: ConnectBandViewModel
+){
     composable<ConnectBand>{
         ConnectBandScreen(
             onHealthClick = { navController.navigate(Menu) },
             onDeviceClick = {},
-            onProfileClick = { navController.navigate(Profile) }
+            onProfileClick = { navController.navigate(Profile) },
+            vmConnectBand = vmConnectBand
         )
     }
 }
