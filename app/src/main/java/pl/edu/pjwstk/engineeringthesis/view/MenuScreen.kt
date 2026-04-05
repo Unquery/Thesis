@@ -74,6 +74,10 @@ fun MenuScreen(
     val hrBars by vm.todayHrBars.collectAsState()
     val spo2Bars by vm.todaySpo2Bars.collectAsState()
     val tempBars by vm.todayTempBars.collectAsState()
+    val gsrCardBars by vm.todayGsrCardBars.collectAsState()
+    val hrCardBars by vm.todayHrCardBars.collectAsState()
+    val spo2CardBars by vm.todaySpo2CardBars.collectAsState()
+    val tempCardBars by vm.todayTempCardBars.collectAsState()
     val lastUpdatedEpoch by vm.todayLatestEpoch.collectAsState()
 
     Box(Modifier.fillMaxSize()) {
@@ -100,6 +104,10 @@ fun MenuScreen(
                     hrBars = hrBars,
                     spo2Bars = spo2Bars,
                     tempBars = tempBars,
+                    gsrCardBars = gsrCardBars,
+                    hrCardBars = hrCardBars,
+                    spo2CardBars = spo2CardBars,
+                    tempCardBars = tempCardBars,
                     lastUpdatedEpoch = lastUpdatedEpoch,
                     onMetricClick = onMetricClick
                 )
@@ -114,6 +122,10 @@ private fun MenuBody(
     hrBars: List<Float?>,
     spo2Bars: List<Float?>,
     tempBars: List<Float?>,
+    gsrCardBars: List<Float?>,
+    hrCardBars: List<Float?>,
+    spo2CardBars: List<Float?>,
+    tempCardBars: List<Float?>,
     lastUpdatedEpoch: Long?,
     onMetricClick: (ChartMetric) -> Unit
 ) {
@@ -237,10 +249,10 @@ private fun MenuBody(
         )
 
         MenuMetricsColumn(
-            gsrBars = gsrBars,
-            hrBars = hrBars,
-            spo2Bars = spo2Bars,
-            tempBars = tempBars,
+            gsrBars = gsrCardBars,
+            hrBars = hrCardBars,
+            spo2Bars = spo2CardBars,
+            tempBars = tempCardBars,
             onGsrClick = { onMetricClick(ChartMetric.Gsr) },
             onHrClick = { onMetricClick(ChartMetric.HeartRate) },
             onSpo2Click = { onMetricClick(ChartMetric.SpO2) },
@@ -363,8 +375,10 @@ fun MenuMetricsColumn(
                     icon = Icons.Filled.DeviceThermostat,
                     fullHeightBars = true,
                     showMinMaxLabels = false,
-                    referenceValue = 36.6f,
-                    referenceRange = 0.5f,
+                    useNormalRangeGradient = true,
+                    normalMinValue = 36.1f,
+                    normalMaxValue = 37.2f,
+                    referenceRange = 1.1f,
                     colorCurve = 1.2f,
                     colorStrength = 1.4f,
                     lowColorMix = 0.5f,
@@ -389,8 +403,9 @@ fun MenuMetricsColumn(
                     icon = Icons.Filled.MonitorHeart,
                     fullHeightBars = true,
                     showMinMaxLabels = false,
-                    useReferenceGradient = true,
-                    referenceValue = 70f,
+                    useNormalRangeGradient = true,
+                    normalMinValue = 60f,
+                    normalMaxValue = 100f,
                     referenceRange = 15f,
                     colorCurve = 1.3f,
                     colorStrength = 1.2f,
@@ -416,18 +431,19 @@ fun MenuMetricsColumn(
                     scaleFromMin = true,
                     yMinOverride = spo2Min,
                     yMaxOverride = 100f,
-                    barColor = Color(0xFF0284C7),
+                    barColor = Color(0xFF0369A1),
                     icon = Icons.Filled.Bloodtype,
                     fullHeightBars = true,
                     showMinMaxLabels = false,
-                    useReferenceGradient = true,
-                    referenceValue = 98f,
+                    useNormalRangeGradient = true,
+                    normalMinValue = 95f,
+                    normalMaxValue = 100f,
                     referenceRange = 7.0f,
                     colorCurve = 1.3f,
-                    colorStrength = 1.3f,
+                    colorStrength = 1.45f,
                     highColorMix = 0.25f,
-                    lowColorMix = 0.4f,
-                    lowColorTarget = Color.Black
+                    lowColorMix = 0.78f,
+                    lowColorTarget = Color.White
                 )
             }
             Spacer(Modifier.width(5.dp))
@@ -448,6 +464,10 @@ fun MenuMetricsColumn(
                     icon = Icons.Filled.SsidChart,
                     fullHeightBars = true,
                     showMinMaxLabels = false,
+                    useNormalRangeGradient = true,
+                    normalMinValue = 200f,
+                    normalMaxValue = 900f,
+                    referenceRange = 350f,
                     lowColorMix = 0.14f,
                     highColorMix = 0.14f,
                     colorCurve = 2.2f
@@ -538,9 +558,13 @@ private fun MenuBodyPreview() {
         ) {
             MenuBody(
                 gsrBars = gsrBars,
+                gsrCardBars = gsrBars,
                 hrBars = hrBars,
+                hrCardBars = hrBars,
                 spo2Bars = spo2Bars,
+                spo2CardBars = spo2Bars,
                 tempBars = tempBars,
+                tempCardBars = tempBars,
                 lastUpdatedEpoch = System.currentTimeMillis(),
                 onMetricClick = {}
             )
