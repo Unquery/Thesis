@@ -8,7 +8,9 @@ import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
 import pl.edu.pjwstk.engineeringthesis.data.db.entity.GsrSampleEntity
 import pl.edu.pjwstk.engineeringthesis.model.DailyAvg
+import pl.edu.pjwstk.engineeringthesis.model.DailyMinMax
 import pl.edu.pjwstk.engineeringthesis.model.HourlyAvg
+import pl.edu.pjwstk.engineeringthesis.model.HourlyMinMax
 import pl.edu.pjwstk.engineeringthesis.model.MetricSummary
 
 @Dao
@@ -89,6 +91,26 @@ interface GsrSampleDao {
     @Query(
         """
         SELECT
+            CAST(strftime('%H', datetime(epoch / 1000, 'unixepoch', 'localtime')) AS INTEGER) AS hour,
+            MIN(CAST(gsr AS REAL)) AS min,
+            MAX(CAST(gsr AS REAL)) AS max
+        FROM gsr_sample
+        WHERE userId = :userId
+          AND epoch >= :startEpoch
+          AND epoch < :endEpoch
+        GROUP BY hour
+        ORDER BY hour
+        """
+    )
+    fun observeHourlyMinMax(
+        userId: Int,
+        startEpoch: Long,
+        endEpoch: Long
+    ): Flow<List<HourlyMinMax>>
+
+    @Query(
+        """
+        SELECT
             strftime('%Y-%m-%d', datetime(epoch / 1000, 'unixepoch', 'localtime')) AS date,
             AVG(CAST(gsr AS REAL)) AS avg
         FROM gsr_sample
@@ -104,6 +126,26 @@ interface GsrSampleDao {
         startEpoch: Long,
         endEpoch: Long
     ): Flow<List<DailyAvg>>
+
+    @Query(
+        """
+        SELECT
+            strftime('%Y-%m-%d', datetime(epoch / 1000, 'unixepoch', 'localtime')) AS date,
+            MIN(CAST(gsr AS REAL)) AS min,
+            MAX(CAST(gsr AS REAL)) AS max
+        FROM gsr_sample
+        WHERE userId = :userId
+          AND epoch >= :startEpoch
+          AND epoch < :endEpoch
+        GROUP BY date
+        ORDER BY date
+        """
+    )
+    fun observeDailyMinMax(
+        userId: Int,
+        startEpoch: Long,
+        endEpoch: Long
+    ): Flow<List<DailyMinMax>>
 
     @Query("""
         SELECT * FROM gsr_sample
