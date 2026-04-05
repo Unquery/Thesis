@@ -12,6 +12,8 @@
 
     <string name="action_ok">OK</string>
     <string name="action_cancel">Cancel</string>
+    <string name="action_yes">Yes</string>
+    <string name="action_no">No</string>
     <string name="action_save">Save</string>
     <string name="action_next">Next</string>
 
@@ -22,11 +24,13 @@
     <string name="profile_question_gender">What is your gender?</string>
     <string name="profile_question_birth_date">Your date of birth</string>
     <string name="profile_question_height">Your height (%1$s)</string>
+    <string name="profile_question_weight">Your weight (%1$s)</string>
     <string name="profile_pick_date">Pick date</string>
     <string name="profile_label_name">Name</string>
     <string name="profile_label_gender">Gender</string>
     <string name="profile_label_birth_date">Birth date</string>
     <string name="profile_label_height">Height</string>
+    <string name="profile_label_weight">Weight</string>
     <string name="profile_title">Profile</string>
     <string name="profile_no_active">No active profile.</string>
     <string name="profile_not_set">Not set</string>
@@ -34,8 +38,11 @@
     <string name="profile_edit_name_title">Edit name</string>
     <string name="profile_edit_gender_title">Edit gender</string>
     <string name="profile_edit_height_title">Edit height</string>
+    <string name="profile_edit_weight_title">Edit weight</string>
     <string name="profile_error_enter_valid_height">Enter a valid height</string>
+    <string name="profile_error_enter_valid_weight">Enter a valid weight</string>
     <string name="profile_height_value">%1$d %2$s</string>
+    <string name="profile_weight_value">%1$s %2$s</string>
     <string name="profile_birth_date_value">%1$s (%2$d y)</string>
 
     <string name="gender_male">Male</string>
@@ -54,6 +61,7 @@
     <string name="error_no_active_profile">No active profile</string>
     <string name="error_gender_empty">Gender cannot be empty</string>
     <string name="error_height_range">Height must be between 100 and 250 cm</string>
+    <string name="error_weight_range">Weight must be between 20 and 300 kg</string>
     <string name="error_birth_date_future">Birth date cannot be in the future</string>
     <string name="error_age_range">Age must be between 5 and 120</string>
 
@@ -73,6 +81,7 @@
     <string name="unit_bpm">bpm</string>
     <string name="unit_us">uS</string>
     <string name="unit_cm">cm</string>
+    <string name="unit_kg">kg</string>
     <string name="unit_temperature_label">temperature</string>
     <string name="unit_rate_label">rate</string>
     <string name="unit_oxygen_label">oxygen</string>
@@ -92,6 +101,7 @@
     <string name="band_rssi_format">%1$d dBm</string>
     <string name="band_connect">Connect</string>
     <string name="band_disconnect">Disconnect</string>
+    <string name="band_disconnect_confirm_title">Do you want to disconnect the band?</string>
     <string name="band_status_connected">Connected</string>
     <string name="band_status_sleeping">Sleeping</string>
     <string name="band_status_disconnect_pending">Disconnect pending</string>
