@@ -156,25 +156,26 @@ class BleConnectionManager @Inject constructor(
             override fun onPacket(p: Packet) {
                 scope.launch(Dispatchers.IO) {
                     val userId = resolveTargetUserId()
+                    val epochMillis = normalizeEpochMillis(p.epoch)
                     try {
                         p.temps.forEach { value ->
                             tempRepo.upsert(
-                                TempSample(id = 0, userId = userId, epoch = p.epoch, temperature = value)
+                                TempSample(id = 0, userId = userId, epoch = epochMillis, temperature = value)
                             )
                         }
                         p.gsr.forEach { value ->
                             gsrRepo.upsert(
-                                GsrSample(id = 0, userId = userId, epoch = p.epoch, gsr = value)
+                                GsrSample(id = 0, userId = userId, epoch = epochMillis, gsr = value)
                             )
                         }
                         p.hearthRate.forEach { value ->
                             hrRepo.upsert(
-                                HearthRateSample(id = 0, userId = userId, epoch = p.epoch, hearthRate = value)
+                                HearthRateSample(id = 0, userId = userId, epoch = epochMillis, hearthRate = value)
                             )
                         }
                         p.spo2.forEach { value ->
                             spo2Repo.upsert(
-                                SpO2Sample(id = 0, userId = userId, epoch = p.epoch, spo2 = value.toInt())
+                                SpO2Sample(id = 0, userId = userId, epoch = epochMillis, spo2 = value.toInt())
                             )
                         }
                     } catch (e: Exception) {
@@ -574,6 +575,11 @@ class BleConnectionManager @Inject constructor(
 
     private suspend fun resolveTargetUserId(): Int {
         return profileRepo.getActive()?.id ?: 1
+    }
+
+    private fun normalizeEpochMillis(epoch: Long): Long {
+        if (epoch <= 0L) return System.currentTimeMillis()
+        return if (epoch < 100_000_000_000L) epoch * 1_000L else epoch
     }
 
     private companion object {
