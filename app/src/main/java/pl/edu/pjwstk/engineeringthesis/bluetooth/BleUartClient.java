@@ -164,7 +164,7 @@ public class BleUartClient {
     }
 
     private void closeCurrentGatt() {
-        try { if (gatt != null) gatt.close(); } catch (Exception ignored) {}
+        closeGattSafely();
         gatt = null;
         txChar = null;
         rxChar = null;
@@ -428,9 +428,23 @@ public class BleUartClient {
 
     @SuppressLint("MissingPermission")
     public void disconnect() {
-        try { if (gatt != null && hasConnectPermission()) gatt.disconnect(); } catch (Exception ignored) {}
-        try { if (gatt != null) gatt.close(); } catch (Exception ignored) {}
+        try {
+            if (gatt != null && hasConnectPermission()) gatt.disconnect();
+        } catch (SecurityException se) {
+            notifyErr("SecurityException during disconnect", se);
+        }
+        closeGattSafely();
         gatt = null; txChar = null;  rxChar = null; connected = false;
         if (listener != null) listener.onDisconnected();
+    }
+
+    private void closeGattSafely() {
+        if (gatt == null) return;
+        if (!hasConnectPermission()) return;
+        try {
+            gatt.close();
+        } catch (SecurityException se) {
+            notifyErr("SecurityException during close", se);
+        }
     }
 }

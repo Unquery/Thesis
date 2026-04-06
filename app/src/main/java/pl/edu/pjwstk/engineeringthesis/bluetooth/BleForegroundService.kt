@@ -1,11 +1,14 @@
 package pl.edu.pjwstk.engineeringthesis.bluetooth
 
+import android.Manifest
+import android.annotation.SuppressLint
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
@@ -108,6 +111,7 @@ class BleForegroundService : Service() {
         }
     }
 
+    @SuppressLint("NotificationPermission")
     private fun startOrUpdateForeground(title: String, text: String) {
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
@@ -123,7 +127,16 @@ class BleForegroundService : Service() {
             isForegroundStarted = true
         } else {
             val notificationManager = getSystemService(NotificationManager::class.java)
-            notificationManager.notify(NOTIFICATION_ID, notification)
+            if (
+                Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+                checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+            ) {
+                try {
+                    notificationManager.notify(NOTIFICATION_ID, notification)
+                } catch (_: SecurityException) {
+                    return
+                }
+            }
         }
     }
 
