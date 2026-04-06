@@ -356,27 +356,74 @@ public class BleUartClient {
         String chunk = new String(bytes, StandardCharsets.UTF_8);
         lineBuf.append(chunk);
 
-        int nl = indexOfNewline(lineBuf);
-        while (nl != -1) {
-            String line = lineBuf.substring(0, nl);
-            lineBuf.delete(0, nl + 1);
+        String json = extractNextJsonObject(lineBuf);
+        while (json != null) {
             try {
-                Packet p = JsonPacketParser.parse(line);
+                Packet p = JsonPacketParser.parse(json);
                 if (listener != null && p != null) listener.onPacket(p);
             } catch (Exception e) {
                 if (listener != null) listener.onError("JSON parse error: " + e.getMessage(), e);
-                Log.e(TAG, "Bad line: " + line);
+                Log.e(TAG, "Bad JSON packet: " + json, e);
             }
-            nl = indexOfNewline(lineBuf);
+            json = extractNextJsonObject(lineBuf);
         }
     }
 
-    private static int indexOfNewline(StringBuilder sb) {
+    private static String extractNextJsonObject(StringBuilder sb) {
+        int start = -1;
+        int depth = 0;
+        boolean inString = false;
+        boolean escaping = false;
+
         for (int i = 0; i < sb.length(); i++) {
             char c = sb.charAt(i);
-            if (c == '\n' || c == '\r') return i;
+
+            if (start == -1) {
+                if (Character.isWhitespace(c)) {
+                    continue;
+                }
+                if (c == '{') {
+                    start = i;
+                    depth = 1;
+                } else {
+                    sb.deleteCharAt(i);
+                    i--;
+                }
+                continue;
+            }
+
+            if (escaping) {
+                escaping = false;
+                continue;
+            }
+            if (c == '\\') {
+                escaping = true;
+                continue;
+            }
+            if (c == '"') {
+                inString = !inString;
+                continue;
+            }
+            if (inString) {
+                continue;
+            }
+
+            if (c == '{') {
+                depth++;
+            } else if (c == '}') {
+                depth--;
+                if (depth == 0) {
+                    String json = sb.substring(start, i + 1);
+                    sb.delete(0, i + 1);
+                    return json;
+                }
+            }
         }
-        return -1;
+
+        if (start > 0) {
+            sb.delete(0, start);
+        }
+        return null;
     }
 
     @SuppressLint("MissingPermission")
