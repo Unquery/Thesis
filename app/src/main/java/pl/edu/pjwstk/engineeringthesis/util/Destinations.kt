@@ -10,7 +10,7 @@ import pl.edu.pjwstk.engineeringthesis.view.MenuScreen
 import pl.edu.pjwstk.engineeringthesis.view.ProfileScreen
 import pl.edu.pjwstk.engineeringthesis.viewmodel.ConnectBandViewModel
 
-private inline fun <reified T : Any> NavController.navigateToTopLevel(route: T) {
+internal inline fun <reified T : Any> NavController.navigateToTopLevel(route: T) {
     navigate(route) {
         popUpTo(graph.findStartDestination().id) {
             saveState = true
@@ -23,22 +23,16 @@ private inline fun <reified T : Any> NavController.navigateToTopLevel(route: T) 
 fun NavGraphBuilder.menuDestination(navController: NavController){
     composable<Menu>{
         MenuScreen(
-            onConnectBandClick = { navController.navigateToTopLevel(ConnectBand) },
-            onProfileClick = { navController.navigateToTopLevel(Profile) },
             onMetricClick = { metric -> navController.navigate(Charts(metric)) }
         )
     }
 }
 
 fun NavGraphBuilder.connectBandDestination(
-    navController: NavController,
     vmConnectBand: ConnectBandViewModel
 ){
     composable<ConnectBand>{
         ConnectBandScreen(
-            onHealthClick = { navController.navigateToTopLevel(Menu) },
-            onDeviceClick = {},
-            onProfileClick = { navController.navigateToTopLevel(Profile) },
             vmConnectBand = vmConnectBand
         )
     }
@@ -52,12 +46,8 @@ fun NavGraphBuilder.chartsDestination(navController: NavController){
     }
 }
 
-fun NavGraphBuilder.profileDestination(navController: NavController){
+fun NavGraphBuilder.profileDestination(){
     composable<Profile>{
-        ProfileScreen(
-            onHealthClick = { navController.navigateToTopLevel(Menu) },
-            onDeviceClick = { navController.navigateToTopLevel(ConnectBand) },
-            onProfileClick = {}
-        )
+        ProfileScreen()
     }
 }
