@@ -33,7 +33,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -52,6 +51,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import pl.edu.pjwstk.engineeringthesis.R
 import pl.edu.pjwstk.engineeringthesis.util.ChartMetric
 import pl.edu.pjwstk.engineeringthesis.ui.theme.EngineeringThesisTheme
@@ -67,15 +67,7 @@ fun MenuScreen(
     onMetricClick: (ChartMetric) -> Unit = {},
     vm: MenuViewModel = hiltViewModel()
 ) {
-    val gsrBars by vm.todayGsrBars.collectAsState()
-    val hrBars by vm.todayHrBars.collectAsState()
-    val spo2Bars by vm.todaySpo2Bars.collectAsState()
-    val tempBars by vm.todayTempBars.collectAsState()
-    val gsrCardBars by vm.todayGsrCardBars.collectAsState()
-    val hrCardBars by vm.todayHrCardBars.collectAsState()
-    val spo2CardBars by vm.todaySpo2CardBars.collectAsState()
-    val tempCardBars by vm.todayTempCardBars.collectAsState()
-    val lastUpdatedEpoch by vm.todayLatestEpoch.collectAsState()
+    val uiState by vm.uiState.collectAsStateWithLifecycle()
 
     Box(Modifier.fillMaxSize()) {
 
@@ -89,15 +81,15 @@ fun MenuScreen(
                     .background(MaterialTheme.colorScheme.background)
             ){
                 MenuBody(
-                    gsrBars = gsrBars,
-                    hrBars = hrBars,
-                    spo2Bars = spo2Bars,
-                    tempBars = tempBars,
-                    gsrCardBars = gsrCardBars,
-                    hrCardBars = hrCardBars,
-                    spo2CardBars = spo2CardBars,
-                    tempCardBars = tempCardBars,
-                    lastUpdatedEpoch = lastUpdatedEpoch,
+                    gsrBars = uiState.gsrBars,
+                    hrBars = uiState.hrBars,
+                    spo2Bars = uiState.spo2Bars,
+                    tempBars = uiState.tempBars,
+                    gsrCardBars = uiState.gsrCardBars,
+                    hrCardBars = uiState.hrCardBars,
+                    spo2CardBars = uiState.spo2CardBars,
+                    tempCardBars = uiState.tempCardBars,
+                    lastUpdatedEpoch = uiState.lastUpdatedEpoch,
                     onMetricClick = onMetricClick
                 )
             }
