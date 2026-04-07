@@ -121,9 +121,21 @@ fun Navigation(connectBandVm: ConnectBandViewModel){
         bottomBar = {
             if (showBottomBar) {
                 BottomNavBar(
-                    onHealthClick = { navController.navigateToTopLevel(Menu) },
-                    onDeviceClick = { navController.navigateToTopLevel(ConnectBand) },
-                    onProfileClick = { navController.navigateToTopLevel(Profile) },
+                    onHealthClick = {
+                        if (!isMenuDestination) {
+                            navController.navigateToTopLevel(Menu)
+                        }
+                    },
+                    onDeviceClick = {
+                        if (!isConnectBandDestination) {
+                            navController.navigateToTopLevel(ConnectBand)
+                        }
+                    },
+                    onProfileClick = {
+                        if (!isProfileDestination) {
+                            navController.navigateToTopLevel(Profile)
+                        }
+                    },
                     healthTint = if (isMenuDestination) Color(0xFFE53935) else Color.White,
                     deviceTint = if (isConnectBandDestination) Color(0xFF0284C7) else Color.White,
                     profileTint = if (isProfileDestination) Color(0xFFF59E0B) else Color.White
