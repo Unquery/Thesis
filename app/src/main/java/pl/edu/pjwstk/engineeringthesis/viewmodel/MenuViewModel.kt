@@ -25,6 +25,32 @@ import kotlin.collections.associate
 import kotlin.random.Random
 import kotlin.math.abs
 
+data class MenuUiState(
+    val gsrBars: List<Float?> = List(24) { null },
+    val hrBars: List<Float?> = List(24) { null },
+    val spo2Bars: List<Float?> = List(24) { null },
+    val tempBars: List<Float?> = List(24) { null },
+    val gsrCardBars: List<Float?> = List(24) { null },
+    val hrCardBars: List<Float?> = List(24) { null },
+    val spo2CardBars: List<Float?> = List(24) { null },
+    val tempCardBars: List<Float?> = List(24) { null },
+    val lastUpdatedEpoch: Long? = null
+)
+
+private data class MenuPrimaryBars(
+    val gsrBars: List<Float?>,
+    val hrBars: List<Float?>,
+    val spo2Bars: List<Float?>,
+    val tempBars: List<Float?>
+)
+
+private data class MenuCardBars(
+    val gsrCardBars: List<Float?>,
+    val hrCardBars: List<Float?>,
+    val spo2CardBars: List<Float?>,
+    val tempCardBars: List<Float?>
+)
+
 @HiltViewModel
 class MenuViewModel @Inject constructor(
     private val gsrRepo: GsrSampleRepository,
@@ -179,6 +205,73 @@ class MenuViewModel @Inject constructor(
                 }
             }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    private val primaryBars: StateFlow<MenuPrimaryBars> =
+        combine(
+            todayGsrBars,
+            todayHrBars,
+            todaySpo2Bars,
+            todayTempBars
+        ) { gsrBars, hrBars, spo2Bars, tempBars ->
+            MenuPrimaryBars(
+                gsrBars = gsrBars,
+                hrBars = hrBars,
+                spo2Bars = spo2Bars,
+                tempBars = tempBars
+            )
+        }.stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5_000),
+            MenuPrimaryBars(
+                gsrBars = List(24) { null },
+                hrBars = List(24) { null },
+                spo2Bars = List(24) { null },
+                tempBars = List(24) { null }
+            )
+        )
+
+    private val cardBars: StateFlow<MenuCardBars> =
+        combine(
+            todayGsrCardBars,
+            todayHrCardBars,
+            todaySpo2CardBars,
+            todayTempCardBars
+        ) { gsrCardBars, hrCardBars, spo2CardBars, tempCardBars ->
+            MenuCardBars(
+                gsrCardBars = gsrCardBars,
+                hrCardBars = hrCardBars,
+                spo2CardBars = spo2CardBars,
+                tempCardBars = tempCardBars
+            )
+        }.stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5_000),
+            MenuCardBars(
+                gsrCardBars = List(24) { null },
+                hrCardBars = List(24) { null },
+                spo2CardBars = List(24) { null },
+                tempCardBars = List(24) { null }
+            )
+        )
+
+    val uiState: StateFlow<MenuUiState> =
+        combine(
+            primaryBars,
+            cardBars,
+            todayLatestEpoch
+        ) { primaryBars, cardBars, lastUpdatedEpoch ->
+            MenuUiState(
+                gsrBars = primaryBars.gsrBars,
+                hrBars = primaryBars.hrBars,
+                spo2Bars = primaryBars.spo2Bars,
+                tempBars = primaryBars.tempBars,
+                gsrCardBars = cardBars.gsrCardBars,
+                hrCardBars = cardBars.hrCardBars,
+                spo2CardBars = cardBars.spo2CardBars,
+                tempCardBars = cardBars.tempCardBars,
+                lastUpdatedEpoch = lastUpdatedEpoch
+            )
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MenuUiState())
 
     fun seedMock() {
         seedMockActiveUserAndTodayAll(profileRepo, gsrRepo, hrRepo, spo2Repo, tempRepo)
