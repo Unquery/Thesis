@@ -2,6 +2,7 @@ package pl.edu.pjwstk.engineeringthesis.util
 
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.composable
 import pl.edu.pjwstk.engineeringthesis.view.ChartsScreen
 import pl.edu.pjwstk.engineeringthesis.view.ConnectBandScreen
@@ -9,12 +10,21 @@ import pl.edu.pjwstk.engineeringthesis.view.MenuScreen
 import pl.edu.pjwstk.engineeringthesis.view.ProfileScreen
 import pl.edu.pjwstk.engineeringthesis.viewmodel.ConnectBandViewModel
 
+private inline fun <reified T : Any> NavController.navigateToTopLevel(route: T) {
+    navigate(route) {
+        popUpTo(graph.findStartDestination().id) {
+            saveState = true
+        }
+        launchSingleTop = true
+        restoreState = true
+    }
+}
 
 fun NavGraphBuilder.menuDestination(navController: NavController){
     composable<Menu>{
         MenuScreen(
-            onConnectBandClick = { navController.navigate(ConnectBand) },
-            onProfileClick = { navController.navigate(Profile) },
+            onConnectBandClick = { navController.navigateToTopLevel(ConnectBand) },
+            onProfileClick = { navController.navigateToTopLevel(Profile) },
             onMetricClick = { metric -> navController.navigate(Charts(metric)) }
         )
     }
@@ -26,9 +36,9 @@ fun NavGraphBuilder.connectBandDestination(
 ){
     composable<ConnectBand>{
         ConnectBandScreen(
-            onHealthClick = { navController.navigate(Menu) },
+            onHealthClick = { navController.navigateToTopLevel(Menu) },
             onDeviceClick = {},
-            onProfileClick = { navController.navigate(Profile) },
+            onProfileClick = { navController.navigateToTopLevel(Profile) },
             vmConnectBand = vmConnectBand
         )
     }
@@ -45,8 +55,8 @@ fun NavGraphBuilder.chartsDestination(navController: NavController){
 fun NavGraphBuilder.profileDestination(navController: NavController){
     composable<Profile>{
         ProfileScreen(
-            onHealthClick = { navController.navigate(Menu) },
-            onDeviceClick = { navController.navigate(ConnectBand) },
+            onHealthClick = { navController.navigateToTopLevel(Menu) },
+            onDeviceClick = { navController.navigateToTopLevel(ConnectBand) },
             onProfileClick = {}
         )
     }
