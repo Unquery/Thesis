@@ -238,9 +238,6 @@ private fun WeightStep(value: String, onChange: (String) -> Unit, onNext: () -> 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
-    onHealthClick: () -> Unit = {},
-    onDeviceClick: () -> Unit = {},
-    onProfileClick: () -> Unit = {},
     vm: ProfileViewModel = hiltViewModel()
 ) {
     val profile by vm.activeProfile.collectAsStateWithLifecycle()
@@ -280,17 +277,7 @@ fun ProfileScreen(
     }
 
     Scaffold(
-        topBar = { TopProfileScreenBar() },
-        bottomBar = {
-            BottomNavBar(
-                onHealthClick = onHealthClick,
-                onDeviceClick = onDeviceClick,
-                onProfileClick = onProfileClick,
-                healthTint = Color.White,
-                deviceTint = Color.White,
-                profileTint = Color(0xFFF59E0B)
-            )
-        }
+        topBar = { TopProfileScreenBar() }
     ) { pad ->
         val contentModifier = Modifier
             .fillMaxSize()
