@@ -64,9 +64,6 @@ import kotlin.math.pow
 
 @Composable
 fun MenuScreen(
-    onConnectBandClick: () -> Unit,
-    onHealthClick: () -> Unit = {},
-    onProfileClick: () -> Unit = {},
     onMetricClick: (ChartMetric) -> Unit = {},
     vm: MenuViewModel = hiltViewModel()
 ) {
@@ -84,14 +81,6 @@ fun MenuScreen(
 
         Scaffold(
             containerColor = MaterialTheme.colorScheme.background,
-            bottomBar = {
-                BottomNavBar(
-                    onHealthClick = onHealthClick,
-                    onDeviceClick = onConnectBandClick,
-                    onProfileClick = onProfileClick
-                )
-            }
-
         ) { inner ->
             Box(
                 Modifier
