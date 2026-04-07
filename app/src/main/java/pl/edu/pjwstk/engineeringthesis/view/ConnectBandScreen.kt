@@ -81,9 +81,6 @@ import pl.edu.pjwstk.engineeringthesis.viewmodel.ScanUiState
 
 @Composable
 fun ConnectBandScreen(
-    onHealthClick: () -> Unit = {},
-    onDeviceClick: () -> Unit = {},
-    onProfileClick: () -> Unit = {},
     vmBluetoothPermission: BluetoothPermissionViewModel = hiltViewModel(),
     vmConnectBand: ConnectBandViewModel = hiltViewModel()
 ) {
@@ -132,16 +129,6 @@ fun ConnectBandScreen(
             containerColor = MaterialTheme.colorScheme.background,
             topBar = {
                 TopConnectScreenBar()
-            },
-            bottomBar = {
-                BottomNavBar(
-                    onHealthClick = onHealthClick,
-                    onDeviceClick = onDeviceClick,
-                    onProfileClick = onProfileClick,
-                    healthTint = Color.White,
-                    deviceTint = Color(0xFF0284C7),
-                    profileTint = Color.White
-                )
             }
 
         ) { inner ->
