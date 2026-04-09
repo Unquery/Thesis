@@ -12,6 +12,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -21,13 +22,18 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class BluetoothPermissionViewModel @Inject constructor( @ApplicationContext app: Context) : ViewModel() {
+class BluetoothPermissionViewModel @Inject constructor(
+    @ApplicationContext private val app: Context
+) : ViewModel() {
 
     data class UiState(
         val hasPermissions: Boolean = false,
@@ -56,7 +62,12 @@ class BluetoothPermissionViewModel @Inject constructor( @ApplicationContext app:
         }
 
     fun onStart(connectPressed: Boolean = false, hasPerms: Boolean) {
-        _state.update { it.copy(hasPermissions = hasPerms) }
+        _state.update {
+            it.copy(
+                hasPermissions = hasPerms,
+                bluetoothOn = if (hasPerms) currentBluetoothState(app) else false
+            )
+        }
         if (!hasPerms && connectPressed) {
             viewModelScope.launch { _events.emit(UiEvent.RequestPermissions) }
         } else if (hasPerms && connectPressed) {
@@ -65,29 +76,38 @@ class BluetoothPermissionViewModel @Inject constructor( @ApplicationContext app:
     }
 
     fun onPermissionsResult(grantedAll: Boolean) {
-        _state.update { it.copy(hasPermissions = grantedAll) }
+        _state.update {
+            it.copy(
+                hasPermissions = grantedAll,
+                bluetoothOn = if (grantedAll) currentBluetoothState(app) else false
+            )
+        }
         if (grantedAll) {
             viewModelScope.launch { _events.emit(UiEvent.ConnectNow) }
         }
     }
 
-    fun isBluetoothOn(context: Context): Boolean {
-        val manager = context.getSystemService(BluetoothManager::class.java)
-        val adapter = manager.adapter ?: return false
+    private fun currentBluetoothState(context: Context): Boolean {
+        val manager = context.getSystemService(BluetoothManager::class.java) ?: return false
         return try {
-            adapter.isEnabled
+            manager.adapter?.isEnabled == true
         } catch (_: SecurityException) {
             false
         }
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     private val bluetoothOnFlow: StateFlow<Boolean> =
-        bluetoothStateFlow(app)
+        _state
+            .map { it.hasPermissions }
             .distinctUntilChanged()
+            .flatMapLatest { hasPermissions ->
+                if (hasPermissions) bluetoothStateFlow(app) else flowOf(false)
+            }
             .stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5_000),
-                initialValue = isBluetoothOn(app)
+                initialValue = false
             )
 
     private fun bluetoothStateFlow(context: Context): Flow<Boolean> = callbackFlow {
@@ -98,14 +118,24 @@ class BluetoothPermissionViewModel @Inject constructor( @ApplicationContext app:
                 trySend(state == BluetoothAdapter.STATE_ON)
             }
         }
-        if (Build.VERSION.SDK_INT >= 33) {
-            context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
-        } else {
-            @Suppress("DEPRECATION")
-            context.registerReceiver(receiver, filter)
+        var registered = false
+        try {
+            if (Build.VERSION.SDK_INT >= 33) {
+                context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
+            } else {
+                @Suppress("DEPRECATION")
+                context.registerReceiver(receiver, filter)
+            }
+            registered = true
+        } catch (_: SecurityException) {
+            trySend(false)
         }
-        trySend((context.getSystemService(BluetoothManager::class.java)?.adapter?.isEnabled) == true)
-        awaitClose { context.unregisterReceiver(receiver) }
+        trySend(currentBluetoothState(context))
+        awaitClose {
+            if (registered) {
+                runCatching { context.unregisterReceiver(receiver) }
+            }
+        }
     }
 
     init {
