@@ -55,6 +55,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import pl.edu.pjwstk.engineeringthesis.R
 import pl.edu.pjwstk.engineeringthesis.util.ChartMetric
 import pl.edu.pjwstk.engineeringthesis.ui.theme.EngineeringThesisTheme
+import pl.edu.pjwstk.engineeringthesis.viewmodel.MenuStartupViewModel
 import pl.edu.pjwstk.engineeringthesis.viewmodel.MenuViewModel
 import java.util.Locale
 import kotlinx.coroutines.delay
@@ -65,6 +66,7 @@ import kotlin.math.pow
 @Composable
 fun MenuScreen(
     onMetricClick: (ChartMetric) -> Unit = {},
+    _startupVm: MenuStartupViewModel = hiltViewModel(),
     vm: MenuViewModel = hiltViewModel()
 ) {
     val uiState by vm.uiState.collectAsStateWithLifecycle()
