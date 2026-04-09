@@ -133,11 +133,7 @@ fun Navigation(connectBandVm: ConnectBandViewModel){
                             initialOffsetY = { it / 2 },
                             animationSpec = tween(durationMillis = 220)
                         ),
-                exit = fadeOut(animationSpec = tween(durationMillis = 180)) +
-                        slideOutVertically(
-                            targetOffsetY = { it / 2 },
-                            animationSpec = tween(durationMillis = 180)
-                        )
+                exit = fadeOut(animationSpec = tween(durationMillis = 20))
             ) {
                 BottomNavBar(
                     onHealthClick = {
