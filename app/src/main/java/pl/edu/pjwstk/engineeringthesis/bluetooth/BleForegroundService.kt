@@ -38,9 +38,13 @@ class BleForegroundService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        markRunning()
         createNotificationChannel()
+        startOrUpdateForeground(
+            title = getString(R.string.ble_service_title),
+            text = getString(R.string.ble_service_text_idle)
+        )
         observeNotificationState()
-        bleConnectionManager.resumeManagedSession()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -52,11 +56,11 @@ class BleForegroundService : Service() {
             }
 
             else -> {
-                bleConnectionManager.resumeManagedSession()
                 startOrUpdateForeground(
                     title = getString(R.string.ble_service_title),
                     text = getString(R.string.ble_service_text_idle)
                 )
+                bleConnectionManager.resumeManagedSession()
                 return START_STICKY
             }
         }
@@ -64,6 +68,7 @@ class BleForegroundService : Service() {
 
     override fun onDestroy() {
         notificationJob?.cancel()
+        markStopped()
         super.onDestroy()
     }
 
@@ -168,8 +173,12 @@ class BleForegroundService : Service() {
         private const val ACTION_STOP = "pl.edu.pjwstk.engineeringthesis.bluetooth.action.STOP"
         private const val CHANNEL_ID = "ble_connection"
         private const val NOTIFICATION_ID = 1001
+        @Volatile private var isRunning = false
+        @Volatile private var isStartRequested = false
 
         fun start(context: Context) {
+            if (isRunning || isStartRequested) return
+            isStartRequested = true
             val intent = Intent(context, BleForegroundService::class.java).apply {
                 action = ACTION_START
             }
@@ -181,6 +190,15 @@ class BleForegroundService : Service() {
                 action = ACTION_STOP
             }
             context.startService(intent)
+        }
+
+        private fun markRunning() {
+            isRunning = true
+        }
+
+        private fun markStopped() {
+            isRunning = false
+            isStartRequested = false
         }
     }
 }
