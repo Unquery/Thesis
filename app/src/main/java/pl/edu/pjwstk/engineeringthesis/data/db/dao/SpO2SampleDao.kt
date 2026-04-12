@@ -76,6 +76,7 @@ interface SpO2SampleDao {
         WHERE userId = :userId
           AND epoch >= :startEpoch
           AND epoch < :endEpoch
+          AND spo2 >= 80
         GROUP BY hour
         ORDER BY hour
         """
@@ -96,6 +97,7 @@ interface SpO2SampleDao {
         WHERE userId = :userId
           AND epoch >= :startEpoch
           AND epoch < :endEpoch
+          AND spo2 >= 80
         GROUP BY hour
         ORDER BY hour
         """

@@ -81,6 +81,7 @@ interface TempSampleDao {
         WHERE userId = :userId
           AND epoch >= :startEpoch
           AND epoch < :endEpoch
+          AND temperature >= 30
         GROUP BY hour
         ORDER BY hour
         """
@@ -101,6 +102,7 @@ interface TempSampleDao {
         WHERE userId = :userId
           AND epoch >= :startEpoch
           AND epoch < :endEpoch
+          AND temperature >= 30
         GROUP BY hour
         ORDER BY hour
         """

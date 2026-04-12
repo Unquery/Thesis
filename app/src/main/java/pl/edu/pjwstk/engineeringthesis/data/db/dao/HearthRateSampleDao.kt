@@ -80,6 +80,7 @@ interface HearthRateSampleDao {
         WHERE userId = :userId
           AND epoch >= :startEpoch
           AND epoch < :endEpoch
+          AND hearthRate >= 30
         GROUP BY hour
         ORDER BY hour
         """
@@ -100,6 +101,7 @@ interface HearthRateSampleDao {
         WHERE userId = :userId
           AND epoch >= :startEpoch
           AND epoch < :endEpoch
+          AND hearthRate >= 30
         GROUP BY hour
         ORDER BY hour
         """
