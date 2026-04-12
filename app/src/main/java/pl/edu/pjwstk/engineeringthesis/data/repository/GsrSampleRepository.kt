@@ -33,6 +33,7 @@ interface GsrSampleRepository {
     fun observeHourlyMinMax(userId: Int, startEpoch: Long, endEpoch: Long): Flow<List<HourlyMinMax>>
     fun observeDailyMinMax(userId: Int, startEpoch: Long, endEpoch: Long): Flow<List<DailyMinMax>>
     fun observeLatest(userId: Int, startEpoch: Long, endEpoch: Long): Flow<GsrSample?>
+    fun observeLatestTwo(userId: Int, startEpoch: Long, endEpoch: Long): Flow<List<GsrSample>>
     fun observeSummary(userId: Int, startEpoch: Long, endEpoch: Long): Flow<MetricSummary>
 
     suspend fun clear()
