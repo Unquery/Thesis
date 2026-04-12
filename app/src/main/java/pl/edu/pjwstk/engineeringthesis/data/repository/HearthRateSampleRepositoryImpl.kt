@@ -85,6 +85,13 @@ class HearthRateSampleRepositoryImpl @Inject constructor(
     override fun observeLatest(userId: Int, startEpoch: Long, endEpoch: Long): Flow<HearthRateSample?> =
         dao.observeLatestInRange(userId, startEpoch, endEpoch).map { it?.toDomain() }
 
+    override fun observeLatestTwo(
+        userId: Int,
+        startEpoch: Long,
+        endEpoch: Long
+    ): Flow<List<HearthRateSample>> =
+        dao.observeLatestTwoInRange(userId, startEpoch, endEpoch).map { list -> list.map { it.toDomain() } }
+
     override fun observeSummary(userId: Int, startEpoch: Long, endEpoch: Long): Flow<MetricSummary> =
         dao.observeSummaryInRange(userId, startEpoch, endEpoch)
 

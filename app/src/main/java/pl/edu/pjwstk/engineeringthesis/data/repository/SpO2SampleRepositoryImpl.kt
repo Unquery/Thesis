@@ -95,6 +95,11 @@ class SpO2SampleRepositoryImpl @Inject constructor(
         return dao.observeLatestInRange(userId, startEpoch, endEpoch).map { it?.toDomain() }
     }
 
+    override fun observeLatestTwo(userId: Int, startEpoch: Long, endEpoch: Long): Flow<List<SpO2Sample>> {
+        return dao.observeLatestTwoInRange(userId, startEpoch, endEpoch)
+            .map { list -> list.map { it.toDomain() } }
+    }
+
     override fun observeSummary(userId: Int, startEpoch: Long, endEpoch: Long): Flow<MetricSummary> {
         return dao.observeSummaryInRange(userId, startEpoch, endEpoch)
     }

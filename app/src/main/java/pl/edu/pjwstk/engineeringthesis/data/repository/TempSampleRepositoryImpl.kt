@@ -81,6 +81,13 @@ class TempSampleRepositoryImpl @Inject constructor(
     override fun observeLatest(userId: Int, startEpoch: Long, endEpoch: Long): Flow<TempSample?> =
         dao.observeLatestInRange(userId, startEpoch, endEpoch).map { it?.toDomain() }
 
+    override fun observeLatestTwo(
+        userId: Int,
+        startEpoch: Long,
+        endEpoch: Long
+    ): Flow<List<TempSample>> =
+        dao.observeLatestTwoInRange(userId, startEpoch, endEpoch).map { list -> list.map { it.toDomain() } }
+
     override fun observeSummary(userId: Int, startEpoch: Long, endEpoch: Long): Flow<MetricSummary> =
         dao.observeSummaryInRange(userId, startEpoch, endEpoch)
 
