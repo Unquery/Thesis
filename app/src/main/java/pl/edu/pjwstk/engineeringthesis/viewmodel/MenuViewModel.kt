@@ -27,6 +27,14 @@ data class MenuUiState(
     val hrCardBars: List<Float?> = List(24) { null },
     val spo2CardBars: List<Float?> = List(24) { null },
     val tempCardBars: List<Float?> = List(24) { null },
+    val latestGsr: Float? = null,
+    val previousGsr: Float? = null,
+    val latestHr: Float? = null,
+    val previousHr: Float? = null,
+    val latestSpo2: Float? = null,
+    val previousSpo2: Float? = null,
+    val latestTemp: Float? = null,
+    val previousTemp: Float? = null,
     val lastUpdatedEpoch: Long? = null
 )
 
@@ -42,6 +50,18 @@ private data class MenuCardBars(
     val hrCardBars: List<Float?>,
     val spo2CardBars: List<Float?>,
     val tempCardBars: List<Float?>
+)
+
+private data class LatestMeasurementPair(
+    val current: Float? = null,
+    val previous: Float? = null
+)
+
+private data class MenuLatestMeasurements(
+    val gsr: LatestMeasurementPair = LatestMeasurementPair(),
+    val hr: LatestMeasurementPair = LatestMeasurementPair(),
+    val spo2: LatestMeasurementPair = LatestMeasurementPair(),
+    val temp: LatestMeasurementPair = LatestMeasurementPair()
 )
 
 @HiltViewModel
@@ -139,6 +159,27 @@ class MenuViewModel @Inject constructor(
             }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), List(24) { null })
 
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun <T> todayLatestPair(
+        latestTwoProvider: (userId: Int, start: Long, end: Long) -> Flow<List<T>>,
+        valueSelector: (T) -> Float
+    ): StateFlow<LatestMeasurementPair> =
+        activeUserId
+            .flatMapLatest { userId ->
+                if (userId == null) {
+                    flowOf(LatestMeasurementPair())
+                } else {
+                    val (start, end) = todayRangeMillis()
+                    latestTwoProvider(userId, start, end).map { rows ->
+                        LatestMeasurementPair(
+                            current = rows.getOrNull(0)?.let(valueSelector),
+                            previous = rows.getOrNull(1)?.let(valueSelector)
+                        )
+                    }
+                }
+            }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LatestMeasurementPair())
+
     val todayGsrBars: StateFlow<List<Float?>> =
         todayBars { userId, start, end -> gsrRepo.observeHourlyAvg(userId, start, end) }
 
@@ -177,6 +218,30 @@ class MenuViewModel @Inject constructor(
             hourlyMinMaxProvider = { userId, start, end -> tempRepo.observeHourlyMinMax(userId, start, end) },
             normalMin = 36.5f,
             normalMax = 37.3f
+        )
+
+    private val latestGsrValues: StateFlow<LatestMeasurementPair> =
+        todayLatestPair(
+            latestTwoProvider = { userId, start, end -> gsrRepo.observeLatestTwo(userId, start, end) },
+            valueSelector = { it.gsr.toFloat() }
+        )
+
+    private val latestHrValues: StateFlow<LatestMeasurementPair> =
+        todayLatestPair(
+            latestTwoProvider = { userId, start, end -> hrRepo.observeLatestTwo(userId, start, end) },
+            valueSelector = { it.hearthRate }
+        )
+
+    private val latestSpo2Values: StateFlow<LatestMeasurementPair> =
+        todayLatestPair(
+            latestTwoProvider = { userId, start, end -> spo2Repo.observeLatestTwo(userId, start, end) },
+            valueSelector = { it.spo2.toFloat() }
+        )
+
+    private val latestTempValues: StateFlow<LatestMeasurementPair> =
+        todayLatestPair(
+            latestTwoProvider = { userId, start, end -> tempRepo.observeLatestTwo(userId, start, end) },
+            valueSelector = { it.temperature }
         )
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -247,12 +312,32 @@ class MenuViewModel @Inject constructor(
             )
         )
 
+    private val latestMeasurements: StateFlow<MenuLatestMeasurements> =
+        combine(
+            latestGsrValues,
+            latestHrValues,
+            latestSpo2Values,
+            latestTempValues
+        ) { gsr, hr, spo2, temp ->
+            MenuLatestMeasurements(
+                gsr = gsr,
+                hr = hr,
+                spo2 = spo2,
+                temp = temp
+            )
+        }.stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(5_000),
+            MenuLatestMeasurements()
+        )
+
     val uiState: StateFlow<MenuUiState> =
         combine(
             primaryBars,
             cardBars,
+            latestMeasurements,
             todayLatestEpoch
-        ) { primaryBars, cardBars, lastUpdatedEpoch ->
+        ) { primaryBars, cardBars, latestMeasurements, lastUpdatedEpoch ->
             MenuUiState(
                 gsrBars = primaryBars.gsrBars,
                 hrBars = primaryBars.hrBars,
@@ -262,6 +347,14 @@ class MenuViewModel @Inject constructor(
                 hrCardBars = cardBars.hrCardBars,
                 spo2CardBars = cardBars.spo2CardBars,
                 tempCardBars = cardBars.tempCardBars,
+                latestGsr = latestMeasurements.gsr.current,
+                previousGsr = latestMeasurements.gsr.previous,
+                latestHr = latestMeasurements.hr.current,
+                previousHr = latestMeasurements.hr.previous,
+                latestSpo2 = latestMeasurements.spo2.current,
+                previousSpo2 = latestMeasurements.spo2.previous,
+                latestTemp = latestMeasurements.temp.current,
+                previousTemp = latestMeasurements.temp.previous,
                 lastUpdatedEpoch = lastUpdatedEpoch
             )
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MenuUiState())
