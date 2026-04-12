@@ -30,6 +30,7 @@ interface HearthRateSampleRepository {
     fun observeHourlyMinMax(userId: Int, startEpoch: Long, endEpoch: Long): Flow<List<HourlyMinMax>>
     fun observeDailyMinMax(userId: Int, startEpoch: Long, endEpoch: Long): Flow<List<DailyMinMax>>
     fun observeLatest(userId: Int, startEpoch: Long, endEpoch: Long): Flow<HearthRateSample?>
+    fun observeLatestTwo(userId: Int, startEpoch: Long, endEpoch: Long): Flow<List<HearthRateSample>>
     fun observeSummary(userId: Int, startEpoch: Long, endEpoch: Long): Flow<MetricSummary>
 
     suspend fun clear()

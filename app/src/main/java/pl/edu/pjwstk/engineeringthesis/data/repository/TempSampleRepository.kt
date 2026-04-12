@@ -30,6 +30,7 @@ interface TempSampleRepository {
     fun observeHourlyMinMax(userId: Int, startEpoch: Long, endEpoch: Long): Flow<List<HourlyMinMax>>
     fun observeDailyMinMax(userId: Int, startEpoch: Long, endEpoch: Long): Flow<List<DailyMinMax>>
     fun observeLatest(userId: Int, startEpoch: Long, endEpoch: Long): Flow<TempSample?>
+    fun observeLatestTwo(userId: Int, startEpoch: Long, endEpoch: Long): Flow<List<TempSample>>
     fun observeSummary(userId: Int, startEpoch: Long, endEpoch: Long): Flow<MetricSummary>
 
     suspend fun clear()

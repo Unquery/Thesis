@@ -30,6 +30,7 @@ interface SpO2SampleRepository {
     fun observeHourlyMinMax(userId: Int, startEpoch: Long, endEpoch: Long): Flow<List<HourlyMinMax>>
     fun observeDailyMinMax(userId: Int, startEpoch: Long, endEpoch: Long): Flow<List<DailyMinMax>>
     fun observeLatest(userId: Int, startEpoch: Long, endEpoch: Long): Flow<SpO2Sample?>
+    fun observeLatestTwo(userId: Int, startEpoch: Long, endEpoch: Long): Flow<List<SpO2Sample>>
     fun observeSummary(userId: Int, startEpoch: Long, endEpoch: Long): Flow<MetricSummary>
 
     suspend fun clear()
