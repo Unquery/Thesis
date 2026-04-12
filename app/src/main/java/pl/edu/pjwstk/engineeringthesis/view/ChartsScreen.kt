@@ -367,6 +367,8 @@ private data class MetricUi(
     val decimals: Int,
     val color: Color,
     val yAxisMinPadding: Float = 0f,
+    val yAxisFloor: Float? = null,
+    val yAxisCeiling: Float? = null,
     val normalCenter: Float? = null,
     val normalMin: Float? = null,
     val normalMax: Float? = null
@@ -456,6 +458,7 @@ private fun metricUi(metric: ChartMetric): MetricUi = when (metric) {
         unitRes = R.string.unit_celsius,
         decimals = 1,
         color = Color(0xFFF59E0B),
+        yAxisFloor = 30f,
         normalCenter = 37.0f,
         normalMin = 36.5f,
         normalMax = 37.3f
@@ -466,6 +469,7 @@ private fun metricUi(metric: ChartMetric): MetricUi = when (metric) {
         unitRes = R.string.unit_bpm,
         decimals = 0,
         color = Color(0xFFE53935),
+        yAxisFloor = 30f,
         normalCenter = 80f,
         normalMin = 60f,
         normalMax = 100f
@@ -477,6 +481,8 @@ private fun metricUi(metric: ChartMetric): MetricUi = when (metric) {
         decimals = 0,
         color = Color(0xFF0284C7),
         yAxisMinPadding = 2f,
+        yAxisFloor = 80f,
+        yAxisCeiling = 100f,
         normalMin = 97f,
         normalMax = 100f
     )
@@ -486,6 +492,7 @@ private fun metricUi(metric: ChartMetric): MetricUi = when (metric) {
         unitRes = R.string.unit_us,
         decimals = 0,
         color = Color(0xFF6366F1),
+        yAxisFloor = 100f,
         normalMin = 200f,
         normalMax = 900f
     )
@@ -719,14 +726,33 @@ private fun buildBucketRangeLine(bucket: ChartBucketRange, ui: MetricUi): Line {
 
 private fun buildYAxisSpec(buckets: List<ChartBucketRange>, ui: MetricUi): YAxisSpec {
     val range = if (buckets.isEmpty()) {
-        AxisRange(min = 0f, max = 1f, step = 0.2f)
+        when {
+            ui.yAxisFloor != null && ui.yAxisCeiling != null -> {
+                fixedAxisRange(ui.yAxisFloor, ui.yAxisCeiling, Y_AXIS_STEPS)
+            }
+            ui.yAxisFloor != null -> {
+                floorPreservingAxisRange(ui.yAxisFloor, ui.yAxisFloor + 1f, Y_AXIS_STEPS, ui.decimals)
+            }
+            ui.yAxisCeiling != null -> {
+                niceAxisRange(0f, ui.yAxisCeiling, Y_AXIS_STEPS)
+            }
+            else -> AxisRange(min = 0f, max = 1f, step = 0.2f)
+        }
     } else {
-        val yMin = (buckets.minOf { it.minY } - ui.yAxisMinPadding).coerceAtLeast(0f)
-        val yMax = buckets.maxOf { it.maxY }
-        if (ui.yAxisMinPadding > 0f) {
-            exactMinAxisRange(yMin, yMax, Y_AXIS_STEPS, ui.decimals)
+        val computedMin = (buckets.minOf { it.minY } - ui.yAxisMinPadding).coerceAtLeast(0f)
+        val axisMin = ui.yAxisFloor ?: computedMin
+        val bucketMax = buckets.maxOf { it.maxY }
+        val axisMax = max(bucketMax, ui.yAxisCeiling ?: bucketMax)
+        if (ui.yAxisFloor != null && ui.yAxisCeiling != null) {
+            fixedAxisRange(axisMin, axisMax, Y_AXIS_STEPS)
+        } else if (ui.yAxisFloor != null) {
+            floorPreservingAxisRange(axisMin, axisMax, Y_AXIS_STEPS, ui.decimals)
+        } else if (ui.yAxisCeiling != null) {
+            niceAxisRange(computedMin, axisMax, Y_AXIS_STEPS)
+        } else if (ui.yAxisMinPadding > 0f) {
+            exactMinAxisRange(computedMin, bucketMax, Y_AXIS_STEPS, ui.decimals)
         } else {
-            niceAxisRange(yMin, yMax, Y_AXIS_STEPS)
+            niceAxisRange(computedMin, bucketMax, Y_AXIS_STEPS)
         }
     }
     val labelFontSize =
@@ -885,6 +911,39 @@ private fun exactMinAxisRange(minY: Float, maxY: Float, steps: Int, decimals: In
     val axisStep = max(rawRange / safeSteps, minStep)
     val axisMax = axisMin + (axisStep * safeSteps)
     return AxisRange(axisMin, axisMax, axisStep)
+}
+
+private fun fixedAxisRange(minY: Float, maxY: Float, steps: Int): AxisRange {
+    val safeSteps = steps.coerceAtLeast(1)
+    val axisMin = min(minY, maxY)
+    val axisMax = max(maxY, axisMin + 0.0001f)
+    val axisStep = ((axisMax - axisMin) / safeSteps).coerceAtLeast(0.0001f)
+    return AxisRange(axisMin, axisMax, axisStep)
+}
+
+private fun floorPreservingAxisRange(minY: Float, maxY: Float, steps: Int, decimals: Int): AxisRange {
+    val safeSteps = steps.coerceAtLeast(1)
+    val axisMin = minY
+    val rawRange = (maxY - axisMin).coerceAtLeast(0.0001f)
+    val minStep = if (decimals == 0) 1f else 0.1f
+    val axisStep = niceCeilStep(rawRange / safeSteps).coerceAtLeast(minStep)
+    val axisMax = axisMin + (axisStep * safeSteps)
+    return AxisRange(axisMin, axisMax, axisStep)
+}
+
+private fun niceCeilStep(value: Float): Float {
+    if (value <= 0f) return 1f
+    val exponent = floor(log10(value.toDouble())).toInt()
+    val scale = 10f.pow(exponent)
+    val fraction = value / scale
+    val niceFraction = when {
+        fraction <= 1f -> 1f
+        fraction <= 2f -> 2f
+        fraction <= 2.5f -> 2.5f
+        fraction <= 5f -> 5f
+        else -> 10f
+    }
+    return niceFraction * scale
 }
 
 private fun niceNum(range: Float, round: Boolean): Float {
