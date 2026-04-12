@@ -61,7 +61,7 @@ interface GsrSampleDao {
         SELECT * FROM gsr_sample
         WHERE userId = :userId
           AND epoch >= :firstEpoch AND epoch < :lastEpoch
-        ORDER BY epoch ASC
+        ORDER BY epoch ASC, id ASC
     """)
     fun observeGsrSamplesForUser(
         userId: Int,
@@ -152,7 +152,7 @@ interface GsrSampleDao {
         WHERE userId = :userId
           AND epoch >= :startEpoch
           AND epoch < :endEpoch
-        ORDER BY epoch DESC
+        ORDER BY epoch DESC, id DESC
         LIMIT 1
     """)
     fun observeLatestInRange(
@@ -160,6 +160,20 @@ interface GsrSampleDao {
         startEpoch: Long,
         endEpoch: Long
     ): Flow<GsrSampleEntity?>
+
+    @Query("""
+        SELECT * FROM gsr_sample
+        WHERE userId = :userId
+          AND epoch >= :startEpoch
+          AND epoch < :endEpoch
+        ORDER BY epoch DESC, id DESC
+        LIMIT 2
+    """)
+    fun observeLatestTwoInRange(
+        userId: Int,
+        startEpoch: Long,
+        endEpoch: Long
+    ): Flow<List<GsrSampleEntity>>
 
     @Query("""
         SELECT 
