@@ -91,6 +91,14 @@ fun MenuScreen(
                     hrCardBars = uiState.hrCardBars,
                     spo2CardBars = uiState.spo2CardBars,
                     tempCardBars = uiState.tempCardBars,
+                    latestGsr = uiState.latestGsr,
+                    previousGsr = uiState.previousGsr,
+                    latestHr = uiState.latestHr,
+                    previousHr = uiState.previousHr,
+                    latestSpo2 = uiState.latestSpo2,
+                    previousSpo2 = uiState.previousSpo2,
+                    latestTemp = uiState.latestTemp,
+                    previousTemp = uiState.previousTemp,
                     lastUpdatedEpoch = uiState.lastUpdatedEpoch,
                     onMetricClick = onMetricClick
                 )
@@ -109,6 +117,14 @@ private fun MenuBody(
     hrCardBars: List<Float?>,
     spo2CardBars: List<Float?>,
     tempCardBars: List<Float?>,
+    latestGsr: Float?,
+    previousGsr: Float?,
+    latestHr: Float?,
+    previousHr: Float?,
+    latestSpo2: Float?,
+    previousSpo2: Float?,
+    latestTemp: Float?,
+    previousTemp: Float?,
     lastUpdatedEpoch: Long?,
     onMetricClick: (ChartMetric) -> Unit
 ) {
@@ -123,23 +139,18 @@ private fun MenuBody(
         ),
         label = "menuStretch"
     )
-    val lastTemp = tempBars.lastOrNull { it != null }
-    val lastHr = hrBars.lastOrNull { it != null }
-    val lastSpo2 = spo2Bars.lastOrNull { it != null }
-    val lastGsr = gsrBars.lastOrNull { it != null }
-
     val nowMillis = rememberNowMillis()
     val headerSubtitle = formatUpdatedSubtitle(lastUpdatedEpoch, nowMillis)
 
-    val tempTrend = trendTextFromBars(tempBars, stringResource(R.string.unit_celsius), 1)
-    val hrTrend = trendTextFromBars(hrBars, stringResource(R.string.unit_bpm), 0)
-    val spo2Trend = trendTextFromBars(spo2Bars, stringResource(R.string.unit_percent), 0)
-    val gsrTrend = trendTextFromBars(gsrBars, stringResource(R.string.unit_us), 0)
+    val tempTrend = trendTextFromValues(previousTemp, latestTemp, stringResource(R.string.unit_celsius), 1)
+    val hrTrend = trendTextFromValues(previousHr, latestHr, stringResource(R.string.unit_bpm), 0)
+    val spo2Trend = trendTextFromValues(previousSpo2, latestSpo2, stringResource(R.string.unit_percent), 0)
+    val gsrTrend = trendTextFromValues(previousGsr, latestGsr, stringResource(R.string.unit_us), 0)
 
     val lastItems = listOf(
         MeasurementCircleItem(
             title = stringResource(R.string.metric_body_temperature),
-            value = lastTemp?.toDouble(),
+            value = latestTemp?.toDouble(),
             unit = stringResource(R.string.unit_celsius),
             trendText = tempTrend,
             icon = Icons.Filled.DeviceThermostat,
@@ -152,7 +163,7 @@ private fun MenuBody(
         ),
         MeasurementCircleItem(
             title = stringResource(R.string.metric_heart_rate),
-            value = lastHr?.toDouble(),
+            value = latestHr?.toDouble(),
             unit = stringResource(R.string.unit_bpm),
             trendText = hrTrend,
             icon = Icons.Filled.MonitorHeart,
@@ -165,7 +176,7 @@ private fun MenuBody(
         ),
         MeasurementCircleItem(
             title = stringResource(R.string.metric_blood_oxygen),
-            value = lastSpo2?.toDouble(),
+            value = latestSpo2?.toDouble(),
             unit = stringResource(R.string.unit_percent),
             trendText = spo2Trend,
             icon = Icons.Filled.Bloodtype,
@@ -178,7 +189,7 @@ private fun MenuBody(
         ),
         MeasurementCircleItem(
             title = stringResource(R.string.metric_skin_conductance),
-            value = lastGsr?.toDouble(),
+            value = latestGsr?.toDouble(),
             unit = stringResource(R.string.unit_us),
             trendText = gsrTrend,
             icon = Icons.Filled.SsidChart,
@@ -353,6 +364,7 @@ fun MenuMetricsColumn(
                     valueFormatter = { v -> String.format("%.1f", v) },
                     nullAsZero = false,
                     scaleFromMin = true,
+                    yMinOverride = 30f,
                     maxBarRatio = 0.85f,
                     barColor = Color(0xFFF59E0B),
                     icon = Icons.Filled.DeviceThermostat,
@@ -381,6 +393,7 @@ fun MenuMetricsColumn(
                     valueFormatter = { it.toInt().toString() },
                     nullAsZero = false,
                     scaleFromMin = false,
+                    yMinOverride = 30f,
                     maxBarRatio = 0.80f,
                     barColor = Color(0xFFE53935),
                     icon = Icons.Filled.MonitorHeart,
@@ -400,7 +413,7 @@ fun MenuMetricsColumn(
 
         Row(modifier = Modifier.fillMaxWidth()) {
             val spo2Min =
-                (spo2Bars.filterNotNull().minOrNull()?.minus(1f) ?: 0f).coerceAtLeast(0f)
+                (spo2Bars.filterNotNull().minOrNull()?.minus(1f) ?: 80f).coerceAtLeast(80f)
             Box(Modifier.weight(0.5f)) {
                 MetricBox24h(
                     title = stringResource(R.string.metric_blood_oxygen),
@@ -442,6 +455,7 @@ fun MenuMetricsColumn(
                     valueFormatter = { it.toInt().toString() },
                     nullAsZero = false,
                     scaleFromMin = false,
+                    yMinOverride = 100f,
                     maxBarRatio = 0.80f,
                     barColor = Color(0xFF6366F1),
                     icon = Icons.Filled.SsidChart,
@@ -473,19 +487,14 @@ private fun rememberNowMillis(tickMs: Long = 60_000L): Long {
 }
 
 @Composable
-private fun trendTextFromBars(
-    bars: List<Float?>,
+private fun trendTextFromValues(
+    previous: Float?,
+    current: Float?,
     unit: String,
     decimals: Int
 ): String? {
-    val lastIndex = bars.indexOfLast { it != null }
-    if (lastIndex <= 0) return null
-
-    val last = bars[lastIndex] ?: return null
-    val prevIndex = (lastIndex - 1 downTo 0).firstOrNull { bars[it] != null } ?: return null
-    val prev = bars[prevIndex] ?: return null
-
-    return buildTrendText(prev.toDouble(), last.toDouble(), unit, decimals)
+    if (previous == null || current == null) return null
+    return buildTrendText(previous.toDouble(), current.toDouble(), unit, decimals)
 }
 
 @Composable
@@ -548,6 +557,14 @@ private fun MenuBodyPreview() {
                 spo2CardBars = spo2Bars,
                 tempBars = tempBars,
                 tempCardBars = tempBars,
+                latestGsr = gsrBars.lastOrNull(),
+                previousGsr = gsrBars.dropLast(1).lastOrNull(),
+                latestHr = hrBars.lastOrNull(),
+                previousHr = hrBars.dropLast(1).lastOrNull(),
+                latestSpo2 = spo2Bars.lastOrNull(),
+                previousSpo2 = spo2Bars.dropLast(1).lastOrNull(),
+                latestTemp = tempBars.lastOrNull(),
+                previousTemp = tempBars.dropLast(1).lastOrNull(),
                 lastUpdatedEpoch = System.currentTimeMillis(),
                 onMetricClick = {}
             )
