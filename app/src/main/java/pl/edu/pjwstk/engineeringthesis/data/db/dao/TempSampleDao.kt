@@ -55,7 +55,7 @@ interface TempSampleDao {
         SELECT * FROM temp_sample
         WHERE userId = :userId
           AND epoch >= :firstEpoch AND epoch < :lastEpoch
-        ORDER BY epoch ASC
+        ORDER BY epoch ASC, id ASC
     """)
     fun observeTempSamplesForUser(
         userId: Int,
@@ -154,7 +154,7 @@ interface TempSampleDao {
         SELECT * FROM temp_sample
         WHERE userId = :userId
           AND epoch >= :startEpoch AND epoch < :endEpoch
-        ORDER BY epoch DESC
+        ORDER BY epoch DESC, id DESC
         LIMIT 1
     """)
     fun observeLatestInRange(
@@ -162,6 +162,19 @@ interface TempSampleDao {
         startEpoch: Long,
         endEpoch: Long
     ): Flow<TempSampleEntity?>
+
+    @Query("""
+        SELECT * FROM temp_sample
+        WHERE userId = :userId
+          AND epoch >= :startEpoch AND epoch < :endEpoch
+        ORDER BY epoch DESC, id DESC
+        LIMIT 2
+    """)
+    fun observeLatestTwoInRange(
+        userId: Int,
+        startEpoch: Long,
+        endEpoch: Long
+    ): Flow<List<TempSampleEntity>>
 
     @Query("""
         SELECT 
