@@ -109,6 +109,15 @@ class GsrSampleRepositoryImpl @Inject constructor(
             .map { it?.toDomain() }
     }
 
+    override fun observeLatestTwo(
+        userId: Int,
+        startEpoch: Long,
+        endEpoch: Long
+    ): Flow<List<GsrSample>> {
+        return dao.observeLatestTwoInRange(userId, startEpoch, endEpoch)
+            .map { list -> list.map { it.toDomain() } }
+    }
+
 
     override fun observeSummary(
         userId: Int,
