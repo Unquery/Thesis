@@ -20,11 +20,10 @@ import pl.edu.pjwstk.engineeringthesis.data.repository.HearthRateSampleRepositor
 import pl.edu.pjwstk.engineeringthesis.data.repository.ProfileRepository
 import pl.edu.pjwstk.engineeringthesis.data.repository.SpO2SampleRepository
 import pl.edu.pjwstk.engineeringthesis.data.repository.TempSampleRepository
-import pl.edu.pjwstk.engineeringthesis.model.DailyMinMax
-import pl.edu.pjwstk.engineeringthesis.model.HourlyMinMax
 import pl.edu.pjwstk.engineeringthesis.util.ChartMetric
 import pl.edu.pjwstk.engineeringthesis.util.ChartRange
 import pl.edu.pjwstk.engineeringthesis.util.Charts
+import java.time.Instant
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.temporal.TemporalAdjusters
@@ -49,6 +48,11 @@ data class ChartSummary(
     val avg: Float?,
     val min: Float?,
     val max: Float?
+)
+
+private data class TimedMetricValue(
+    val epoch: Long,
+    val value: Float
 )
 
 @HiltViewModel
@@ -100,14 +104,12 @@ class ChartsViewModel @Inject constructor(
                 when (selectedRange) {
                     ChartRange.Day -> {
                         val (start, end) = rangeMillis(baseDate, baseDate.plusDays(1))
-                        val summaryFlow = rawSummaryFlow(metric, userId, start, end)
-                        val pointsFlow = hourlyMinMaxFlow(metric, userId, start, end)
-                        combine(pointsFlow, summaryFlow) { rows, summary ->
+                        rawChartValuesFlow(metric, userId, start, end).map { rows ->
                             ChartState(
                                 selectedRange,
                                 toHourlyBuckets(rows),
                                 emptyList(),
-                                summary,
+                                summaryFromValues(rows.map { it.value }),
                                 baseDate
                             )
                         }
@@ -116,14 +118,12 @@ class ChartsViewModel @Inject constructor(
                     ChartRange.Week -> {
                         val dates = weekDates(baseDate)
                         val (start, end) = rangeMillis(dates.first(), dates.last().plusDays(1))
-                        val summaryFlow = rawSummaryFlow(metric, userId, start, end)
-                        val pointsFlow = dailyMinMaxFlow(metric, userId, start, end)
-                        combine(pointsFlow, summaryFlow) { rows, summary ->
+                        rawChartValuesFlow(metric, userId, start, end).map { rows ->
                             ChartState(
                                 selectedRange,
                                 toDailyBuckets(rows, dates),
                                 dates,
-                                summary,
+                                summaryFromValues(rows.map { it.value }),
                                 baseDate
                             )
                         }
@@ -132,14 +132,12 @@ class ChartsViewModel @Inject constructor(
                     ChartRange.Month -> {
                         val dates = monthDates(baseDate)
                         val (start, end) = rangeMillis(dates.first(), dates.last().plusDays(1))
-                        val summaryFlow = rawSummaryFlow(metric, userId, start, end)
-                        val pointsFlow = dailyMinMaxFlow(metric, userId, start, end)
-                        combine(pointsFlow, summaryFlow) { rows, summary ->
+                        rawChartValuesFlow(metric, userId, start, end).map { rows ->
                             ChartState(
                                 selectedRange,
                                 toDailyBuckets(rows, dates),
                                 dates,
-                                summary,
+                                summaryFromValues(rows.map { it.value }),
                                 baseDate
                             )
                         }
@@ -158,67 +156,72 @@ class ChartsViewModel @Inject constructor(
             )
         )
 
-    private fun hourlyMinMaxFlow(
+    private fun rawChartValuesFlow(
         metric: ChartMetric,
         userId: Int,
         start: Long,
         end: Long
-    ): Flow<List<HourlyMinMax>> = when (metric) {
-        ChartMetric.Temperature -> tempRepo.observeHourlyMinMax(userId, start, end)
-        ChartMetric.HeartRate -> hrRepo.observeHourlyMinMax(userId, start, end)
-        ChartMetric.SpO2 -> spo2Repo.observeHourlyMinMax(userId, start, end)
-        ChartMetric.Gsr -> gsrRepo.observeHourlyMinMax(userId, start, end)
-    }
-
-    private fun dailyMinMaxFlow(
-        metric: ChartMetric,
-        userId: Int,
-        start: Long,
-        end: Long
-    ): Flow<List<DailyMinMax>> = when (metric) {
-        ChartMetric.Temperature -> tempRepo.observeDailyMinMax(userId, start, end)
-        ChartMetric.HeartRate -> hrRepo.observeDailyMinMax(userId, start, end)
-        ChartMetric.SpO2 -> spo2Repo.observeDailyMinMax(userId, start, end)
-        ChartMetric.Gsr -> gsrRepo.observeDailyMinMax(userId, start, end)
-    }
-
-    private fun rawSummaryFlow(
-        metric: ChartMetric,
-        userId: Int,
-        start: Long,
-        end: Long
-    ): Flow<ChartSummary> = when (metric) {
+    ): Flow<List<TimedMetricValue>> {
+        val minVisibleValue = minVisibleChartValue(metric)
+        return when (metric) {
         ChartMetric.Temperature -> tempRepo.observeRangeForUser(userId, start, end)
-            .map { rows -> summaryFromValues(rows.map { it.temperature }) }
+            .map { rows ->
+                rows.map { TimedMetricValue(epoch = it.epoch, value = it.temperature) }
+                    .filter { it.value >= minVisibleValue }
+            }
         ChartMetric.HeartRate -> hrRepo.observeRangeForUser(userId, start, end)
-            .map { rows -> summaryFromValues(rows.map { it.hearthRate }) }
+            .map { rows ->
+                rows.map { TimedMetricValue(epoch = it.epoch, value = it.hearthRate) }
+                    .filter { it.value >= minVisibleValue }
+            }
         ChartMetric.SpO2 -> spo2Repo.observeRangeForUser(userId, start, end)
-            .map { rows -> summaryFromValues(rows.map { it.spo2.toFloat() }) }
+            .map { rows ->
+                rows.map { TimedMetricValue(epoch = it.epoch, value = it.spo2.toFloat()) }
+                    .filter { it.value >= minVisibleValue }
+            }
         ChartMetric.Gsr -> gsrRepo.observeRangeForUser(userId, start, end)
-            .map { rows -> summaryFromValues(rows.map { it.gsr.toFloat() }) }
+            .map { rows ->
+                rows.map { TimedMetricValue(epoch = it.epoch, value = it.gsr.toFloat()) }
+                    .filter { it.value >= minVisibleValue }
+            }
+        }
     }
 
-    private fun toHourlyBuckets(rows: List<HourlyMinMax>): List<ChartBucketRange> {
+    private fun minVisibleChartValue(metric: ChartMetric): Float = when (metric) {
+        ChartMetric.Temperature -> 30f
+        ChartMetric.HeartRate -> 30f
+        ChartMetric.SpO2 -> 80f
+        ChartMetric.Gsr -> 100f
+    }
+
+    private fun toHourlyBuckets(rows: List<TimedMetricValue>): List<ChartBucketRange> {
         return rows
-            .sortedBy { it.hour }
-            .mapNotNull { row ->
-                val min = row.min?.toFloat() ?: return@mapNotNull null
-                val max = row.max?.toFloat() ?: return@mapNotNull null
+            .groupBy { timedValue ->
+                Instant.ofEpochMilli(timedValue.epoch).atZone(zone).hour
+            }
+            .toSortedMap()
+            .mapNotNull { (hour, samples) ->
+                val values = samples.map { it.value }
+                val min = values.minOrNull() ?: return@mapNotNull null
+                val max = values.maxOrNull() ?: return@mapNotNull null
                 ChartBucketRange(
-                    x = row.hour * 2f,
+                    x = hour * 2f,
                     minY = min,
                     maxY = max
                 )
             }
     }
 
-    private fun toDailyBuckets(rows: List<DailyMinMax>, dates: List<LocalDate>): List<ChartBucketRange> {
+    private fun toDailyBuckets(rows: List<TimedMetricValue>, dates: List<LocalDate>): List<ChartBucketRange> {
         if (rows.isEmpty()) return emptyList()
-        val rowsByDate = rows.associateBy { LocalDate.parse(it.date) }
+        val rowsByDate = rows.groupBy { timedValue ->
+            Instant.ofEpochMilli(timedValue.epoch).atZone(zone).toLocalDate()
+        }
         return dates.mapIndexedNotNull { index, date ->
-            val row = rowsByDate[date] ?: return@mapIndexedNotNull null
-            val min = row.min?.toFloat() ?: return@mapIndexedNotNull null
-            val max = row.max?.toFloat() ?: return@mapIndexedNotNull null
+            val samples = rowsByDate[date] ?: return@mapIndexedNotNull null
+            val values = samples.map { it.value }
+            val min = values.minOrNull() ?: return@mapIndexedNotNull null
+            val max = values.maxOrNull() ?: return@mapIndexedNotNull null
             ChartBucketRange(
                 x = index.toFloat(),
                 minY = min,
