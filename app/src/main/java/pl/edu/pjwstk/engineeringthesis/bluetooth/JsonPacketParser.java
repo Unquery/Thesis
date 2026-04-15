@@ -20,9 +20,9 @@ public final class JsonPacketParser {
         if (tArr != null) {
             for (int i=0; i<tArr.length(); i++) temps.add((float) tArr.getDouble(i));
         }
-        ArrayList<Integer> gsr = new ArrayList<>();
+        ArrayList<Float> gsr = new ArrayList<>();
         if (gArr != null) {
-            for (int i=0; i<gArr.length(); i++) gsr.add(gArr.getInt(i));
+            for (int i=0; i<gArr.length(); i++) gsr.add((float) gArr.getDouble(i));
         }
         ArrayList<Float> hearthRate = new ArrayList<>();
         if (hrArr != null) {
