@@ -52,6 +52,30 @@ private val MIGRATION_12_13 = object : Migration(12, 13) {
     }
 }
 
+private val MIGRATION_13_14 = object : Migration(13, 14) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS gsr_sample_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                userId INTEGER NOT NULL,
+                epoch INTEGER NOT NULL,
+                gsr REAL NOT NULL
+            )
+            """.trimIndent()
+        )
+        database.execSQL(
+            """
+            INSERT INTO gsr_sample_new (id, userId, epoch, gsr)
+            SELECT id, userId, epoch, CAST(gsr AS REAL)
+            FROM gsr_sample
+            """.trimIndent()
+        )
+        database.execSQL("DROP TABLE gsr_sample")
+        database.execSQL("ALTER TABLE gsr_sample_new RENAME TO gsr_sample")
+    }
+}
+
 @Module
 @InstallIn(SingletonComponent::class)
 object DbModule {
@@ -60,7 +84,7 @@ object DbModule {
     @Singleton
     fun provideDb(@ApplicationContext ctx: Context): DiaryDB =
         Room.databaseBuilder(ctx, DiaryDB::class.java, "diary.db")
-            .addMigrations(MIGRATION_11_12, MIGRATION_12_13)
+            .addMigrations(MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14)
             .fallbackToDestructiveMigration(false)
             .build()
 
