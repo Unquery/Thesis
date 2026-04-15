@@ -223,7 +223,7 @@ class MenuViewModel @Inject constructor(
     private val latestGsrValues: StateFlow<LatestMeasurementPair> =
         todayLatestPair(
             latestTwoProvider = { userId, start, end -> gsrRepo.observeLatestTwo(userId, start, end) },
-            valueSelector = { it.gsr.toFloat() }
+            valueSelector = { it.gsr }
         )
 
     private val latestHrValues: StateFlow<LatestMeasurementPair> =
