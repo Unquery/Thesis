@@ -490,11 +490,10 @@ private fun metricUi(metric: ChartMetric): MetricUi = when (metric) {
     ChartMetric.Gsr -> MetricUi(
         titleRes = R.string.metric_skin_conductance,
         unitRes = R.string.unit_us,
-        decimals = 0,
+        decimals = 1,
         color = Color(0xFF6366F1),
-        yAxisFloor = 100f,
-        normalMin = 200f,
-        normalMax = 900f
+        yAxisFloor = 0f,
+        yAxisCeiling = 30f
     )
 }
 
