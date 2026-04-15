@@ -181,7 +181,7 @@ class ChartsViewModel @Inject constructor(
             }
         ChartMetric.Gsr -> gsrRepo.observeRangeForUser(userId, start, end)
             .map { rows ->
-                rows.map { TimedMetricValue(epoch = it.epoch, value = it.gsr.toFloat()) }
+                rows.map { TimedMetricValue(epoch = it.epoch, value = it.gsr) }
                     .filter { it.value >= minVisibleValue }
             }
         }
@@ -191,7 +191,7 @@ class ChartsViewModel @Inject constructor(
         ChartMetric.Temperature -> 30f
         ChartMetric.HeartRate -> 30f
         ChartMetric.SpO2 -> 80f
-        ChartMetric.Gsr -> 100f
+        ChartMetric.Gsr -> 0.1f
     }
 
     private fun toHourlyBuckets(rows: List<TimedMetricValue>): List<ChartBucketRange> {
