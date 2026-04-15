@@ -198,7 +198,7 @@ private fun MenuBody(
             normalMax = 900.0,
             criticalMin = 0.0,
             criticalMax = 2000.0,
-            decimals = 0
+            decimals = 1
         )
     )
 
