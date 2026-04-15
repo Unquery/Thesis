@@ -96,9 +96,9 @@ class MenuMockSeedTask @Inject constructor(
 
             if (!hasGsrToday) {
                 val gsrValue = when {
-                    isHigh -> 1100 + rnd.nextInt(700)
-                    isLow -> 20 + rnd.nextInt(60)
-                    else -> 200 + rnd.nextInt(350)
+                    isHigh -> 1100f + rnd.nextInt(700)
+                    isLow -> 20f + rnd.nextInt(60)
+                    else -> 200f + rnd.nextInt(350)
                 }
                 gsrRepo.upsert(GsrSample(id = 0, userId = userId, epoch = t, gsr = gsrValue))
             }
