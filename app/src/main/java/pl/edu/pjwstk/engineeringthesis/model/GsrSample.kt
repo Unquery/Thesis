@@ -4,5 +4,5 @@ data class GsrSample(
     val id : Int,
     val userId : Int,
     val epoch : Long,
-    val gsr : Int
+    val gsr : Float
 )
