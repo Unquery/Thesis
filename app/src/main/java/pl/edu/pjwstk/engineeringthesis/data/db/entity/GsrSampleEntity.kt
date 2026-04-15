@@ -13,7 +13,7 @@ data class GsrSampleEntity(
 
     val epoch : Long,
 
-    val gsr : Int
+    val gsr : Float
 ){
     fun toDomain() : GsrSample{
         return GsrSample(
