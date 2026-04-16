@@ -54,6 +54,9 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import pl.edu.pjwstk.engineeringthesis.R
 import pl.edu.pjwstk.engineeringthesis.util.ChartMetric
+import pl.edu.pjwstk.engineeringthesis.util.GSR_MENU_MAX_VALUE
+import pl.edu.pjwstk.engineeringthesis.util.GSR_NEUTRAL_MAX
+import pl.edu.pjwstk.engineeringthesis.util.GSR_NEUTRAL_MIN
 import pl.edu.pjwstk.engineeringthesis.ui.theme.EngineeringThesisTheme
 import pl.edu.pjwstk.engineeringthesis.viewmodel.MenuStartupViewModel
 import pl.edu.pjwstk.engineeringthesis.viewmodel.MenuViewModel
@@ -62,6 +65,7 @@ import kotlinx.coroutines.delay
 import kotlin.math.abs
 import kotlin.math.pow
 
+private val GsrBaseColor = Color(0xFF6366F1)
 
 @Composable
 fun MenuScreen(
@@ -145,7 +149,7 @@ private fun MenuBody(
     val tempTrend = trendTextFromValues(previousTemp, latestTemp, stringResource(R.string.unit_celsius), 1)
     val hrTrend = trendTextFromValues(previousHr, latestHr, stringResource(R.string.unit_bpm), 0)
     val spo2Trend = trendTextFromValues(previousSpo2, latestSpo2, stringResource(R.string.unit_percent), 0)
-    val gsrTrend = trendTextFromValues(previousGsr, latestGsr, stringResource(R.string.unit_us), 0)
+    val gsrTrend = trendTextFromValues(previousGsr, latestGsr, stringResource(R.string.unit_us), 1)
 
     val lastItems = listOf(
         MeasurementCircleItem(
@@ -193,12 +197,13 @@ private fun MenuBody(
             unit = stringResource(R.string.unit_us),
             trendText = gsrTrend,
             icon = Icons.Filled.SsidChart,
-            baseColor = Color(0xFF6366F1),
-            normalMin = 200.0,
-            normalMax = 900.0,
+            baseColor = GsrBaseColor,
+            normalMin = GSR_NEUTRAL_MIN.toDouble(),
+            normalMax = GSR_NEUTRAL_MAX.toDouble(),
             criticalMin = 0.0,
-            criticalMax = 2000.0,
-            decimals = 1
+            criticalMax = GSR_MENU_MAX_VALUE.toDouble(),
+            decimals = 1,
+            colorForValue = { value -> gsrMenuColor(value, GsrBaseColor) }
         )
     )
 
@@ -452,22 +457,17 @@ fun MenuMetricsColumn(
                     rightTimeLabel = rightTimeLabel,
                     bars = gsrBars,
                     onClick = onGsrClick,
-                    valueFormatter = { it.toInt().toString() },
+                    valueFormatter = { String.format(Locale.US, "%.1f", it) },
                     nullAsZero = false,
                     scaleFromMin = false,
-                    yMinOverride = 100f,
+                    yMinOverride = 0f,
+                    yMaxOverride = GSR_MENU_MAX_VALUE,
                     maxBarRatio = 0.80f,
-                    barColor = Color(0xFF6366F1),
+                    barColor = GsrBaseColor,
                     icon = Icons.Filled.SsidChart,
                     fullHeightBars = true,
                     showMinMaxLabels = false,
-                    useNormalRangeGradient = true,
-                    normalMinValue = 200f,
-                    normalMaxValue = 900f,
-                    referenceRange = 350f,
-                    lowColorMix = 0.14f,
-                    highColorMix = 0.14f,
-                    colorCurve = 2.2f
+                    barColorForValue = { value -> gsrMenuColor(value, GsrBaseColor) }
                 )
             }
         }
@@ -539,7 +539,14 @@ private fun MenuBodyPreview() {
     val tempBars = List(24) { i -> 36.3f + (i % 6) * 0.1f }
     val hrBars = List(24) { i -> 58f + (i % 8) * 3f }
     val spo2Bars = List(24) { i -> 93f + (i % 6) * 1f }
-    val gsrBars = List(24) { i -> 200f + (i % 10) * 40f }
+    val gsrBars = List(24) { i ->
+        when {
+            i < 4 -> 0.6f + i * 0.1f
+            i < 10 -> 2f + (i - 4) * 0.4f
+            i < 18 -> 6f + (i - 10) * 0.9f
+            else -> 16f + (i - 18) * 1.6f
+        }
+    }
 
     EngineeringThesisTheme {
         Box(
