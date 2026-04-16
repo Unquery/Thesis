@@ -54,7 +54,8 @@ data class MeasurementCircleItem(
     val normalMax: Double,
     val criticalMin: Double,
     val criticalMax: Double,
-    val decimals: Int = 1
+    val decimals: Int = 1,
+    val colorForValue: ((Double?) -> Color)? = null
 )
 
 @Composable
@@ -156,12 +157,13 @@ private fun MeasurementCircle(
         criticalMin = item.criticalMin,
         criticalMax = item.criticalMax
     )
+    val borderColor = item.colorForValue?.invoke(item.value) ?: dynamic
 
     Box(
         modifier = Modifier
             .size(circleSize)
             .background(item.baseColor.copy(alpha = 0.12f), CircleShape)
-            .border(circleStroke, dynamic, CircleShape),
+            .border(circleStroke, borderColor, CircleShape),
         contentAlignment = Alignment.Center
     ) {
         Column(
