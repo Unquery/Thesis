@@ -12,6 +12,8 @@ import pl.edu.pjwstk.engineeringthesis.data.repository.SpO2SampleRepository
 import pl.edu.pjwstk.engineeringthesis.data.repository.TempSampleRepository
 import pl.edu.pjwstk.engineeringthesis.model.HourlyAvg
 import pl.edu.pjwstk.engineeringthesis.model.HourlyMinMax
+import pl.edu.pjwstk.engineeringthesis.util.GSR_NEUTRAL_MAX
+import pl.edu.pjwstk.engineeringthesis.util.GSR_NEUTRAL_MIN
 import java.time.LocalDate
 import java.time.ZoneId
 import javax.inject.Inject
@@ -195,8 +197,8 @@ class MenuViewModel @Inject constructor(
     val todayGsrCardBars: StateFlow<List<Float?>> =
         todayExtremeBars(
             hourlyMinMaxProvider = { userId, start, end -> gsrRepo.observeHourlyMinMax(userId, start, end) },
-            normalMin = 200f,
-            normalMax = 900f
+            normalMin = GSR_NEUTRAL_MIN,
+            normalMax = GSR_NEUTRAL_MAX
         )
 
     val todayHrCardBars: StateFlow<List<Float?>> =
