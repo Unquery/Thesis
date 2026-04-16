@@ -78,7 +78,7 @@ interface GsrSampleDao {
         WHERE userId = :userId
           AND epoch >= :startEpoch
           AND epoch < :endEpoch
-          AND gsr >= 100
+          AND gsr >= 0.1
         GROUP BY hour
         ORDER BY hour
         """
@@ -99,7 +99,7 @@ interface GsrSampleDao {
         WHERE userId = :userId
           AND epoch >= :startEpoch
           AND epoch < :endEpoch
-          AND gsr >= 100
+          AND gsr >= 0.1
         GROUP BY hour
         ORDER BY hour
         """
