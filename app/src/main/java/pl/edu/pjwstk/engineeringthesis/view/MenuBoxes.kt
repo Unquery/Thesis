@@ -75,6 +75,7 @@ fun MetricBox24h(
     referenceRange: Float = 1f,
     colorStrength: Float = 1.0f,
     lowColorTarget : Color = Color.White,
+    barColorForValue: ((Float) -> Color)? = null,
 
     leftTimeLabel: String,
     rightTimeLabel: String,
@@ -218,7 +219,7 @@ fun MetricBox24h(
                         val x = chartLeft + i * (w + gap)
                         val y = barAreaTop + (barAreaHeightPx - h)
 
-                        val c = when {
+                        val defaultColor = when {
                             isMissing || finiteVals.isEmpty() -> barColor
 
                             useNormalRangeGradient &&
@@ -276,6 +277,12 @@ fun MetricBox24h(
                             }
 
                             else -> barColor
+                        }
+
+                        val c = if (isMissing) {
+                            defaultColor
+                        } else {
+                            barColorForValue?.invoke(barValue) ?: defaultColor
                         }
 
                         drawRect(
