@@ -15,6 +15,10 @@ import pl.edu.pjwstk.engineeringthesis.model.HearthRateSample
 import pl.edu.pjwstk.engineeringthesis.model.SpO2Sample
 import pl.edu.pjwstk.engineeringthesis.model.TempSample
 import pl.edu.pjwstk.engineeringthesis.model.UserProfile
+import pl.edu.pjwstk.engineeringthesis.util.GSR_MENU_MAX_VALUE
+import pl.edu.pjwstk.engineeringthesis.util.GSR_NEUTRAL_MAX
+import pl.edu.pjwstk.engineeringthesis.util.GSR_NEUTRAL_MIN
+import pl.edu.pjwstk.engineeringthesis.util.GSR_VERY_LOW_THRESHOLD
 import java.time.LocalDate
 import java.time.ZoneId
 import javax.inject.Inject
@@ -96,9 +100,9 @@ class MenuMockSeedTask @Inject constructor(
 
             if (!hasGsrToday) {
                 val gsrValue = when {
-                    isHigh -> 1100f + rnd.nextInt(700)
-                    isLow -> 20f + rnd.nextInt(60)
-                    else -> 200f + rnd.nextInt(350)
+                    isHigh -> GSR_NEUTRAL_MAX + rnd.nextFloat() * (GSR_MENU_MAX_VALUE - GSR_NEUTRAL_MAX)
+                    isLow -> rnd.nextFloat() * (GSR_NEUTRAL_MIN - GSR_VERY_LOW_THRESHOLD)
+                    else -> GSR_NEUTRAL_MIN + rnd.nextFloat() * (GSR_NEUTRAL_MAX - GSR_NEUTRAL_MIN)
                 }
                 gsrRepo.upsert(GsrSample(id = 0, userId = userId, epoch = t, gsr = gsrValue))
             }
