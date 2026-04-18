@@ -69,6 +69,26 @@ class ProfileRepositoryImpl @Inject constructor(
         dao.setWeightKg(id, weightKg)
     }
 
+    override suspend fun setMeasurementCalibration(
+        id: Int,
+        temperatureNormalLow: Float,
+        temperatureNormalHigh: Float,
+        heartRateNormalLow: Float,
+        heartRateNormalHigh: Float,
+        skinConductanceNormalLow: Float,
+        skinConductanceNormalHigh: Float
+    ) {
+        dao.setMeasurementCalibration(
+            id = id,
+            temperatureNormalLow = temperatureNormalLow,
+            temperatureNormalHigh = temperatureNormalHigh,
+            heartRateNormalLow = heartRateNormalLow,
+            heartRateNormalHigh = heartRateNormalHigh,
+            skinConductanceNormalLow = skinConductanceNormalLow,
+            skinConductanceNormalHigh = skinConductanceNormalHigh
+        )
+    }
+
     override suspend fun getActive(): UserProfile? =
         dao.getActive()?.toDomain()
 
@@ -94,7 +114,13 @@ private fun UserProfileEntity.toDomain(): UserProfile =
         birthDateEpochDays = birthDateEpochDays,
         heightCm = heightCm,
         weightKg = weightKg,
-        isActive = isActive
+        isActive = isActive,
+        temperatureNormalLow = temperatureNormalLow,
+        temperatureNormalHigh = temperatureNormalHigh,
+        heartRateNormalLow = heartRateNormalLow,
+        heartRateNormalHigh = heartRateNormalHigh,
+        skinConductanceNormalLow = skinConductanceNormalLow,
+        skinConductanceNormalHigh = skinConductanceNormalHigh
     )
 
 private fun UserProfile.toEntity(): UserProfileEntity =
@@ -105,5 +131,11 @@ private fun UserProfile.toEntity(): UserProfileEntity =
         birthDateEpochDays = birthDateEpochDays,
         heightCm = heightCm,
         weightKg = weightKg,
-        isActive = isActive
+        isActive = isActive,
+        temperatureNormalLow = temperatureNormalLow,
+        temperatureNormalHigh = temperatureNormalHigh,
+        heartRateNormalLow = heartRateNormalLow,
+        heartRateNormalHigh = heartRateNormalHigh,
+        skinConductanceNormalLow = skinConductanceNormalLow,
+        skinConductanceNormalHigh = skinConductanceNormalHigh
     )
