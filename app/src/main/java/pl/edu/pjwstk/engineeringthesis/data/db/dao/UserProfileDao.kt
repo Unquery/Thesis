@@ -82,6 +82,28 @@ interface UserProfileDao {
     @Query("UPDATE user_profile SET weightKg = :weightKg WHERE id = :id")
     suspend fun setWeightKg(id: Int, weightKg: Float)
 
+    @Query(
+        """
+        UPDATE user_profile
+        SET temperatureNormalLow = :temperatureNormalLow,
+            temperatureNormalHigh = :temperatureNormalHigh,
+            heartRateNormalLow = :heartRateNormalLow,
+            heartRateNormalHigh = :heartRateNormalHigh,
+            skinConductanceNormalLow = :skinConductanceNormalLow,
+            skinConductanceNormalHigh = :skinConductanceNormalHigh
+        WHERE id = :id
+        """
+    )
+    suspend fun setMeasurementCalibration(
+        id: Int,
+        temperatureNormalLow: Float,
+        temperatureNormalHigh: Float,
+        heartRateNormalLow: Float,
+        heartRateNormalHigh: Float,
+        skinConductanceNormalLow: Float,
+        skinConductanceNormalHigh: Float
+    )
+
     @Query("SELECT COALESCE(MAX(id), 0) + 1 FROM user_profile")
     suspend fun getNextId(): Int
 
