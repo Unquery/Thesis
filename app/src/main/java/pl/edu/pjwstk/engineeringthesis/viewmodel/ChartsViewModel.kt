@@ -20,6 +20,7 @@ import pl.edu.pjwstk.engineeringthesis.data.repository.HearthRateSampleRepositor
 import pl.edu.pjwstk.engineeringthesis.data.repository.ProfileRepository
 import pl.edu.pjwstk.engineeringthesis.data.repository.SpO2SampleRepository
 import pl.edu.pjwstk.engineeringthesis.data.repository.TempSampleRepository
+import pl.edu.pjwstk.engineeringthesis.model.UserProfile
 import pl.edu.pjwstk.engineeringthesis.util.ChartMetric
 import pl.edu.pjwstk.engineeringthesis.util.ChartRange
 import pl.edu.pjwstk.engineeringthesis.util.Charts
@@ -69,8 +70,12 @@ class ChartsViewModel @Inject constructor(
 
     private val zone = ZoneId.systemDefault()
 
-    private val activeUserId: StateFlow<Int?> =
+    val activeProfile: StateFlow<UserProfile?> =
         profileRepo.observeActive()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    private val activeUserId: StateFlow<Int?> =
+        activeProfile
             .map { it?.id }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
