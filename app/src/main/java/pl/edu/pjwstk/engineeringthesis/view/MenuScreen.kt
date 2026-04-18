@@ -53,10 +53,14 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import pl.edu.pjwstk.engineeringthesis.R
+import pl.edu.pjwstk.engineeringthesis.util.PROFILE_DEFAULT_HEART_RATE_HIGH
+import pl.edu.pjwstk.engineeringthesis.util.PROFILE_DEFAULT_HEART_RATE_LOW
+import pl.edu.pjwstk.engineeringthesis.util.PROFILE_DEFAULT_SKIN_CONDUCTANCE_HIGH
+import pl.edu.pjwstk.engineeringthesis.util.PROFILE_DEFAULT_SKIN_CONDUCTANCE_LOW
+import pl.edu.pjwstk.engineeringthesis.util.PROFILE_DEFAULT_TEMPERATURE_HIGH
+import pl.edu.pjwstk.engineeringthesis.util.PROFILE_DEFAULT_TEMPERATURE_LOW
 import pl.edu.pjwstk.engineeringthesis.util.ChartMetric
 import pl.edu.pjwstk.engineeringthesis.util.GSR_MENU_MAX_VALUE
-import pl.edu.pjwstk.engineeringthesis.util.GSR_NEUTRAL_MAX
-import pl.edu.pjwstk.engineeringthesis.util.GSR_NEUTRAL_MIN
 import pl.edu.pjwstk.engineeringthesis.ui.theme.EngineeringThesisTheme
 import pl.edu.pjwstk.engineeringthesis.viewmodel.MenuStartupViewModel
 import pl.edu.pjwstk.engineeringthesis.viewmodel.MenuViewModel
@@ -74,6 +78,7 @@ fun MenuScreen(
     vm: MenuViewModel = hiltViewModel()
 ) {
     val uiState by vm.uiState.collectAsStateWithLifecycle()
+    val activeProfile by vm.activeProfile.collectAsStateWithLifecycle()
 
     Box(Modifier.fillMaxSize()) {
 
@@ -104,6 +109,12 @@ fun MenuScreen(
                     latestTemp = uiState.latestTemp,
                     previousTemp = uiState.previousTemp,
                     lastUpdatedEpoch = uiState.lastUpdatedEpoch,
+                    temperatureNormalLow = activeProfile?.temperatureNormalLow ?: PROFILE_DEFAULT_TEMPERATURE_LOW,
+                    temperatureNormalHigh = activeProfile?.temperatureNormalHigh ?: PROFILE_DEFAULT_TEMPERATURE_HIGH,
+                    heartRateNormalLow = activeProfile?.heartRateNormalLow ?: PROFILE_DEFAULT_HEART_RATE_LOW,
+                    heartRateNormalHigh = activeProfile?.heartRateNormalHigh ?: PROFILE_DEFAULT_HEART_RATE_HIGH,
+                    skinConductanceNormalLow = activeProfile?.skinConductanceNormalLow ?: PROFILE_DEFAULT_SKIN_CONDUCTANCE_LOW,
+                    skinConductanceNormalHigh = activeProfile?.skinConductanceNormalHigh ?: PROFILE_DEFAULT_SKIN_CONDUCTANCE_HIGH,
                     onMetricClick = onMetricClick
                 )
             }
@@ -130,6 +141,12 @@ private fun MenuBody(
     latestTemp: Float?,
     previousTemp: Float?,
     lastUpdatedEpoch: Long?,
+    temperatureNormalLow: Float = PROFILE_DEFAULT_TEMPERATURE_LOW,
+    temperatureNormalHigh: Float = PROFILE_DEFAULT_TEMPERATURE_HIGH,
+    heartRateNormalLow: Float = PROFILE_DEFAULT_HEART_RATE_LOW,
+    heartRateNormalHigh: Float = PROFILE_DEFAULT_HEART_RATE_HIGH,
+    skinConductanceNormalLow: Float = PROFILE_DEFAULT_SKIN_CONDUCTANCE_LOW,
+    skinConductanceNormalHigh: Float = PROFILE_DEFAULT_SKIN_CONDUCTANCE_HIGH,
     onMetricClick: (ChartMetric) -> Unit
 ) {
     var stretchTarget by remember { mutableFloatStateOf(0f) }
@@ -159,8 +176,8 @@ private fun MenuBody(
             trendText = tempTrend,
             icon = Icons.Filled.DeviceThermostat,
             baseColor = Color(0xFFF59E0B),
-            normalMin = 36.5,
-            normalMax = 37.3,
+            normalMin = temperatureNormalLow.toDouble(),
+            normalMax = temperatureNormalHigh.toDouble(),
             criticalMin = 34.0,
             criticalMax = 41.0,
             decimals = 1
@@ -172,8 +189,8 @@ private fun MenuBody(
             trendText = hrTrend,
             icon = Icons.Filled.MonitorHeart,
             baseColor = Color(0xFFE53935),
-            normalMin = 60.0,
-            normalMax = 100.0,
+            normalMin = heartRateNormalLow.toDouble(),
+            normalMax = heartRateNormalHigh.toDouble(),
             criticalMin = 30.0,
             criticalMax = 200.0,
             decimals = 0
@@ -198,12 +215,14 @@ private fun MenuBody(
             trendText = gsrTrend,
             icon = Icons.Filled.SsidChart,
             baseColor = GsrBaseColor,
-            normalMin = GSR_NEUTRAL_MIN.toDouble(),
-            normalMax = GSR_NEUTRAL_MAX.toDouble(),
+            normalMin = skinConductanceNormalLow.toDouble(),
+            normalMax = skinConductanceNormalHigh.toDouble(),
             criticalMin = 0.0,
             criticalMax = GSR_MENU_MAX_VALUE.toDouble(),
             decimals = 1,
-            colorForValue = { value -> gsrMenuColor(value, GsrBaseColor) }
+            colorForValue = { value ->
+                gsrMenuColor(value, GsrBaseColor, skinConductanceNormalLow, skinConductanceNormalHigh)
+            }
         )
     )
 
@@ -256,6 +275,12 @@ private fun MenuBody(
             onHrClick = { onMetricClick(ChartMetric.HeartRate) },
             onSpo2Click = { onMetricClick(ChartMetric.SpO2) },
             onTempClick = { onMetricClick(ChartMetric.Temperature) },
+            temperatureNormalLow = temperatureNormalLow,
+            temperatureNormalHigh = temperatureNormalHigh,
+            heartRateNormalLow = heartRateNormalLow,
+            heartRateNormalHigh = heartRateNormalHigh,
+            skinConductanceNormalLow = skinConductanceNormalLow,
+            skinConductanceNormalHigh = skinConductanceNormalHigh,
             modifier = Modifier.fillMaxWidth()
         )
     }
@@ -348,6 +373,12 @@ fun MenuMetricsColumn(
     onHrClick: () -> Unit = {},
     onSpo2Click: () -> Unit = {},
     onTempClick: () -> Unit = {},
+    temperatureNormalLow: Float = PROFILE_DEFAULT_TEMPERATURE_LOW,
+    temperatureNormalHigh: Float = PROFILE_DEFAULT_TEMPERATURE_HIGH,
+    heartRateNormalLow: Float = PROFILE_DEFAULT_HEART_RATE_LOW,
+    heartRateNormalHigh: Float = PROFILE_DEFAULT_HEART_RATE_HIGH,
+    skinConductanceNormalLow: Float = PROFILE_DEFAULT_SKIN_CONDUCTANCE_LOW,
+    skinConductanceNormalHigh: Float = PROFILE_DEFAULT_SKIN_CONDUCTANCE_HIGH,
     @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
 ) {
     val leftTimeLabel = stringResource(R.string.time_00_00)
@@ -376,9 +407,9 @@ fun MenuMetricsColumn(
                     fullHeightBars = true,
                     showMinMaxLabels = false,
                     useNormalRangeGradient = true,
-                    normalMinValue = 36.5f,
-                    normalMaxValue = 37.3f,
-                    referenceRange = 0.8f,
+                    normalMinValue = temperatureNormalLow,
+                    normalMaxValue = temperatureNormalHigh,
+                    referenceRange = (temperatureNormalHigh - temperatureNormalLow).coerceAtLeast(0.1f),
                     colorCurve = 1.2f,
                     colorStrength = 1.4f,
                     lowColorMix = 0.5f,
@@ -405,9 +436,9 @@ fun MenuMetricsColumn(
                     fullHeightBars = true,
                     showMinMaxLabels = false,
                     useNormalRangeGradient = true,
-                    normalMinValue = 60f,
-                    normalMaxValue = 100f,
-                    referenceRange = 15f,
+                    normalMinValue = heartRateNormalLow,
+                    normalMaxValue = heartRateNormalHigh,
+                    referenceRange = (heartRateNormalHigh - heartRateNormalLow).coerceAtLeast(1f),
                     colorCurve = 1.3f,
                     colorStrength = 1.2f,
                     highColorMix = 0.65f,
@@ -467,7 +498,9 @@ fun MenuMetricsColumn(
                     icon = Icons.Filled.SsidChart,
                     fullHeightBars = true,
                     showMinMaxLabels = false,
-                    barColorForValue = { value -> gsrMenuColor(value, GsrBaseColor) }
+                    barColorForValue = { value ->
+                        gsrMenuColor(value, GsrBaseColor, skinConductanceNormalLow, skinConductanceNormalHigh)
+                    }
                 )
             }
         }
