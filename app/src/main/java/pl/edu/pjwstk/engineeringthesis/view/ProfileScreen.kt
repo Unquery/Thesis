@@ -252,8 +252,11 @@ fun ProfileScreen(
 
     var editing by remember { mutableStateOf<EditField?>(null) }
     var showCalibrationConfirmDialog by remember { mutableStateOf(false) }
+    var showAutomaticCalibrationDialog by remember { mutableStateOf(false) }
     var calibrationStep by remember { mutableStateOf<CalibrationStep?>(null) }
     var calibrationError by remember { mutableStateOf<Int?>(null) }
+    var automaticCalibrationError by remember { mutableStateOf<Int?>(null) }
+    var isAutomaticCalibrationRunning by remember { mutableStateOf(false) }
     var nameInput by remember { mutableStateOf("") }
     var genderInput by remember { mutableStateOf("") }
     var heightInput by remember { mutableStateOf("") }
@@ -276,8 +279,12 @@ fun ProfileScreen(
         skinConductanceHighInput = ""
     }
     val finishCalibrationFlow = {
+        showCalibrationConfirmDialog = false
+        showAutomaticCalibrationDialog = false
         calibrationStep = null
         calibrationError = null
+        automaticCalibrationError = null
+        isAutomaticCalibrationRunning = false
     }
     val discardCalibrationFlow = {
         resetCalibrationInputs()
@@ -349,6 +356,9 @@ fun ProfileScreen(
             skinConductanceHighInput = formatCalibrationInput(currentProfile.skinConductanceNormalHigh)
         }
         calibrationError = null
+        automaticCalibrationError = null
+        isAutomaticCalibrationRunning = false
+        showAutomaticCalibrationDialog = false
         showCalibrationConfirmDialog = true
     }
 
@@ -416,6 +426,36 @@ fun ProfileScreen(
             onDismiss = { showCalibrationConfirmDialog = false },
             onConfirm = {
                 showCalibrationConfirmDialog = false
+                calibrationError = null
+                automaticCalibrationError = null
+                showAutomaticCalibrationDialog = true
+            }
+        )
+    }
+
+    if (showAutomaticCalibrationDialog) {
+        AutomaticCalibrationDialog(
+            errorText = automaticCalibrationError,
+            buttonsEnabled = !isAutomaticCalibrationRunning,
+            onDismiss = {
+                showAutomaticCalibrationDialog = false
+                automaticCalibrationError = null
+            },
+            onConfirm = {
+                automaticCalibrationError = null
+                isAutomaticCalibrationRunning = true
+                vm.autoCalibrateMeasurementCalibration { err ->
+                    isAutomaticCalibrationRunning = false
+                    if (err == null) {
+                        finishCalibrationFlow()
+                    } else {
+                        automaticCalibrationError = err
+                    }
+                }
+            },
+            onManualCalibration = {
+                showAutomaticCalibrationDialog = false
+                automaticCalibrationError = null
                 calibrationError = null
                 calibrationStep = CalibrationStep.Temperature
             }
@@ -756,6 +796,60 @@ private fun CalibrationConfirmDialog(
                 Button(
                     onClick = onDismiss,
                     modifier = Modifier.width(124.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = PROFILE_DIALOG_ACTION_COLOR,
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text(text = stringResource(R.string.action_no))
+                }
+            }
+        }
+    )
+}
+
+@Composable
+private fun AutomaticCalibrationDialog(
+    errorText: Int?,
+    buttonsEnabled: Boolean,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+    onManualCalibration: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(text = stringResource(R.string.profile_auto_calibration_confirm_title))
+        },
+        text = {
+            if (errorText != null) {
+                Text(
+                    text = stringResource(errorText),
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+        },
+        confirmButton = {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center
+            ) {
+                OutlinedButton(
+                    onClick = onConfirm,
+                    modifier = Modifier.width(124.dp),
+                    enabled = buttonsEnabled,
+                    border = BorderStroke(2.dp, PROFILE_DIALOG_ACTION_COLOR),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text(text = stringResource(R.string.action_yes))
+                }
+                Spacer(modifier = Modifier.width(20.dp))
+                Button(
+                    onClick = onManualCalibration,
+                    modifier = Modifier.width(124.dp),
+                    enabled = buttonsEnabled,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = PROFILE_DIALOG_ACTION_COLOR,
                         contentColor = Color.White

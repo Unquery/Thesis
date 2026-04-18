@@ -46,6 +46,7 @@
     <string name="profile_birth_date_value">%1$s (%2$d y)</string>
     <string name="profile_calibrate_measurements">Calibrate measurments</string>
     <string name="profile_calibrate_confirm_title">Do you want to change normal values for mesurments?</string>
+    <string name="profile_auto_calibration_confirm_title">Do you want to use automatic calibration?</string>
     <string name="profile_calibration_temperature_title">Set temperature</string>
     <string name="profile_calibration_heart_rate_title">Set heart rate</string>
     <string name="profile_calibration_skin_conductance_title">Set skin conductance</string>
@@ -55,6 +56,8 @@
     <string name="profile_calibration_error_invalid_low">Enter a valid low value</string>
     <string name="profile_calibration_error_invalid_high">Enter a valid high value</string>
     <string name="profile_calibration_error_low_less_than_high">Low value must be lower than high value</string>
+    <string name="profile_auto_calibration_error_not_enough_data">Not enough valid data from the last 14 days for automatic calibration</string>
+    <string name="profile_auto_calibration_error_failed">Automatic calibration failed</string>
 
     <string name="gender_male">Male</string>
     <string name="gender_female">Female</string>

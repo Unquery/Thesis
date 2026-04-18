@@ -4,17 +4,28 @@ import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import pl.edu.pjwstk.engineeringthesis.R
+import pl.edu.pjwstk.engineeringthesis.data.repository.GsrSampleRepository
+import pl.edu.pjwstk.engineeringthesis.data.repository.HearthRateSampleRepository
 import pl.edu.pjwstk.engineeringthesis.data.repository.ProfileRepository
+import pl.edu.pjwstk.engineeringthesis.data.repository.TempSampleRepository
+import pl.edu.pjwstk.engineeringthesis.model.GsrSample
+import pl.edu.pjwstk.engineeringthesis.model.HearthRateSample
+import pl.edu.pjwstk.engineeringthesis.model.TempSample
 import pl.edu.pjwstk.engineeringthesis.model.UserProfile
+import java.time.Instant
 import java.time.LocalDate
 import java.time.Period
+import java.time.ZoneId
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
 @HiltViewModel
@@ -111,7 +122,10 @@ class ProfileOnboardingViewModel @Inject constructor(
 
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
-    private val repo: ProfileRepository
+    private val repo: ProfileRepository,
+    private val tempRepo: TempSampleRepository,
+    private val hrRepo: HearthRateSampleRepository,
+    private val gsrRepo: GsrSampleRepository
 ) : ViewModel() {
 
     val activeProfile: StateFlow<UserProfile?> =
@@ -194,6 +208,47 @@ class ProfileViewModel @Inject constructor(
         return null
     }
 
+    fun autoCalibrateMeasurementCalibration(
+        onResult: (Int?) -> Unit
+    ) {
+        val id = activeProfile.value?.id ?: run {
+            onResult(R.string.error_no_active_profile)
+            return
+        }
+
+        viewModelScope.launch {
+            val result = try {
+                val now = System.currentTimeMillis()
+                val firstEpoch = now - AUTO_CALIBRATION_LOOKBACK_MILLIS
+                val calibration = withContext(Dispatchers.Default) {
+                    buildAutomaticCalibration(
+                        temperatures = tempRepo.getRangeForUser(id, firstEpoch, now),
+                        heartRates = hrRepo.getRangeForUser(id, firstEpoch, now),
+                        skinConductances = gsrRepo.getRangeForUser(id, firstEpoch, now)
+                    )
+                } ?: run {
+                    onResult(R.string.profile_auto_calibration_error_not_enough_data)
+                    return@launch
+                }
+
+                repo.setMeasurementCalibration(
+                    id = id,
+                    temperatureNormalLow = calibration.temperatureNormalLow,
+                    temperatureNormalHigh = calibration.temperatureNormalHigh,
+                    heartRateNormalLow = calibration.heartRateNormalLow,
+                    heartRateNormalHigh = calibration.heartRateNormalHigh,
+                    skinConductanceNormalLow = calibration.skinConductanceNormalLow,
+                    skinConductanceNormalHigh = calibration.skinConductanceNormalHigh
+                )
+                null
+            } catch (_: Throwable) {
+                R.string.profile_auto_calibration_error_failed
+            }
+
+            onResult(result)
+        }
+    }
+
     @StringRes
     private fun validateAge(epochDays: Long): Int? {
         val birth = LocalDate.ofEpochDay(epochDays)
@@ -203,4 +258,143 @@ class ProfileViewModel @Inject constructor(
         return if (years in 5..120) null else R.string.error_age_range
     }
 }
+
+private data class AutomaticCalibrationValues(
+    val temperatureNormalLow: Float,
+    val temperatureNormalHigh: Float,
+    val heartRateNormalLow: Float,
+    val heartRateNormalHigh: Float,
+    val skinConductanceNormalLow: Float,
+    val skinConductanceNormalHigh: Float
+)
+
+private data class AutomaticCalibrationEpoch(
+    val epoch: Long,
+    val temperature: Float,
+    val heartRate: Float,
+    val skinConductance: Float
+)
+
+private fun buildAutomaticCalibration(
+    temperatures: List<TempSample>,
+    heartRates: List<HearthRateSample>,
+    skinConductances: List<GsrSample>
+): AutomaticCalibrationValues? {
+    val temperatureByEpoch = temperatures.associateBy(TempSample::epoch)
+    val heartRateByEpoch = heartRates.associateBy(HearthRateSample::epoch)
+    val skinConductanceByEpoch = skinConductances.associateBy(GsrSample::epoch)
+
+    val validEpochs = temperatureByEpoch.keys
+        .intersect(heartRateByEpoch.keys)
+        .intersect(skinConductanceByEpoch.keys)
+        .mapNotNull { epoch ->
+            val temperature = temperatureByEpoch[epoch]?.temperature ?: return@mapNotNull null
+            val heartRate = heartRateByEpoch[epoch]?.hearthRate ?: return@mapNotNull null
+            val skinConductance = skinConductanceByEpoch[epoch]?.gsr ?: return@mapNotNull null
+
+            if (!isPhysiologicallyValidTemperature(temperature)) return@mapNotNull null
+            if (!isPhysiologicallyValidHeartRate(heartRate)) return@mapNotNull null
+            if (!isPhysiologicallyValidSkinConductance(skinConductance)) return@mapNotNull null
+
+            AutomaticCalibrationEpoch(
+                epoch = epoch,
+                temperature = temperature,
+                heartRate = heartRate,
+                skinConductance = skinConductance
+            )
+        }
+        .sortedBy(AutomaticCalibrationEpoch::epoch)
+
+    if (validEpochs.size < MIN_AUTOMATIC_CALIBRATION_EPOCHS) {
+        return null
+    }
+
+    val validDaysCount = validEpochs
+        .map { epoch ->
+            Instant.ofEpochMilli(epoch.epoch)
+                .atZone(ZoneId.systemDefault())
+                .toLocalDate()
+        }
+        .distinct()
+        .size
+    if (validDaysCount < MIN_AUTOMATIC_CALIBRATION_DAYS) {
+        return null
+    }
+
+    val smoothedTemperatures = rollingMedianSmooth(validEpochs.map(AutomaticCalibrationEpoch::temperature))
+    val smoothedHeartRates = rollingMedianSmooth(validEpochs.map(AutomaticCalibrationEpoch::heartRate))
+    val smoothedSkinConductances = rollingMedianSmooth(validEpochs.map(AutomaticCalibrationEpoch::skinConductance))
+
+    val temperatureRange = percentileRange(smoothedTemperatures) ?: return null
+    val heartRateRange = percentileRange(smoothedHeartRates) ?: return null
+    val skinConductanceRange = percentileRange(smoothedSkinConductances) ?: return null
+
+    if (
+        temperatureRange.first >= temperatureRange.second ||
+        heartRateRange.first >= heartRateRange.second ||
+        skinConductanceRange.first >= skinConductanceRange.second
+    ) {
+        return null
+    }
+
+    return AutomaticCalibrationValues(
+        temperatureNormalLow = temperatureRange.first,
+        temperatureNormalHigh = temperatureRange.second,
+        heartRateNormalLow = heartRateRange.first,
+        heartRateNormalHigh = heartRateRange.second,
+        skinConductanceNormalLow = skinConductanceRange.first,
+        skinConductanceNormalHigh = skinConductanceRange.second
+    )
+}
+
+private fun rollingMedianSmooth(values: List<Float>): List<Float> {
+    if (values.size < 3) return values
+
+    return values.indices.map { index ->
+        val start = (index - 1).coerceAtLeast(0)
+        val end = (index + 1).coerceAtMost(values.lastIndex)
+        median(values.subList(start, end + 1))
+    }
+}
+
+private fun percentileRange(values: List<Float>): Pair<Float, Float>? {
+    if (values.isEmpty()) return null
+    val sorted = values.sorted()
+    return percentile(sorted, AUTO_CALIBRATION_LOW_PERCENTILE) to
+        percentile(sorted, AUTO_CALIBRATION_HIGH_PERCENTILE)
+}
+
+private fun percentile(sortedValues: List<Float>, percentile: Float): Float {
+    if (sortedValues.size == 1) return sortedValues.first()
+
+    val rank = (percentile / 100f) * (sortedValues.lastIndex)
+    val lowerIndex = rank.toInt()
+    val upperIndex = kotlin.math.ceil(rank.toDouble()).toInt()
+    if (lowerIndex == upperIndex) return sortedValues[lowerIndex]
+
+    val weight = rank - lowerIndex
+    return sortedValues[lowerIndex] + (sortedValues[upperIndex] - sortedValues[lowerIndex]) * weight
+}
+
+private fun median(values: List<Float>): Float {
+    val sorted = values.sorted()
+    val middle = sorted.size / 2
+    return if (sorted.size % 2 == 1) {
+        sorted[middle]
+    } else {
+        (sorted[middle - 1] + sorted[middle]) / 2f
+    }
+}
+
+private fun isPhysiologicallyValidTemperature(value: Float): Boolean = value in 30f..45f
+
+private fun isPhysiologicallyValidHeartRate(value: Float): Boolean = value in 20f..240f
+
+private fun isPhysiologicallyValidSkinConductance(value: Float): Boolean = value in 0f..100f
+
+private const val MIN_AUTOMATIC_CALIBRATION_EPOCHS = 300
+private const val MIN_AUTOMATIC_CALIBRATION_DAYS = 7
+private const val AUTO_CALIBRATION_LOW_PERCENTILE = 5f
+private const val AUTO_CALIBRATION_HIGH_PERCENTILE = 95f
+private val AUTO_CALIBRATION_LOOKBACK_MILLIS = TimeUnit.DAYS.toMillis(14)
 
