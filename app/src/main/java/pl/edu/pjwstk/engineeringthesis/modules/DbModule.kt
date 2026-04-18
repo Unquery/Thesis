@@ -17,6 +17,13 @@ import pl.edu.pjwstk.engineeringthesis.data.db.dao.SpO2SampleDao
 import pl.edu.pjwstk.engineeringthesis.data.db.dao.UserProfileDao
 import pl.edu.pjwstk.engineeringthesis.data.db.dao.TempSampleDao
 
+private const val DEFAULT_TEMPERATURE_LOW_SQL = 36.5
+private const val DEFAULT_TEMPERATURE_HIGH_SQL = 37.3
+private const val DEFAULT_HEART_RATE_LOW_SQL = 60.0
+private const val DEFAULT_HEART_RATE_HIGH_SQL = 100.0
+private const val DEFAULT_SKIN_CONDUCTANCE_LOW_SQL = 5.0
+private const val DEFAULT_SKIN_CONDUCTANCE_HIGH_SQL = 15.0
+
 private val MIGRATION_11_12 = object : Migration(11, 12) {
     override fun migrate(database: SupportSQLiteDatabase) {
         database.execSQL(
@@ -76,6 +83,29 @@ private val MIGRATION_13_14 = object : Migration(13, 14) {
     }
 }
 
+private val MIGRATION_15_16 = object : Migration(15, 16) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL(
+            "ALTER TABLE user_profile ADD COLUMN temperatureNormalLow REAL NOT NULL DEFAULT $DEFAULT_TEMPERATURE_LOW_SQL"
+        )
+        database.execSQL(
+            "ALTER TABLE user_profile ADD COLUMN temperatureNormalHigh REAL NOT NULL DEFAULT $DEFAULT_TEMPERATURE_HIGH_SQL"
+        )
+        database.execSQL(
+            "ALTER TABLE user_profile ADD COLUMN heartRateNormalLow REAL NOT NULL DEFAULT $DEFAULT_HEART_RATE_LOW_SQL"
+        )
+        database.execSQL(
+            "ALTER TABLE user_profile ADD COLUMN heartRateNormalHigh REAL NOT NULL DEFAULT $DEFAULT_HEART_RATE_HIGH_SQL"
+        )
+        database.execSQL(
+            "ALTER TABLE user_profile ADD COLUMN skinConductanceNormalLow REAL NOT NULL DEFAULT $DEFAULT_SKIN_CONDUCTANCE_LOW_SQL"
+        )
+        database.execSQL(
+            "ALTER TABLE user_profile ADD COLUMN skinConductanceNormalHigh REAL NOT NULL DEFAULT $DEFAULT_SKIN_CONDUCTANCE_HIGH_SQL"
+        )
+    }
+}
+
 @Module
 @InstallIn(SingletonComponent::class)
 object DbModule {
@@ -84,7 +114,7 @@ object DbModule {
     @Singleton
     fun provideDb(@ApplicationContext ctx: Context): DiaryDB =
         Room.databaseBuilder(ctx, DiaryDB::class.java, "diary.db")
-            .addMigrations(MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14)
+            .addMigrations(MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_15_16)
             .fallbackToDestructiveMigration(false)
             .build()
 
