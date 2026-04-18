@@ -163,6 +163,38 @@ class ProfileViewModel @Inject constructor(
     }
 
     @StringRes
+    fun updateMeasurementCalibration(
+        temperatureNormalLow: Float,
+        temperatureNormalHigh: Float,
+        heartRateNormalLow: Float,
+        heartRateNormalHigh: Float,
+        skinConductanceNormalLow: Float,
+        skinConductanceNormalHigh: Float
+    ): Int? {
+        if (
+            temperatureNormalLow >= temperatureNormalHigh ||
+            heartRateNormalLow >= heartRateNormalHigh ||
+            skinConductanceNormalLow >= skinConductanceNormalHigh
+        ) {
+            return R.string.profile_calibration_error_low_less_than_high
+        }
+
+        val id = activeProfile.value?.id ?: return R.string.error_no_active_profile
+        viewModelScope.launch {
+            repo.setMeasurementCalibration(
+                id = id,
+                temperatureNormalLow = temperatureNormalLow,
+                temperatureNormalHigh = temperatureNormalHigh,
+                heartRateNormalLow = heartRateNormalLow,
+                heartRateNormalHigh = heartRateNormalHigh,
+                skinConductanceNormalLow = skinConductanceNormalLow,
+                skinConductanceNormalHigh = skinConductanceNormalHigh
+            )
+        }
+        return null
+    }
+
+    @StringRes
     private fun validateAge(epochDays: Long): Int? {
         val birth = LocalDate.ofEpochDay(epochDays)
         val now = LocalDate.now()
