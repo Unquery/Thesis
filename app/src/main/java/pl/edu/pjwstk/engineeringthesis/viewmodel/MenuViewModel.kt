@@ -12,6 +12,7 @@ import pl.edu.pjwstk.engineeringthesis.data.repository.SpO2SampleRepository
 import pl.edu.pjwstk.engineeringthesis.data.repository.TempSampleRepository
 import pl.edu.pjwstk.engineeringthesis.model.HourlyAvg
 import pl.edu.pjwstk.engineeringthesis.model.HourlyMinMax
+import pl.edu.pjwstk.engineeringthesis.model.UserProfile
 import pl.edu.pjwstk.engineeringthesis.util.GSR_NEUTRAL_MAX
 import pl.edu.pjwstk.engineeringthesis.util.GSR_NEUTRAL_MIN
 import java.time.LocalDate
@@ -123,8 +124,12 @@ class MenuViewModel @Inject constructor(
         }
     }
 
-    val activeUserId: StateFlow<Int?> =
+    val activeProfile: StateFlow<UserProfile?> =
         profileRepo.observeActive()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    val activeUserId: StateFlow<Int?> =
+        activeProfile
             .map { it?.id }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
@@ -146,15 +151,16 @@ class MenuViewModel @Inject constructor(
     @OptIn(ExperimentalCoroutinesApi::class)
     private fun todayExtremeBars(
         hourlyMinMaxProvider: (userId: Int, start: Long, end: Long) -> Flow<List<HourlyMinMax>>,
-        normalMin: Float,
-        normalMax: Float
+        normalRangeProvider: (UserProfile) -> Pair<Float, Float>
     ): StateFlow<List<Float?>> =
-        activeUserId
-            .flatMapLatest { userId ->
-                if (userId == null) {
+        activeProfile
+            .flatMapLatest { profile ->
+                if (profile == null) {
                     flowOf(List(24) { null })
                 } else {
+                    val userId = profile.id
                     val (start, end) = todayRangeMillis()
+                    val (normalMin, normalMax) = normalRangeProvider(profile)
                     hourlyMinMaxProvider(userId, start, end)
                         .map { rows -> to24ExtremeBars(rows, normalMin, normalMax) }
                 }
@@ -197,29 +203,31 @@ class MenuViewModel @Inject constructor(
     val todayGsrCardBars: StateFlow<List<Float?>> =
         todayExtremeBars(
             hourlyMinMaxProvider = { userId, start, end -> gsrRepo.observeHourlyMinMax(userId, start, end) },
-            normalMin = GSR_NEUTRAL_MIN,
-            normalMax = GSR_NEUTRAL_MAX
+            normalRangeProvider = { profile ->
+                profile.skinConductanceNormalLow to profile.skinConductanceNormalHigh
+            }
         )
 
     val todayHrCardBars: StateFlow<List<Float?>> =
         todayExtremeBars(
             hourlyMinMaxProvider = { userId, start, end -> hrRepo.observeHourlyMinMax(userId, start, end) },
-            normalMin = 60f,
-            normalMax = 100f
+            normalRangeProvider = { profile ->
+                profile.heartRateNormalLow to profile.heartRateNormalHigh
+            }
         )
 
     val todaySpo2CardBars: StateFlow<List<Float?>> =
         todayExtremeBars(
             hourlyMinMaxProvider = { userId, start, end -> spo2Repo.observeHourlyMinMax(userId, start, end) },
-            normalMin = 97f,
-            normalMax = 100f
+            normalRangeProvider = { 97f to 100f }
         )
 
     val todayTempCardBars: StateFlow<List<Float?>> =
         todayExtremeBars(
             hourlyMinMaxProvider = { userId, start, end -> tempRepo.observeHourlyMinMax(userId, start, end) },
-            normalMin = 36.5f,
-            normalMax = 37.3f
+            normalRangeProvider = { profile ->
+                profile.temperatureNormalLow to profile.temperatureNormalHigh
+            }
         )
 
     private val latestGsrValues: StateFlow<LatestMeasurementPair> =
