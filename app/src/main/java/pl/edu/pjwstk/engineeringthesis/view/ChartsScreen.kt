@@ -64,8 +64,15 @@ import co.yml.charts.ui.linechart.model.LinePlotData
 import co.yml.charts.ui.linechart.model.LineStyle
 import co.yml.charts.ui.linechart.model.LineType
 import pl.edu.pjwstk.engineeringthesis.R
+import pl.edu.pjwstk.engineeringthesis.model.UserProfile
 import pl.edu.pjwstk.engineeringthesis.util.ChartMetric
 import pl.edu.pjwstk.engineeringthesis.util.ChartRange
+import pl.edu.pjwstk.engineeringthesis.util.PROFILE_DEFAULT_HEART_RATE_HIGH
+import pl.edu.pjwstk.engineeringthesis.util.PROFILE_DEFAULT_HEART_RATE_LOW
+import pl.edu.pjwstk.engineeringthesis.util.PROFILE_DEFAULT_SKIN_CONDUCTANCE_HIGH
+import pl.edu.pjwstk.engineeringthesis.util.PROFILE_DEFAULT_SKIN_CONDUCTANCE_LOW
+import pl.edu.pjwstk.engineeringthesis.util.PROFILE_DEFAULT_TEMPERATURE_HIGH
+import pl.edu.pjwstk.engineeringthesis.util.PROFILE_DEFAULT_TEMPERATURE_LOW
 import pl.edu.pjwstk.engineeringthesis.viewmodel.ChartBucketRange
 import pl.edu.pjwstk.engineeringthesis.viewmodel.ChartSummary
 import pl.edu.pjwstk.engineeringthesis.viewmodel.ChartsViewModel
@@ -90,8 +97,9 @@ fun ChartsScreen(
     onBack: () -> Unit = {}
 ) {
     val chartState by vm.chartState.collectAsStateWithLifecycle()
+    val activeProfile by vm.activeProfile.collectAsStateWithLifecycle()
     val metric = vm.metric
-    val ui = remember(metric) { metricUi(metric) }
+    val ui = remember(metric, activeProfile) { metricUi(metric, activeProfile) }
     val uiTitle = stringResource(ui.titleRes)
     val uiUnit = stringResource(ui.unitRes)
 
@@ -452,50 +460,65 @@ private fun computeYAxisInset(
     return labelWidthDp + Y_AXIS_LABEL_PADDING + Y_AXIS_OFFSET + 1.dp
 }
 
-private fun metricUi(metric: ChartMetric): MetricUi = when (metric) {
-    ChartMetric.Temperature -> MetricUi(
-        titleRes = R.string.metric_body_temperature,
-        unitRes = R.string.unit_celsius,
-        decimals = 1,
-        color = Color(0xFFF59E0B),
-        yAxisFloor = 30f,
-        normalCenter = 37.0f,
-        normalMin = 36.5f,
-        normalMax = 37.3f
-    )
+private fun metricUi(metric: ChartMetric, profile: UserProfile?): MetricUi =
+    when (metric) {
+        ChartMetric.Temperature -> {
+            val normalMin = profile?.temperatureNormalLow ?: PROFILE_DEFAULT_TEMPERATURE_LOW
+            val normalMax = profile?.temperatureNormalHigh ?: PROFILE_DEFAULT_TEMPERATURE_HIGH
+            MetricUi(
+                titleRes = R.string.metric_body_temperature,
+                unitRes = R.string.unit_celsius,
+                decimals = 1,
+                color = Color(0xFFF59E0B),
+                yAxisFloor = 30f,
+                normalCenter = (normalMin + normalMax) / 2f,
+                normalMin = normalMin,
+                normalMax = normalMax
+            )
+        }
 
-    ChartMetric.HeartRate -> MetricUi(
-        titleRes = R.string.metric_heart_rate,
-        unitRes = R.string.unit_bpm,
-        decimals = 0,
-        color = Color(0xFFE53935),
-        yAxisFloor = 30f,
-        normalCenter = 80f,
-        normalMin = 60f,
-        normalMax = 100f
-    )
+        ChartMetric.HeartRate -> {
+            val normalMin = profile?.heartRateNormalLow ?: PROFILE_DEFAULT_HEART_RATE_LOW
+            val normalMax = profile?.heartRateNormalHigh ?: PROFILE_DEFAULT_HEART_RATE_HIGH
+            MetricUi(
+                titleRes = R.string.metric_heart_rate,
+                unitRes = R.string.unit_bpm,
+                decimals = 0,
+                color = Color(0xFFE53935),
+                yAxisFloor = 30f,
+                normalCenter = (normalMin + normalMax) / 2f,
+                normalMin = normalMin,
+                normalMax = normalMax
+            )
+        }
 
-    ChartMetric.SpO2 -> MetricUi(
-        titleRes = R.string.metric_blood_oxygen,
-        unitRes = R.string.unit_percent,
-        decimals = 0,
-        color = Color(0xFF0284C7),
-        yAxisMinPadding = 2f,
-        yAxisFloor = 80f,
-        yAxisCeiling = 100f,
-        normalMin = 97f,
-        normalMax = 100f
-    )
+        ChartMetric.SpO2 -> MetricUi(
+            titleRes = R.string.metric_blood_oxygen,
+            unitRes = R.string.unit_percent,
+            decimals = 0,
+            color = Color(0xFF0284C7),
+            yAxisMinPadding = 2f,
+            yAxisFloor = 80f,
+            yAxisCeiling = 100f,
+            normalMin = 97f,
+            normalMax = 100f
+        )
 
-    ChartMetric.Gsr -> MetricUi(
-        titleRes = R.string.metric_skin_conductance,
-        unitRes = R.string.unit_us,
-        decimals = 1,
-        color = Color(0xFF6366F1),
-        yAxisFloor = 0f,
-        yAxisCeiling = 30f
-    )
-}
+        ChartMetric.Gsr -> {
+            val normalMin = profile?.skinConductanceNormalLow ?: PROFILE_DEFAULT_SKIN_CONDUCTANCE_LOW
+            val normalMax = profile?.skinConductanceNormalHigh ?: PROFILE_DEFAULT_SKIN_CONDUCTANCE_HIGH
+            MetricUi(
+                titleRes = R.string.metric_skin_conductance,
+                unitRes = R.string.unit_us,
+                decimals = 1,
+                color = Color(0xFF6366F1),
+                yAxisFloor = 0f,
+                yAxisCeiling = 30f,
+                normalMin = normalMin,
+                normalMax = normalMax
+            )
+        }
+    }
 
 private fun formatRangeLabel(
     range: ChartRange,
