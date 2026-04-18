@@ -32,4 +32,13 @@ interface ProfileRepository {
     suspend fun setBirthDateEpochDays(id: Int, birthDateEpochDays: Long)
     suspend fun setHeightCm(id: Int, heightCm: Int)
     suspend fun setWeightKg(id: Int, weightKg: Float)
+    suspend fun setMeasurementCalibration(
+        id: Int,
+        temperatureNormalLow: Float,
+        temperatureNormalHigh: Float,
+        heartRateNormalLow: Float,
+        heartRateNormalHigh: Float,
+        skinConductanceNormalLow: Float,
+        skinConductanceNormalHigh: Float
+    )
 }
