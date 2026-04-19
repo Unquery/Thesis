@@ -113,7 +113,12 @@
     <string name="connected_device_title">Connected device</string>
     <string name="connected_device_none">No connected device</string>
     <string name="band_unknown">Unknown</string>
-    <string name="band_rssi_format">%1$d dBm</string>
+    <string name="band_signal_very_high">Very high</string>
+    <string name="band_signal_high">High</string>
+    <string name="band_signal_medium">Medium</string>
+    <string name="band_signal_low">Low</string>
+    <string name="band_signal_very_low">Very low</string>
+    <string name="band_signal_label">Signal:</string>
     <string name="band_connect">Connect</string>
     <string name="band_disconnect">Disconnect</string>
     <string name="band_disconnect_confirm_title">Do you want to disconnect the band?</string>
