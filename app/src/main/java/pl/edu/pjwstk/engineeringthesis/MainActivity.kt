@@ -19,6 +19,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -75,6 +76,7 @@ fun AppRoot(
     connectBandVm: ConnectBandViewModel = hiltViewModel()
 ) {
     var showSplash by rememberSaveable { mutableStateOf(true) }
+    var showFirstRunCalibration by rememberSaveable { mutableStateOf(false) }
 
     val show by gateVm.showOnboarding.collectAsStateWithLifecycle()
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -95,7 +97,11 @@ fun AppRoot(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        Navigation(connectBandVm)
+        Navigation(
+            connectBandVm = connectBandVm,
+            showFirstRunCalibration = showFirstRunCalibration,
+            onFirstRunCalibrationConsumed = { showFirstRunCalibration = false }
+        )
 
         if (showSplash) {
             SplashOverlay(onGone = { showSplash = false })
@@ -104,7 +110,10 @@ fun AppRoot(
         if (show == true && !showSplash) {
             Surface(color = MaterialTheme.colorScheme.background) {
                 ProfileOnboardingScreen(
-                    onDone = { gateVm.markDone(); }
+                    onDone = {
+                        showFirstRunCalibration = true
+                        gateVm.markDone()
+                    }
                 )
             }
         }
@@ -113,7 +122,11 @@ fun AppRoot(
 
 
 @Composable
-fun Navigation(connectBandVm: ConnectBandViewModel){
+fun Navigation(
+    connectBandVm: ConnectBandViewModel,
+    showFirstRunCalibration: Boolean = false,
+    onFirstRunCalibrationConsumed: () -> Unit = {}
+){
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
@@ -122,6 +135,12 @@ fun Navigation(connectBandVm: ConnectBandViewModel){
     val isConnectBandDestination = currentDestination.isRouteInHierarchy<ConnectBand>()
     val isProfileDestination = currentDestination.isRouteInHierarchy<Profile>()
     val showBottomBar = isMenuDestination || isConnectBandDestination || isProfileDestination
+
+    LaunchedEffect(showFirstRunCalibration, isProfileDestination) {
+        if (showFirstRunCalibration && !isProfileDestination) {
+            navController.navigateToTopLevel(Profile)
+        }
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -168,7 +187,10 @@ fun Navigation(connectBandVm: ConnectBandViewModel){
             menuDestination(navController)
             connectBandDestination(connectBandVm)
             chartsDestination(navController)
-            profileDestination()
+            profileDestination(
+                autoOpenCalibration = showFirstRunCalibration,
+                onAutoOpenCalibrationConsumed = onFirstRunCalibrationConsumed
+            )
         }
     }
 }

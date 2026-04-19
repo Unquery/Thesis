@@ -246,7 +246,9 @@ private fun WeightStep(value: String, onChange: (String) -> Unit, onNext: () -> 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
-    vm: ProfileViewModel = hiltViewModel()
+    vm: ProfileViewModel = hiltViewModel(),
+    autoOpenCalibration: Boolean = false,
+    onAutoOpenCalibrationConsumed: () -> Unit = {}
 ) {
     val profile by vm.activeProfile.collectAsStateWithLifecycle()
 
@@ -386,6 +388,19 @@ fun ProfileScreen(
                     onEdit = openNameEdit
                 )
                 ProfileField(
+    LaunchedEffect(autoOpenCalibration, profile?.id) {
+        if (
+            autoOpenCalibration &&
+            profile != null &&
+            !showCalibrationConfirmDialog &&
+            !showAutomaticCalibrationDialog &&
+            calibrationStep == null
+        ) {
+            openCalibrationEdit()
+            onAutoOpenCalibrationConsumed()
+        }
+    }
+
                     label = stringResource(R.string.profile_label_gender),
                     value = current.gender.takeIf { it.isNotBlank() } ?: stringResource(R.string.profile_not_set),
                     onEdit = openGenderEdit

@@ -46,8 +46,14 @@ fun NavGraphBuilder.chartsDestination(navController: NavController){
     }
 }
 
-fun NavGraphBuilder.profileDestination(){
+fun NavGraphBuilder.profileDestination(
+    autoOpenCalibration: Boolean = false,
+    onAutoOpenCalibrationConsumed: () -> Unit = {}
+){
     composable<Profile>{
-        ProfileScreen()
+        ProfileScreen(
+            autoOpenCalibration = autoOpenCalibration,
+            onAutoOpenCalibrationConsumed = onAutoOpenCalibrationConsumed
+        )
     }
 }
