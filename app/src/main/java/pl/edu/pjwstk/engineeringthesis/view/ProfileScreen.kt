@@ -388,6 +388,19 @@ fun ProfileScreen(
         showCalibrationConfirmDialog = true
     }
 
+    LaunchedEffect(autoOpenCalibration, profile?.id) {
+        if (
+            autoOpenCalibration &&
+            profile != null &&
+            !showCalibrationConfirmDialog &&
+            !showAutomaticCalibrationDialog &&
+            calibrationStep == null
+        ) {
+            openCalibrationEdit()
+            onAutoOpenCalibrationConsumed()
+        }
+    }
+
     Scaffold(
         topBar = { TopProfileScreenBar() }
     ) { pad ->
@@ -412,19 +425,6 @@ fun ProfileScreen(
                     onEdit = openNameEdit
                 )
                 ProfileField(
-    LaunchedEffect(autoOpenCalibration, profile?.id) {
-        if (
-            autoOpenCalibration &&
-            profile != null &&
-            !showCalibrationConfirmDialog &&
-            !showAutomaticCalibrationDialog &&
-            calibrationStep == null
-        ) {
-            openCalibrationEdit()
-            onAutoOpenCalibrationConsumed()
-        }
-    }
-
                     label = stringResource(R.string.profile_label_gender),
                     value = current.gender.takeIf { it.isNotBlank() } ?: stringResource(R.string.profile_not_set),
                     onEdit = openGenderEdit
