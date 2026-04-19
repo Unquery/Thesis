@@ -14,7 +14,6 @@ import pl.edu.pjwstk.engineeringthesis.model.GsrSample
 import pl.edu.pjwstk.engineeringthesis.model.HearthRateSample
 import pl.edu.pjwstk.engineeringthesis.model.SpO2Sample
 import pl.edu.pjwstk.engineeringthesis.model.TempSample
-import pl.edu.pjwstk.engineeringthesis.model.UserProfile
 import pl.edu.pjwstk.engineeringthesis.util.GSR_MENU_MAX_VALUE
 import pl.edu.pjwstk.engineeringthesis.util.GSR_NEUTRAL_MAX
 import pl.edu.pjwstk.engineeringthesis.util.GSR_NEUTRAL_MIN
@@ -39,16 +38,17 @@ class MenuMockSeedTask @Inject constructor(
         val seedEnd = minOf(end, System.currentTimeMillis())
 
         val active = profileRepo.getActive()
-        val userId = active?.id ?: profileRepo.insertAndActivate(
-            UserProfile(
-                id = 0,
-                gender = "male",
-                birthDateEpochDays = 10000L,
-                heightCm = 180,
-                weightKg = 75f,
-                isActive = true
-            )
-        )
+        // val userId = active?.id ?: profileRepo.insertAndActivate(
+        //     UserProfile(
+        //         id = 0,
+        //         gender = "Male",
+        //         birthDateEpochDays = 10000L,
+        //         heightCm = 180,
+        //         weightKg = 75f,
+        //         isActive = true
+        //     )
+        // )
+        val userId = active?.id ?: return
 
         val hasGsrToday = gsrRepo.existsInRange(userId, start, end)
         val hasHrToday = hrRepo.existsInRange(userId, start, end)
