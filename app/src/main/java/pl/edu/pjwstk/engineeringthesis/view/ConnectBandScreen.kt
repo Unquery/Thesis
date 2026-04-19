@@ -78,6 +78,7 @@ import pl.edu.pjwstk.engineeringthesis.viewmodel.BluetoothPermissionViewModel
 import pl.edu.pjwstk.engineeringthesis.viewmodel.ConnectedDevice
 import pl.edu.pjwstk.engineeringthesis.viewmodel.ConnectBandViewModel
 import pl.edu.pjwstk.engineeringthesis.viewmodel.ScanUiState
+import kotlin.math.absoluteValue
 
 @Composable
 fun ConnectBandScreen(
@@ -434,6 +435,13 @@ private val DIALOG_ACTION_COLOR = Color(0xFF0F172A)
 private fun BandRow(band: Band, onClick: () -> Unit) {
     var showAction by remember { mutableStateOf(false) }
     var rowHeight by remember { mutableIntStateOf(0) }
+    val signalStrengthText = when (band.rssi.absoluteValue) {
+        in 0..59 -> stringResource(R.string.band_signal_very_high)
+        in 60..70 -> stringResource(R.string.band_signal_high)
+        in 71..80 -> stringResource(R.string.band_signal_medium)
+        in 81..90 -> stringResource(R.string.band_signal_low)
+        else -> stringResource(R.string.band_signal_very_low)
+    }
 
     val transition = updateTransition(targetState = showAction, label = "action")
 
@@ -467,24 +475,43 @@ private fun BandRow(band: Band, onClick: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(Modifier.weight(1f)) {
-                Text(
-                    text = band.name ?: stringResource(R.string.band_unknown),
-                    color = Color.White,
-                    fontFamily = interFamily,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Text(
-                    text = band.address,
-                    color = Color.LightGray,
-                    fontFamily = interFamily,
-                    fontSize = 12.sp
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = band.name ?: stringResource(R.string.band_unknown),
+                        color = Color.White,
+                        fontFamily = interFamily,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = stringResource(R.string.band_signal_label),
+                        color = Color.White,
+                        fontFamily = interFamily,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = band.address,
+                        color = Color.LightGray,
+                        fontFamily = interFamily,
+                        fontSize = 12.sp
+                    )
+                    Text(
+                        text = signalStrengthText,
+                        color = Color.LightGray,
+                        fontFamily = interFamily,
+                        fontSize = 12.sp
+                    )
+                }
             }
-            Text(
-                text = stringResource(R.string.band_rssi_format, band.rssi),
-                color = Color.White,
-                fontFamily = interFamily
-            )
             Spacer(modifier = Modifier.width(spacerWidth))
         }
 
