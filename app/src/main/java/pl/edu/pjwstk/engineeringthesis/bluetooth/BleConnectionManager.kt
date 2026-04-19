@@ -257,6 +257,10 @@ class BleConnectionManager @Inject constructor(
             _scanState.value = ScanUiState.Idle
             return
         }
+        if (!hasBluetoothPermissions() || !isBluetoothEnabled()) {
+            _scanState.value = ScanUiState.Idle
+            return
+        }
         scanJob?.cancel()
         gotConnection = false
         _scanState.value = ScanUiState.Scanning
@@ -264,6 +268,9 @@ class BleConnectionManager @Inject constructor(
             try {
                 client.startScan()
             } catch (_: SecurityException) {
+                _scanState.value = ScanUiState.Idle
+                return@launch
+            } catch (_: IllegalStateException) {
                 _scanState.value = ScanUiState.Idle
                 return@launch
             }
