@@ -1,5 +1,7 @@
 package pl.edu.pjwstk.engineeringthesis.view
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -71,14 +73,32 @@ fun ProfileOnboardingScreen(
     onDone: () -> Unit
 ) {
     val s by vm.state.collectAsStateWithLifecycle()
+    val canGoBack = s.step != ProfileOnboardingViewModel.Step.Name &&
+        s.step != ProfileOnboardingViewModel.Step.Done
 
     if (s.finished) {
         LaunchedEffect(Unit) { onDone() }
     }
 
+    BackHandler(enabled = canGoBack) {
+        vm.previous()
+    }
+
     Scaffold(
         topBar = {
-            CenterAlignedTopAppBar(title = { Text(stringResource(R.string.profile_setup_title)) })
+            CenterAlignedTopAppBar(
+                title = { Text(stringResource(R.string.profile_setup_title)) },
+                navigationIcon = {
+                    if (canGoBack) {
+                        IconButton(onClick = vm::previous) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = stringResource(R.string.action_back)
+                            )
+                        }
+                    }
+                }
+            )
         }
     ) { pad ->
         Box(Modifier.fillMaxSize().padding(pad).padding(16.dp)) {
@@ -152,6 +172,10 @@ private fun BirthDateStep(
 ) {
     var open by remember { mutableStateOf(true) }
     val nowYear = remember { LocalDate.now().year }
+    val selectedDateText = selectedEpochDays?.let { formatBirthDate(it) }
+    val questionText = selectedDateText?.let {
+        "${stringResource(R.string.profile_question_birth_date)}: $it"
+    } ?: stringResource(R.string.profile_question_birth_date)
     val initMillis = remember(selectedEpochDays) {
         selectedEpochDays?.let {
             LocalDate.ofEpochDay(it)
@@ -188,7 +212,7 @@ private fun BirthDateStep(
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text(stringResource(R.string.profile_question_birth_date), style = MaterialTheme.typography.titleLarge)
+        Text(questionText, style = MaterialTheme.typography.titleLarge)
         Button(onClick = { open = true }) { Text(stringResource(R.string.profile_pick_date)) }
         Spacer(Modifier.weight(1f))
         Button(onClick = onNext, enabled = canNext, modifier = Modifier.fillMaxWidth().height(56.dp)) {

@@ -16,6 +16,7 @@
     <string name="action_no">No</string>
     <string name="action_save">Save</string>
     <string name="action_next">Next</string>
+    <string name="action_back">Back</string>
 
     <string name="splash_title_smart_band">Smart Band</string>
 

@@ -95,6 +95,31 @@ class ProfileOnboardingViewModel @Inject constructor(
         }
     }
 
+    fun previous() {
+        _state.update {
+            when (it.step) {
+                Step.Name -> it
+                Step.Gender -> it.copy(
+                    step = Step.Name,
+                    canNext = it.name.trim().isNotEmpty() && it.name.trim().length <= 40
+                )
+                Step.BirthDate -> it.copy(
+                    step = Step.Gender,
+                    canNext = it.gender != null
+                )
+                Step.Height -> it.copy(
+                    step = Step.BirthDate,
+                    canNext = it.birthDateEpochDays?.let(::validAge) == true
+                )
+                Step.Weight -> it.copy(
+                    step = Step.Height,
+                    canNext = it.heightCm.toIntOrNull()?.let { value -> value in 100..250 } == true
+                )
+                Step.Done -> it
+            }
+        }
+    }
+
     private fun saveAndFinish() = viewModelScope.launch {
         val s = _state.value
 
