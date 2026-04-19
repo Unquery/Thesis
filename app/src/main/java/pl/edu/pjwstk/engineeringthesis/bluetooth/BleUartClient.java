@@ -43,7 +43,6 @@ public class BleUartClient {
 
     private Listener listener;
 
-    private final BluetoothLeScanner scanner;
     private BluetoothGatt gatt;
     private BluetoothGattCharacteristic txChar;
 
@@ -77,7 +76,6 @@ public class BleUartClient {
         this.serviceUuid = serviceUuid;
         this.txUuid = txUuid;
         this.rxUuid = rxUuid != null ? rxUuid : DEFAULT_NUS_RX;
-        this.scanner = adapter != null ? adapter.getBluetoothLeScanner() : null;
     }
 
     public void setListener(Listener l) { this.listener = l; }
@@ -107,15 +105,25 @@ public class BleUartClient {
         return ContextCompat.checkSelfPermission(appCtx, p) == PackageManager.PERMISSION_GRANTED;
     }
 
+    private BluetoothLeScanner getScanner() {
+        if (adapter == null) return null;
+        try {
+            if (!adapter.isEnabled()) return null;
+            return adapter.getBluetoothLeScanner();
+        } catch (IllegalStateException | SecurityException ignored) {
+            return null;
+        }
+    }
+
     @SuppressLint("MissingPermission")
     public void startScan() {
         if (!hasScanPermission()) {
             throw new SecurityException("Scan permission not granted");
         }
 
+        BluetoothLeScanner scanner = getScanner();
         if (scanner == null) {
-            if (listener != null) listener.onError("No BLE scanner available", null);
-            return;
+            throw new IllegalStateException("Bluetooth is off or BLE scanner is unavailable");
         }
         found.clear();
         if (listener != null) listener.onStatus("Scanning…");
@@ -136,6 +144,7 @@ public class BleUartClient {
     @SuppressLint("MissingPermission")
     public void stop() {
         try {
+            BluetoothLeScanner scanner = getScanner();
             if (scanner != null && hasScanPermission()) scanner.stopScan(scanCb);
         } catch (SecurityException ignored) {}
     }
@@ -212,7 +221,10 @@ public class BleUartClient {
             String name = (result.getScanRecord() != null) ? result.getScanRecord().getDeviceName() : device.getName();
             int rssi = result.getRssi();
             if (deviceNameFilter == null || deviceNameFilter.equals(name)) {
-                try { if (scanner != null) scanner.stopScan(this); } catch (Exception ignored) {}
+                try {
+                    BluetoothLeScanner scanner = getScanner();
+                    if (scanner != null) scanner.stopScan(this);
+                } catch (Exception ignored) {}
                 found.put(address, device);
                 if (listener != null) listener.onDeviceFound(address, name, rssi);
             }
