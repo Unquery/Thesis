@@ -472,45 +472,38 @@ private fun BandRow(band: Band, onClick: () -> Unit) {
                     rowHeight = size.height
                 }
                 .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.Top
         ) {
             Column(Modifier.weight(1f)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = band.name ?: stringResource(R.string.band_unknown),
-                        color = Color.White,
-                        fontFamily = interFamily,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Text(
-                        text = stringResource(R.string.band_signal_label),
-                        color = Color.White,
-                        fontFamily = interFamily,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = band.address,
-                        color = Color.LightGray,
-                        fontFamily = interFamily,
-                        fontSize = 12.sp
-                    )
-                    Text(
-                        text = signalStrengthText,
-                        color = Color.LightGray,
-                        fontFamily = interFamily,
-                        fontSize = 12.sp
-                    )
-                }
+                Text(
+                    text = band.name ?: stringResource(R.string.band_unknown),
+                    color = Color.White,
+                    fontFamily = interFamily,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = band.address,
+                    color = Color.LightGray,
+                    fontFamily = interFamily,
+                    fontSize = 12.sp
+                )
+            }
+            Column(
+                modifier = Modifier.padding(start = 16.dp),
+                horizontalAlignment = Alignment.Start
+            ) {
+                Text(
+                    text = stringResource(R.string.band_signal_label),
+                    color = Color.White,
+                    fontFamily = interFamily,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = signalStrengthText,
+                    color = Color.LightGray,
+                    fontFamily = interFamily,
+                    fontSize = 12.sp
+                )
             }
             Spacer(modifier = Modifier.width(spacerWidth))
         }
