@@ -1,12 +1,18 @@
 package pl.edu.pjwstk.engineeringthesis.view
 
+import android.graphics.Paint
+import android.graphics.Rect
+import android.text.TextPaint
 import android.widget.NumberPicker
 import androidx.annotation.StringRes
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -40,14 +46,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.TextMeasurer
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
@@ -130,7 +135,6 @@ fun ChartsScreen(
         withMinutePoints(actualLinePoints)
     }
 
-    val textMeasurer = rememberTextMeasurer()
     val density = LocalDensity.current
     val zone = remember { ZoneId.systemDefault() }
 
@@ -188,6 +192,31 @@ fun ChartsScreen(
         ChartRange.Day -> dayAxisLabels
         ChartRange.Week -> weekLabelMap(rangeDates)
         ChartRange.Month -> monthLabelMap(rangeDates)
+    }
+    val selectionDayFormat = stringResource(R.string.charts_selection_day_format)
+    val selectionRangeFormat = stringResource(R.string.charts_selection_range_format)
+    val selectionValueOnlyFormat = stringResource(R.string.charts_selection_value_only_format)
+    val time24Label = stringResource(R.string.time_24_00)
+    val selectionLabel = remember(
+        range,
+        rangeDates,
+        ui.decimals,
+        uiUnit,
+        selectionDayFormat,
+        selectionRangeFormat,
+        selectionValueOnlyFormat,
+        time24Label
+    ) {
+        buildSelectionLabel(
+            range = range,
+            dates = rangeDates,
+            decimals = ui.decimals,
+            unit = uiUnit,
+            dayFormat = selectionDayFormat,
+            rangeFormat = selectionRangeFormat,
+            valueOnlyFormat = selectionValueOnlyFormat,
+            time24Label = time24Label
+        )
     }
 
     Scaffold(
@@ -277,8 +306,8 @@ fun ChartsScreen(
                     val yAxisSpec = remember(yValues, ui) {
                         buildYAxisSpec(yValues, ui)
                     }
-                    val yAxisInset = remember(density, textMeasurer, yAxisSpec) {
-                        computeYAxisInset(density, textMeasurer, yAxisSpec)
+                    val yAxisInset = remember(density, yAxisSpec) {
+                        computeYAxisInset(density, yAxisSpec)
                     }
 
                     val plotWidth = remember(maxWidth, yAxisInset) {
@@ -320,15 +349,60 @@ fun ChartsScreen(
                             yAxisSpec = yAxisSpec
                         )
                     }
+                    val xAxisHeight = remember(density, chartData, xAxisLabels) {
+                        computeXAxisHeight(
+                            density = density,
+                            axisData = chartData.xAxisData,
+                            fallbackLabel = when (range) {
+                                ChartRange.Hour,
+                                ChartRange.Day -> "00:00"
+                                ChartRange.Week -> "Wed"
+                                ChartRange.Month -> "30"
+                            },
+                            labels = xAxisLabels.values
+                        )
+                    }
+                    val chartPlotGeometry = remember(
+                        density,
+                        yAxisInset,
+                        plotWidth,
+                        xAxisHeight,
+                        xMax,
+                        yAxisSpec
+                    ) {
+                        ChartPlotGeometry(
+                            plotStartX = with(density) { yAxisInset.toPx() },
+                            plotWidth = with(density) { plotWidth.toPx() },
+                            plotTopY = with(density) { chartData.paddingTop.toPx() },
+                            plotBottomY = with(density) { CHART_HEIGHT.toPx() - xAxisHeight.toPx() },
+                            xMax = xMax.coerceAtLeast(1f),
+                            yMin = yAxisSpec.range.min,
+                            yMax = yAxisSpec.range.max
+                        )
+                    }
+                    val selectablePoints = remember(range, buckets, actualLinePoints, selectionLabel) {
+                        buildSelectableChartPoints(
+                            range = range,
+                            buckets = buckets,
+                            linePoints = actualLinePoints,
+                            selectionLabel = selectionLabel
+                        )
+                    }
 
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(320.dp)
+                            .height(CHART_HEIGHT)
                     ) {
                         LineChart(
                             modifier = Modifier.matchParentSize(),
                             lineChartData = chartData
+                        )
+                        ChartSelectionOverlay(
+                            modifier = Modifier.matchParentSize(),
+                            selectablePoints = selectablePoints,
+                            plotGeometry = chartPlotGeometry,
+                            color = ui.color
                         )
                         if (buckets.isEmpty() && linePoints.isEmpty()) {
                             Box(
@@ -447,6 +521,7 @@ private const val MAX_Y_AXIS_STEPS = 8
 private const val MINUTES_PER_HOUR = 60
 private const val X_AXIS_STEPS = 48
 private const val HALF_HOUR_STEP = 0.5f
+private const val CHART_POINT_EQUALITY_THRESHOLD = 0.0001f
 private val Y_AXIS_LABEL_PADDING = 10.dp
 private val Y_AXIS_OFFSET = 14.dp
 private val Y_AXIS_START_PADDING = 8.dp
@@ -457,11 +532,21 @@ private val BULLET_RADIUS = 2.dp
 private val AXIS_LABEL_COLOR = Color.White.copy(alpha = 0.72f)
 private val Y_AXIS_LINE_COLOR = Color.White.copy(alpha = 0.2f)
 private val CHART_BACKGROUND_COLOR = Color.Black
+private val CHART_HEIGHT = 320.dp
 private val LINE_CHART_PADDING_RIGHT = 10.dp
 private val LINE_CHART_CONTAINER_PADDING_END = 15.dp
 private val LINE_CHART_END_PADDING = LINE_CHART_PADDING_RIGHT + LINE_CHART_CONTAINER_PADDING_END
+private val CHART_SELECTION_TOUCH_RADIUS = 24.dp
+private val CHART_SELECTION_HALO_RADIUS = 9.dp
+private val CHART_SELECTION_HALO_STROKE = 2.5.dp
+private val CHART_SELECTION_DOT_RADIUS = 5.dp
+private val CHART_SELECTION_TOOLTIP_TOP_PADDING = 10.dp
+private val CHART_SELECTION_TOOLTIP_HORIZONTAL_PADDING = 12.dp
+private val CHART_SELECTION_TOOLTIP_VERTICAL_PADDING = 6.dp
+private val CHART_SELECTION_TOOLTIP_BG = Color(0xE6111827)
 private val RANGE_SELECTED_BG = Color(0xFF111827)
 private val RANGE_BORDER_COLOR = Color.White.copy(alpha = 0.28f)
+private val RANGE_BUTTON_CONTENT_PADDING = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
 private val DIALOG_ACTION_COLOR = Color(0xFF0F172A)
 
 private data class AxisRange(
@@ -477,6 +562,42 @@ private data class YAxisSpec(
     val labels: List<String>
 )
 
+private data class ChartSelectablePoint(
+    val id: String,
+    val x: Float,
+    val y: Float,
+    val label: String
+)
+
+private data class ChartSelectablePointLayout(
+    val point: ChartSelectablePoint,
+    val offset: Offset
+)
+
+private data class ChartPlotGeometry(
+    val plotStartX: Float,
+    val plotWidth: Float,
+    val plotTopY: Float,
+    val plotBottomY: Float,
+    val xMax: Float,
+    val yMin: Float,
+    val yMax: Float
+) {
+    val plotEndX: Float
+        get() = plotStartX + plotWidth
+
+    fun toOffset(point: ChartSelectablePoint): Offset {
+        val safeXMax = xMax.coerceAtLeast(1f)
+        val xRatio = (point.x / safeXMax).coerceIn(0f, 1f)
+        val yRange = (yMax - yMin).coerceAtLeast(CHART_POINT_EQUALITY_THRESHOLD)
+        val yRatio = ((point.y - yMin) / yRange).coerceIn(0f, 1f)
+        return Offset(
+            x = plotStartX + (plotWidth * xRatio),
+            y = plotBottomY - ((plotBottomY - plotTopY) * yRatio)
+        )
+    }
+}
+
 @Composable
 private fun RangeButton(
     label: String,
@@ -488,23 +609,35 @@ private fun RangeButton(
         Button(
             onClick = onClick,
             modifier = modifier,
+            contentPadding = RANGE_BUTTON_CONTENT_PADDING,
             colors = ButtonDefaults.buttonColors(
                 containerColor = RANGE_SELECTED_BG,
                 contentColor = Color.White
             )
         ) {
-            Text(text = label)
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                textAlign = TextAlign.Center,
+                maxLines = 1
+            )
         }
     } else {
         OutlinedButton(
             onClick = onClick,
             modifier = modifier,
             border = BorderStroke(1.dp, RANGE_BORDER_COLOR),
+            contentPadding = RANGE_BUTTON_CONTENT_PADDING,
             colors = ButtonDefaults.outlinedButtonColors(
                 contentColor = Color.White
             )
         ) {
-            Text(text = label)
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                textAlign = TextAlign.Center,
+                maxLines = 1
+            )
         }
     }
 }
@@ -597,17 +730,208 @@ private fun HourPickerDialog(
 
 private fun computeYAxisInset(
     density: Density,
-    textMeasurer: TextMeasurer,
     yAxisSpec: YAxisSpec
 ): Dp {
-    val labelStyle = TextStyle(fontSize = yAxisSpec.labelFontSize)
+    val textPaint = buildAxisTextPaint(
+        density = density,
+        fontSize = yAxisSpec.labelFontSize
+    )
     val maxLabelWidthPx = yAxisSpec.labels.maxOfOrNull { label ->
-        textMeasurer.measure(AnnotatedString(label), style = labelStyle).size.width
-    } ?: 0
+        label.measureTextWidth(textPaint)
+    } ?: 0f
     val labelWidthDp = with(density) { maxLabelWidthPx.toDp() }
 
-    // Round up slightly to avoid fractional-width slack that would enable a tiny horizontal pan.
-    return labelWidthDp + Y_AXIS_LABEL_PADDING + Y_AXIS_OFFSET + 1.dp
+    return labelWidthDp + Y_AXIS_LABEL_PADDING + Y_AXIS_OFFSET
+}
+
+private fun computeXAxisHeight(
+    density: Density,
+    axisData: AxisData,
+    fallbackLabel: String,
+    labels: Collection<String>
+): Dp {
+    val sampleLabel = labels.firstOrNull { it.isNotBlank() } ?: fallbackLabel
+    val textPaint = buildAxisTextPaint(
+        density = density,
+        fontSize = axisData.axisLabelFontSize,
+        typeface = axisData.typeface,
+        textAlign = Paint.Align.LEFT
+    )
+    val labelHeightPx = sampleLabel.measureTextHeight(textPaint)
+    return with(density) { labelHeightPx.toDp() } +
+        axisData.labelAndAxisLinePadding +
+        axisData.axisLineThickness +
+        axisData.indicatorLineWidth +
+        axisData.axisBottomPadding
+}
+
+private fun buildAxisTextPaint(
+    density: Density,
+    fontSize: TextUnit,
+    typeface: android.graphics.Typeface = android.graphics.Typeface.DEFAULT,
+    textAlign: Paint.Align = Paint.Align.LEFT
+): TextPaint {
+    return TextPaint().apply {
+        textSize = with(density) { fontSize.toPx() }
+        this.typeface = typeface
+        this.textAlign = textAlign
+        isAntiAlias = true
+    }
+}
+
+private fun String.measureTextWidth(paint: Paint): Float = paint.measureText(this)
+
+private fun String.measureTextHeight(paint: Paint): Int {
+    val bounds = Rect()
+    paint.getTextBounds(this, 0, length, bounds)
+    return bounds.height()
+}
+
+@Composable
+private fun ChartSelectionOverlay(
+    selectablePoints: List<ChartSelectablePoint>,
+    plotGeometry: ChartPlotGeometry,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    val density = LocalDensity.current
+    val touchRadiusPx = with(density) { CHART_SELECTION_TOUCH_RADIUS.toPx() }
+    val pointLayouts = remember(selectablePoints, plotGeometry) {
+        selectablePoints.map { point ->
+            ChartSelectablePointLayout(
+                point = point,
+                offset = plotGeometry.toOffset(point)
+            )
+        }
+    }
+    var selectedPointId by remember(selectablePoints) { mutableStateOf<String?>(null) }
+    val selectedPointLayout = remember(selectedPointId, pointLayouts) {
+        pointLayouts.firstOrNull { it.point.id == selectedPointId }
+    }
+
+    Box(
+        modifier = modifier.pointerInput(pointLayouts, plotGeometry, touchRadiusPx) {
+            detectTapGestures { tapOffset ->
+                selectedPointId = findSelectedChartPoint(
+                    tapOffset = tapOffset,
+                    points = pointLayouts,
+                    plotGeometry = plotGeometry,
+                    touchRadiusPx = touchRadiusPx
+                )?.point?.id
+            }
+        }
+    ) {
+        selectedPointLayout?.let { selected ->
+            Surface(
+                color = CHART_SELECTION_TOOLTIP_BG,
+                shape = MaterialTheme.shapes.small,
+                tonalElevation = 0.dp,
+                shadowElevation = 0.dp,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(
+                        start = CHART_SELECTION_TOOLTIP_HORIZONTAL_PADDING,
+                        end = CHART_SELECTION_TOOLTIP_HORIZONTAL_PADDING,
+                        top = CHART_SELECTION_TOOLTIP_TOP_PADDING
+                    )
+            ) {
+                Text(
+                    text = selected.point.label,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Color.White,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(
+                        horizontal = CHART_SELECTION_TOOLTIP_HORIZONTAL_PADDING,
+                        vertical = CHART_SELECTION_TOOLTIP_VERTICAL_PADDING
+                    )
+                )
+            }
+
+            Canvas(modifier = Modifier.matchParentSize()) {
+                drawCircle(
+                    color = Color.Black.copy(alpha = 0.4f),
+                    radius = CHART_SELECTION_HALO_RADIUS.toPx() + CHART_SELECTION_HALO_STROKE.toPx(),
+                    center = selected.offset
+                )
+                drawCircle(
+                    color = Color.White,
+                    radius = CHART_SELECTION_HALO_RADIUS.toPx(),
+                    center = selected.offset,
+                    style = Stroke(width = CHART_SELECTION_HALO_STROKE.toPx())
+                )
+                drawCircle(
+                    color = color,
+                    radius = CHART_SELECTION_DOT_RADIUS.toPx(),
+                    center = selected.offset
+                )
+            }
+        }
+    }
+}
+
+private fun buildSelectableChartPoints(
+    range: ChartRange,
+    buckets: List<ChartBucketRange>,
+    linePoints: List<ChartLinePoint>,
+    selectionLabel: (Float, Float) -> String
+): List<ChartSelectablePoint> {
+    return when (range) {
+        ChartRange.Hour -> linePoints.map { point ->
+            ChartSelectablePoint(
+                id = "hour-${point.x}",
+                x = point.x,
+                y = point.y,
+                label = selectionLabel(point.x, point.y)
+            )
+        }
+
+        ChartRange.Day,
+        ChartRange.Week,
+        ChartRange.Month -> buckets.flatMap { bucket ->
+            val lowPoint = ChartSelectablePoint(
+                id = "bucket-${bucket.x}-low",
+                x = bucket.x,
+                y = bucket.minY,
+                label = selectionLabel(bucket.x, bucket.minY)
+            )
+            if (abs(bucket.maxY - bucket.minY) < CHART_POINT_EQUALITY_THRESHOLD) {
+                listOf(lowPoint.copy(id = "bucket-${bucket.x}-single"))
+            } else {
+                listOf(
+                    lowPoint,
+                    ChartSelectablePoint(
+                        id = "bucket-${bucket.x}-high",
+                        x = bucket.x,
+                        y = bucket.maxY,
+                        label = selectionLabel(bucket.x, bucket.maxY)
+                    )
+                )
+            }
+        }
+    }
+}
+
+private fun findSelectedChartPoint(
+    tapOffset: Offset,
+    points: List<ChartSelectablePointLayout>,
+    plotGeometry: ChartPlotGeometry,
+    touchRadiusPx: Float
+): ChartSelectablePointLayout? {
+    if (points.isEmpty()) return null
+    val isNearPlot = tapOffset.x in (plotGeometry.plotStartX - touchRadiusPx)..(plotGeometry.plotEndX + touchRadiusPx) &&
+        tapOffset.y in (plotGeometry.plotTopY - touchRadiusPx)..(plotGeometry.plotBottomY + touchRadiusPx)
+    if (!isNearPlot) return null
+
+    val maxDistanceSquared = touchRadiusPx * touchRadiusPx
+    return points
+        .map { point ->
+            val dx = tapOffset.x - point.offset.x
+            val dy = tapOffset.y - point.offset.y
+            point to ((dx * dx) + (dy * dy))
+        }
+        .minByOrNull { it.second }
+        ?.takeIf { it.second <= maxDistanceSquared }
+        ?.first
 }
 
 private fun metricUi(metric: ChartMetric, profile: UserProfile?): MetricUi =
@@ -922,7 +1246,7 @@ private fun buildLineChartData(
 private fun buildBucketRangeLine(bucket: ChartBucketRange, ui: MetricUi): Line {
     val lowPoint = Point(x = bucket.x, y = bucket.minY, description = "")
     val highPoint = Point(x = bucket.x, y = bucket.maxY, description = "")
-    val dataPoints = if (abs(bucket.maxY - bucket.minY) < 0.0001f) {
+    val dataPoints = if (abs(bucket.maxY - bucket.minY) < CHART_POINT_EQUALITY_THRESHOLD) {
         listOf(lowPoint)
     } else {
         listOf(lowPoint, highPoint)
