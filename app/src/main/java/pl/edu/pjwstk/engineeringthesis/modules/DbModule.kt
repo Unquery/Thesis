@@ -21,6 +21,8 @@ private const val DEFAULT_TEMPERATURE_LOW_SQL = 36.5
 private const val DEFAULT_TEMPERATURE_HIGH_SQL = 37.3
 private const val DEFAULT_HEART_RATE_LOW_SQL = 60.0
 private const val DEFAULT_HEART_RATE_HIGH_SQL = 100.0
+private const val DEFAULT_SPO2_LOW_SQL = 97.0
+private const val DEFAULT_SPO2_HIGH_SQL = 100.0
 private const val DEFAULT_SKIN_CONDUCTANCE_LOW_SQL = 5.0
 private const val DEFAULT_SKIN_CONDUCTANCE_HIGH_SQL = 15.0
 
@@ -106,6 +108,17 @@ private val MIGRATION_15_16 = object : Migration(15, 16) {
     }
 }
 
+private val MIGRATION_18_19 = object : Migration(18, 19) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL(
+            "ALTER TABLE user_profile ADD COLUMN spO2NormalLow REAL NOT NULL DEFAULT $DEFAULT_SPO2_LOW_SQL"
+        )
+        database.execSQL(
+            "ALTER TABLE user_profile ADD COLUMN spO2NormalHigh REAL NOT NULL DEFAULT $DEFAULT_SPO2_HIGH_SQL"
+        )
+    }
+}
+
 @Module
 @InstallIn(SingletonComponent::class)
 object DbModule {
@@ -114,7 +127,7 @@ object DbModule {
     @Singleton
     fun provideDb(@ApplicationContext ctx: Context): DiaryDB =
         Room.databaseBuilder(ctx, DiaryDB::class.java, "diary.db")
-            .addMigrations(MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_15_16)
+            .addMigrations(MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_15_16, MIGRATION_18_19)
             .fallbackToDestructiveMigration(false)
             .build()
 
