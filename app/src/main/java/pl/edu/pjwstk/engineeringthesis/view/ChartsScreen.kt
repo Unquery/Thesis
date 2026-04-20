@@ -1,5 +1,6 @@
 package pl.edu.pjwstk.engineeringthesis.view
 
+import android.widget.NumberPicker
 import androidx.annotation.StringRes
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
@@ -7,12 +8,15 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.AlertDialogDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -50,6 +54,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.window.Dialog
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import co.yml.charts.axis.AxisData
@@ -76,6 +82,7 @@ import pl.edu.pjwstk.engineeringthesis.util.PROFILE_DEFAULT_SPO2_LOW
 import pl.edu.pjwstk.engineeringthesis.util.PROFILE_DEFAULT_TEMPERATURE_HIGH
 import pl.edu.pjwstk.engineeringthesis.util.PROFILE_DEFAULT_TEMPERATURE_LOW
 import pl.edu.pjwstk.engineeringthesis.viewmodel.ChartBucketRange
+import pl.edu.pjwstk.engineeringthesis.viewmodel.ChartLinePoint
 import pl.edu.pjwstk.engineeringthesis.viewmodel.ChartSummary
 import pl.edu.pjwstk.engineeringthesis.viewmodel.ChartsViewModel
 import java.time.Instant
@@ -107,12 +114,20 @@ fun ChartsScreen(
 
     val range = chartState.range
     val rawBuckets = chartState.points
+    val rawLinePoints = chartState.linePoints
     val rangeDates = chartState.dates
     val summary = chartState.summary
     val baseDate = chartState.baseDate
+    val selectedHour = chartState.selectedHour
 
     val buckets = remember(rawBuckets) {
         rawBuckets.sortedBy { it.x }
+    }
+    val actualLinePoints = remember(rawLinePoints) {
+        rawLinePoints.sortedBy { it.x }
+    }
+    val linePoints = remember(actualLinePoints) {
+        withMinutePoints(actualLinePoints)
     }
 
     val textMeasurer = rememberTextMeasurer()
@@ -120,11 +135,12 @@ fun ChartsScreen(
     val zone = remember { ZoneId.systemDefault() }
 
     val last7DaysLabel = stringResource(R.string.charts_last_7_days)
-    val rangeLabel = remember(range, rangeDates, baseDate, last7DaysLabel) {
-        formatRangeLabel(range, rangeDates, baseDate, last7DaysLabel)
+    val rangeLabel = remember(range, rangeDates, baseDate, last7DaysLabel, selectedHour) {
+        formatRangeLabel(range, rangeDates, baseDate, last7DaysLabel, selectedHour)
     }
 
     var showDatePicker by remember { mutableStateOf(false) }
+    var showHourPicker by remember { mutableStateOf(false) }
     val baseDateMillis = remember(baseDate, zone) {
         baseDate.atStartOfDay(zone).toInstant().toEpochMilli()
     }
@@ -136,6 +152,7 @@ fun ChartsScreen(
     val emptyMessage = run {
         val today = LocalDate.now(zone)
         when (range) {
+            ChartRange.Hour -> stringResource(R.string.charts_no_data_hour)
             ChartRange.Day -> if (baseDate == today) {
                 stringResource(R.string.charts_no_data_today)
             } else {
@@ -148,11 +165,17 @@ fun ChartsScreen(
 
     val xAxisSteps = remember(range, rangeDates) {
         when (range) {
+            ChartRange.Hour -> MINUTES_PER_HOUR
             ChartRange.Day -> X_AXIS_STEPS
             else -> (rangeDates.size - 1).coerceAtLeast(1)
         }
     }
 
+    val hourAxisLabels = remember {
+        (0 until MINUTES_PER_HOUR step 5).associateWith { minute ->
+            String.format(Locale.US, "%02d", minute)
+        }
+    }
     val dayAxisLabels = mapOf(
         2 to stringResource(R.string.time_01_00),
         12 to stringResource(R.string.time_06_00),
@@ -161,6 +184,7 @@ fun ChartsScreen(
         48 to stringResource(R.string.time_24_00)
     )
     val xAxisLabels = when (range) {
+        ChartRange.Hour -> hourAxisLabels
         ChartRange.Day -> dayAxisLabels
         ChartRange.Week -> weekLabelMap(rangeDates)
         ChartRange.Month -> monthLabelMap(rangeDates)
@@ -242,8 +266,16 @@ fun ChartsScreen(
                         .fillMaxWidth()
                         .padding(12.dp)
                 ) {
-                    val yAxisSpec = remember(buckets, ui) {
-                        buildYAxisSpec(buckets, ui)
+                    val yValues = remember(range, buckets, linePoints) {
+                        when (range) {
+                            ChartRange.Hour -> linePoints.map { it.y }
+                            ChartRange.Day,
+                            ChartRange.Week,
+                            ChartRange.Month -> buckets.flatMap { listOf(it.minY, it.maxY) }
+                        }
+                    }
+                    val yAxisSpec = remember(yValues, ui) {
+                        buildYAxisSpec(yValues, ui)
                     }
                     val yAxisInset = remember(density, textMeasurer, yAxisSpec) {
                         computeYAxisInset(density, textMeasurer, yAxisSpec)
@@ -256,15 +288,18 @@ fun ChartsScreen(
                     val axisStepSize = remember(plotWidth, xAxisSteps) { plotWidth / xAxisSteps }
 
                     val xMax = remember(range, rangeDates) {
-                        if (range == ChartRange.Day) {
-                            X_AXIS_STEPS.toFloat()
-                        } else {
-                            (rangeDates.size - 1).coerceAtLeast(1).toFloat()
+                        when (range) {
+                            ChartRange.Hour -> MINUTES_PER_HOUR.toFloat()
+                            ChartRange.Day -> X_AXIS_STEPS.toFloat()
+                            ChartRange.Week,
+                            ChartRange.Month -> (rangeDates.size - 1).coerceAtLeast(1).toFloat()
                         }
                     }
 
                     val chartData = remember(
+                        range,
                         buckets,
+                        linePoints,
                         ui,
                         axisStepSize,
                         xAxisSteps,
@@ -273,7 +308,10 @@ fun ChartsScreen(
                         yAxisSpec
                     ) {
                         buildLineChartData(
+                            range = range,
                             buckets = buckets,
+                            actualLinePoints = actualLinePoints,
+                            linePoints = linePoints,
                             ui = ui,
                             axisStepSize = axisStepSize,
                             xAxisSteps = xAxisSteps,
@@ -292,7 +330,7 @@ fun ChartsScreen(
                             modifier = Modifier.matchParentSize(),
                             lineChartData = chartData
                         )
-                        if (rawBuckets.isEmpty()) {
+                        if (buckets.isEmpty() && linePoints.isEmpty()) {
                             Box(
                                 modifier = Modifier.matchParentSize(),
                                 contentAlignment = Alignment.Center
@@ -312,6 +350,12 @@ fun ChartsScreen(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                RangeButton(
+                    label = stringResource(R.string.charts_range_hour),
+                    selected = range == ChartRange.Hour,
+                    onClick = { showHourPicker = true },
+                    modifier = Modifier.weight(1f)
+                )
                 RangeButton(
                     label = stringResource(R.string.charts_range_day),
                     selected = range == ChartRange.Day,
@@ -369,6 +413,18 @@ fun ChartsScreen(
             DatePicker(state = datePickerState)
         }
     }
+
+    if (showHourPicker) {
+        HourPickerDialog(
+            initialHour = selectedHour,
+            onDismiss = { showHourPicker = false },
+            onPick = { pickedHour ->
+                vm.setSelectedHour(pickedHour)
+                vm.setRange(ChartRange.Hour)
+                showHourPicker = false
+            }
+        )
+    }
 }
 
 private data class MetricUi(
@@ -376,15 +432,19 @@ private data class MetricUi(
     @StringRes val unitRes: Int,
     val decimals: Int,
     val color: Color,
-    val yAxisMinPadding: Float = 0f,
-    val yAxisFloor: Float? = null,
-    val yAxisCeiling: Float? = null,
+    val axisPaddingBottom: Float = 0f,
+    val axisPaddingTop: Float = 0f,
+    val axisRoundTo: Float? = null,
+    val axisMinClamp: Float? = null,
+    val axisMaxClamp: Float? = null,
     val normalCenter: Float? = null,
     val normalMin: Float? = null,
     val normalMax: Float? = null
 )
 
-private const val Y_AXIS_STEPS = 5
+private const val TARGET_Y_AXIS_STEPS = 5f
+private const val MAX_Y_AXIS_STEPS = 8
+private const val MINUTES_PER_HOUR = 60
 private const val X_AXIS_STEPS = 48
 private const val HALF_HOUR_STEP = 0.5f
 private val Y_AXIS_LABEL_PADDING = 10.dp
@@ -402,11 +462,13 @@ private val LINE_CHART_CONTAINER_PADDING_END = 15.dp
 private val LINE_CHART_END_PADDING = LINE_CHART_PADDING_RIGHT + LINE_CHART_CONTAINER_PADDING_END
 private val RANGE_SELECTED_BG = Color(0xFF111827)
 private val RANGE_BORDER_COLOR = Color.White.copy(alpha = 0.28f)
+private val DIALOG_ACTION_COLOR = Color(0xFF0F172A)
 
 private data class AxisRange(
     val min: Float,
     val max: Float,
-    val step: Float
+    val step: Float,
+    val steps: Int
 )
 
 private data class YAxisSpec(
@@ -447,6 +509,92 @@ private fun RangeButton(
     }
 }
 
+@Composable
+private fun HourPickerDialog(
+    initialHour: Int,
+    onDismiss: () -> Unit,
+    onPick: (Int) -> Unit
+) {
+    var selectedHour by remember(initialHour) { mutableStateOf(initialHour) }
+    val displayedHours = remember {
+        Array(24) { index -> String.format(Locale.US, "%02d", index) }
+    }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = AlertDialogDefaults.shape,
+            color = AlertDialogDefaults.containerColor,
+            tonalElevation = AlertDialogDefaults.TonalElevation
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.charts_pick_hour_title),
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = AlertDialogDefaults.titleContentColor
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(180.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    AndroidView(
+                        factory = { context ->
+                            NumberPicker(context).apply {
+                                minValue = 0
+                                maxValue = 23
+                                wrapSelectorWheel = true
+                                value = initialHour.coerceIn(0, 23)
+                                displayedValues = displayedHours
+                                descendantFocusability = NumberPicker.FOCUS_BLOCK_DESCENDANTS
+                                setOnValueChangedListener { _, _, newValue ->
+                                    selectedHour = newValue
+                                }
+                            }
+                        },
+                        update = { picker ->
+                            if (picker.value != selectedHour) {
+                                picker.value = selectedHour
+                            }
+                        }
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.width(124.dp),
+                        border = BorderStroke(2.dp, DIALOG_ACTION_COLOR),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Text(text = stringResource(R.string.action_cancel))
+                    }
+                    Spacer(modifier = Modifier.width(20.dp))
+                    Button(
+                        onClick = { onPick(selectedHour) },
+                        modifier = Modifier.width(124.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = DIALOG_ACTION_COLOR,
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Text(text = stringResource(R.string.action_pick))
+                    }
+                }
+            }
+        }
+    }
+}
+
 private fun computeYAxisInset(
     density: Density,
     textMeasurer: TextMeasurer,
@@ -472,7 +620,9 @@ private fun metricUi(metric: ChartMetric, profile: UserProfile?): MetricUi =
                 unitRes = R.string.unit_celsius,
                 decimals = 1,
                 color = Color(0xFFF59E0B),
-                yAxisFloor = 30f,
+                axisPaddingBottom = 0.5f,
+                axisPaddingTop = 0.5f,
+                axisRoundTo = 0.5f,
                 normalCenter = (normalMin + normalMax) / 2f,
                 normalMin = normalMin,
                 normalMax = normalMax
@@ -487,7 +637,9 @@ private fun metricUi(metric: ChartMetric, profile: UserProfile?): MetricUi =
                 unitRes = R.string.unit_bpm,
                 decimals = 0,
                 color = Color(0xFFE53935),
-                yAxisFloor = 30f,
+                axisPaddingBottom = 10f,
+                axisPaddingTop = 10f,
+                axisRoundTo = 5f,
                 normalCenter = (normalMin + normalMax) / 2f,
                 normalMin = normalMin,
                 normalMax = normalMax
@@ -502,9 +654,9 @@ private fun metricUi(metric: ChartMetric, profile: UserProfile?): MetricUi =
                 unitRes = R.string.unit_percent,
                 decimals = 0,
                 color = Color(0xFF0284C7),
-                yAxisMinPadding = 2f,
-                yAxisFloor = 80f,
-                yAxisCeiling = 100f,
+                axisPaddingBottom = 3f,
+                axisRoundTo = 1f,
+                axisMaxClamp = 100f,
                 normalMin = normalMin,
                 normalMax = normalMax
             )
@@ -518,8 +670,10 @@ private fun metricUi(metric: ChartMetric, profile: UserProfile?): MetricUi =
                 unitRes = R.string.unit_us,
                 decimals = 1,
                 color = Color(0xFF6366F1),
-                yAxisFloor = 0f,
-                yAxisCeiling = 30f,
+                axisPaddingBottom = 2f,
+                axisPaddingTop = 2f,
+                axisRoundTo = 1f,
+                axisMinClamp = 0f,
                 normalMin = normalMin,
                 normalMax = normalMax
             )
@@ -530,10 +684,17 @@ private fun formatRangeLabel(
     range: ChartRange,
     dates: List<LocalDate>,
     baseDate: LocalDate,
-    last7DaysLabel: String
+    last7DaysLabel: String,
+    selectedHour: Int
 ): String {
     val locale = Locale.ENGLISH
     return when (range) {
+        ChartRange.Hour -> {
+            val dateLabel = baseDate.format(DateTimeFormatter.ofPattern("d MMMM", locale))
+            val hourLabel = String.format(Locale.US, "%02d:00-%02d:59", selectedHour, selectedHour)
+            "$dateLabel, $hourLabel"
+        }
+
         ChartRange.Day -> {
             baseDate.format(DateTimeFormatter.ofPattern("d MMMM", locale))
         }
@@ -568,6 +729,11 @@ private fun buildSelectionLabel(
     time24Label: String
 ): (Float, Float) -> String {
     return when (range) {
+        ChartRange.Hour -> { x, y ->
+            val time = formatHourMinute(x / MINUTES_PER_HOUR.toFloat(), time24Label)
+            String.format(Locale.getDefault(), dayFormat, time, formatValue(y, decimals), unit)
+        }
+
         ChartRange.Day -> { x, y ->
             val time = formatHourMinute(x / 2f, time24Label)
             String.format(Locale.getDefault(), dayFormat, time, formatValue(y, decimals), unit)
@@ -654,7 +820,10 @@ private fun formatNormalSummary(ui: MetricUi, unit: String): String {
 }
 
 private fun buildLineChartData(
+    range: ChartRange,
     buckets: List<ChartBucketRange>,
+    actualLinePoints: List<ChartLinePoint>,
+    linePoints: List<ChartLinePoint>,
     ui: MetricUi,
     axisStepSize: Dp,
     xAxisSteps: Int,
@@ -665,15 +834,16 @@ private fun buildLineChartData(
     val axisLabelColor = AXIS_LABEL_COLOR
     val xAxisLineColor = Color.Transparent
     val yAxisLineColor = Y_AXIS_LINE_COLOR
+    val xAxisLabelFontSize = if (range == ChartRange.Hour) 8.sp else 10.sp
 
-    val range = yAxisSpec.range
+    val axisRange = yAxisSpec.range
     val yAxisLabelPadding = Y_AXIS_LABEL_PADDING
 
     val xAxisData = AxisData.Builder()
         .steps(xAxisSteps)
         .axisStepSize(axisStepSize)
         .labelAndAxisLinePadding(8.dp)
-        .axisLabelFontSize(10.sp)
+        .axisLabelFontSize(xAxisLabelFontSize)
         .axisLabelColor(axisLabelColor)
         .axisLineColor(xAxisLineColor)
         .axisLineThickness(0.dp)
@@ -684,7 +854,7 @@ private fun buildLineChartData(
         .build()
 
     val yAxisData = AxisData.Builder()
-        .steps(Y_AXIS_STEPS)
+        .steps(yAxisSpec.range.steps)
         .axisLabelFontSize(yAxisSpec.labelFontSize)
         .labelAndAxisLinePadding(yAxisLabelPadding)
         .axisLabelColor(axisLabelColor)
@@ -698,8 +868,8 @@ private fun buildLineChartData(
 
     val boundsLine = Line(
         dataPoints = listOf(
-            Point(x = 0f, y = range.min, description = ""),
-            Point(x = xMax, y = range.max, description = "")
+            Point(x = 0f, y = axisRange.min, description = ""),
+            Point(x = xMax, y = axisRange.max, description = "")
         ),
         lineStyle = LineStyle(
             lineType = LineType.Straight(),
@@ -709,13 +879,29 @@ private fun buildLineChartData(
         )
     )
 
-    val rangeLines = buckets.map { bucket ->
-        buildBucketRangeLine(bucket, ui)
+    val plotLines = when (range) {
+        ChartRange.Hour -> {
+            val continuousLine = buildContinuousLine(linePoints, ui)
+            val markerLine = buildMeasurementMarkerLine(actualLinePoints, ui)
+            if (continuousLine == null && markerLine == null) {
+                listOf(boundsLine)
+            } else {
+                listOfNotNull(boundsLine, continuousLine, markerLine)
+            }
+        }
+
+        ChartRange.Day,
+        ChartRange.Week,
+        ChartRange.Month -> {
+            listOf(boundsLine) + buckets.map { bucket ->
+                buildBucketRangeLine(bucket, ui)
+            }
+        }
     }
 
     return LineChartData(
         linePlotData = LinePlotData(
-            lines = listOf(boundsLine) + rangeLines
+            lines = plotLines
         ),
         xAxisData = xAxisData,
         yAxisData = yAxisData,
@@ -752,36 +938,55 @@ private fun buildBucketRangeLine(bucket: ChartBucketRange, ui: MetricUi): Line {
     )
 }
 
-private fun buildYAxisSpec(buckets: List<ChartBucketRange>, ui: MetricUi): YAxisSpec {
-    val range = if (buckets.isEmpty()) {
-        when {
-            ui.yAxisFloor != null && ui.yAxisCeiling != null -> {
-                fixedAxisRange(ui.yAxisFloor, ui.yAxisCeiling, Y_AXIS_STEPS)
-            }
-            ui.yAxisFloor != null -> {
-                floorPreservingAxisRange(ui.yAxisFloor, ui.yAxisFloor + 1f, Y_AXIS_STEPS, ui.decimals)
-            }
-            ui.yAxisCeiling != null -> {
-                niceAxisRange(0f, ui.yAxisCeiling, Y_AXIS_STEPS)
-            }
-            else -> AxisRange(min = 0f, max = 1f, step = 0.2f)
-        }
+private fun buildContinuousLine(points: List<ChartLinePoint>, ui: MetricUi): Line? {
+    if (points.isEmpty()) return null
+    return Line(
+        dataPoints = points.map { point ->
+            Point(
+                x = point.x,
+                y = point.y,
+                description = ""
+            )
+        },
+        lineStyle = LineStyle(
+            lineType = LineType.Straight(),
+            color = ui.color,
+            width = 2.8f
+        )
+    )
+}
+
+private fun buildMeasurementMarkerLine(points: List<ChartLinePoint>, ui: MetricUi): Line? {
+    if (points.isEmpty()) return null
+    return Line(
+        dataPoints = points.map { point ->
+            Point(
+                x = point.x,
+                y = point.y,
+                description = ""
+            )
+        },
+        lineStyle = LineStyle(
+            lineType = LineType.Straight(),
+            color = Color.Transparent,
+            width = 0f,
+            alpha = 0f
+        ),
+        intersectionPoint = IntersectionPoint(color = ui.color, radius = BULLET_RADIUS)
+    )
+}
+
+private fun buildYAxisSpec(values: List<Float>, ui: MetricUi): YAxisSpec {
+    val range = if (values.isEmpty()) {
+        val fallbackMin = ui.normalMin ?: ui.axisMinClamp ?: 0f
+        val fallbackMax = ui.normalMax ?: ui.axisMaxClamp ?: (fallbackMin + 1f)
+        dynamicAxisRange(fallbackMin, fallbackMax, ui)
     } else {
-        val computedMin = (buckets.minOf { it.minY } - ui.yAxisMinPadding).coerceAtLeast(0f)
-        val axisMin = ui.yAxisFloor ?: computedMin
-        val bucketMax = buckets.maxOf { it.maxY }
-        val axisMax = max(bucketMax, ui.yAxisCeiling ?: bucketMax)
-        if (ui.yAxisFloor != null && ui.yAxisCeiling != null) {
-            fixedAxisRange(axisMin, axisMax, Y_AXIS_STEPS)
-        } else if (ui.yAxisFloor != null) {
-            floorPreservingAxisRange(axisMin, axisMax, Y_AXIS_STEPS, ui.decimals)
-        } else if (ui.yAxisCeiling != null) {
-            niceAxisRange(computedMin, axisMax, Y_AXIS_STEPS)
-        } else if (ui.yAxisMinPadding > 0f) {
-            exactMinAxisRange(computedMin, bucketMax, Y_AXIS_STEPS, ui.decimals)
-        } else {
-            niceAxisRange(computedMin, bucketMax, Y_AXIS_STEPS)
-        }
+        dynamicAxisRange(
+            minY = values.minOrNull() ?: 0f,
+            maxY = values.maxOrNull() ?: 1f,
+            ui = ui
+        )
     }
     val labelFontSize =
         if (max(abs(range.min), abs(range.max)) >= LARGE_Y_LABEL_THRESHOLD) {
@@ -789,7 +994,7 @@ private fun buildYAxisSpec(buckets: List<ChartBucketRange>, ui: MetricUi): YAxis
         } else {
             Y_AXIS_LABEL_FONT_SIZE
         }
-    val labels = (0..Y_AXIS_STEPS).map { index ->
+    val labels = (0..range.steps).map { index ->
         formatValue(range.min + (range.step * index), ui.decimals)
     }
     return YAxisSpec(
@@ -797,6 +1002,53 @@ private fun buildYAxisSpec(buckets: List<ChartBucketRange>, ui: MetricUi): YAxis
         labelFontSize = labelFontSize,
         labels = labels
     )
+}
+
+private fun withMinutePoints(points: List<ChartLinePoint>): List<ChartLinePoint> {
+    if (points.isEmpty()) return points
+    val sorted = points.sortedBy { it.x }
+    if (sorted.size == 1) return sorted
+
+    val byExactMinute = sorted.associateBy { it.x.roundToInt() }
+    val result = ArrayList<ChartLinePoint>(MINUTES_PER_HOUR + 1)
+    var prev = sorted.first()
+    var nextIndex = 1
+    var next = sorted.getOrNull(nextIndex)
+    val startMinute = sorted.first().x.roundToInt().coerceIn(0, MINUTES_PER_HOUR)
+    val endMinute = sorted.last().x.roundToInt().coerceIn(0, MINUTES_PER_HOUR)
+
+    for (minute in startMinute..endMinute) {
+        while (next != null && minute.toFloat() > next.x) {
+            prev = next
+            nextIndex++
+            next = sorted.getOrNull(nextIndex)
+        }
+
+        val exact = byExactMinute[minute]
+        val y = when {
+            exact != null -> exact.y
+            next == null -> prev.y
+            minute.toFloat() <= prev.x -> prev.y
+            else -> {
+                val delta = next.x - prev.x
+                if (delta <= 0f) {
+                    prev.y
+                } else {
+                    val t = (minute.toFloat() - prev.x) / delta
+                    prev.y + t * (next.y - prev.y)
+                }
+            }
+        }
+
+        result.add(
+            ChartLinePoint(
+                x = minute.toFloat(),
+                y = y
+            )
+        )
+    }
+
+    return result
 }
 
 private fun normalizeToHours0to24(points: List<Point>): List<Point> {
@@ -905,6 +1157,66 @@ private fun formatValue(value: Float, decimals: Int): String {
     else String.format(Locale.US, "%.${safeDecimals}f", value)
 }
 
+private fun dynamicAxisRange(minY: Float, maxY: Float, ui: MetricUi): AxisRange {
+    val minValue = min(minY, maxY)
+    val maxValue = max(minY, maxY)
+    val roundTo = ui.axisRoundTo
+
+    var axisMin = minValue - ui.axisPaddingBottom
+    var axisMax = maxValue + ui.axisPaddingTop
+
+    if (roundTo != null && roundTo > 0f) {
+        axisMin = floor(axisMin / roundTo) * roundTo
+        axisMax = ceil(axisMax / roundTo) * roundTo
+    }
+
+    ui.axisMinClamp?.let { axisMin = max(it, axisMin) }
+    ui.axisMaxClamp?.let { axisMax = min(it, axisMax) }
+
+    if (axisMax <= axisMin) {
+        val bump = roundTo ?: if (ui.decimals == 0) 1f else 0.5f
+        axisMax = axisMin + bump
+    }
+
+    var axisStep = if (roundTo != null && roundTo > 0f) {
+        roundToNearestMultiple(
+            value = ((axisMax - axisMin) / TARGET_Y_AXIS_STEPS).coerceAtLeast(roundTo),
+            multiple = roundTo
+        ).coerceAtLeast(roundTo)
+    } else {
+        niceCeilStep((axisMax - axisMin) / TARGET_Y_AXIS_STEPS)
+    }
+
+    var steps = ceil((axisMax - axisMin) / axisStep).toInt().coerceAtLeast(1)
+    if (roundTo != null && roundTo > 0f) {
+        while (steps > MAX_Y_AXIS_STEPS) {
+            axisStep += roundTo
+            steps = ceil((axisMax - axisMin) / axisStep).toInt().coerceAtLeast(1)
+        }
+    }
+
+    var finalMin = axisMin
+    var finalMax = axisMin + (axisStep * steps)
+    ui.axisMaxClamp?.let { clamp ->
+        if (finalMax > clamp) {
+            finalMax = clamp
+            finalMin = finalMax - (axisStep * steps)
+        }
+    }
+    ui.axisMinClamp?.let { clamp ->
+        if (finalMin < clamp) {
+            finalMin = clamp
+            finalMax = finalMin + (axisStep * steps)
+        }
+    }
+
+    return AxisRange(
+        min = finalMin,
+        max = finalMax,
+        step = axisStep,
+        steps = steps
+    )
+}
 
 private fun niceAxisRange(minY: Float, maxY: Float, steps: Int): AxisRange {
     val minVal = min(minY, maxY)
@@ -917,7 +1229,7 @@ private fun niceAxisRange(minY: Float, maxY: Float, steps: Int): AxisRange {
         val axisMin = floor((minVal - bump) / niceStep) * niceStep
         val axisMax = ceil((maxVal + bump) / niceStep) * niceStep
         val axisStep = ((axisMax - axisMin) / safeSteps).coerceAtLeast(0.0001f)
-        return AxisRange(axisMin, axisMax, axisStep)
+        return AxisRange(axisMin, axisMax, axisStep, safeSteps)
     }
 
     val rawRange = (maxVal - minVal).coerceAtLeast(0.0001f)
@@ -928,7 +1240,7 @@ private fun niceAxisRange(minY: Float, maxY: Float, steps: Int): AxisRange {
     val axisMax = ceil(maxVal / niceStep) * niceStep
     val axisStep = ((axisMax - axisMin) / safeSteps).coerceAtLeast(0.0001f)
 
-    return AxisRange(axisMin, axisMax, axisStep)
+    return AxisRange(axisMin, axisMax, axisStep, safeSteps)
 }
 
 private fun exactMinAxisRange(minY: Float, maxY: Float, steps: Int, decimals: Int): AxisRange {
@@ -938,7 +1250,7 @@ private fun exactMinAxisRange(minY: Float, maxY: Float, steps: Int, decimals: In
     val minStep = if (decimals == 0) 1f else 0.0001f
     val axisStep = max(rawRange / safeSteps, minStep)
     val axisMax = axisMin + (axisStep * safeSteps)
-    return AxisRange(axisMin, axisMax, axisStep)
+    return AxisRange(axisMin, axisMax, axisStep, safeSteps)
 }
 
 private fun fixedAxisRange(minY: Float, maxY: Float, steps: Int): AxisRange {
@@ -946,7 +1258,7 @@ private fun fixedAxisRange(minY: Float, maxY: Float, steps: Int): AxisRange {
     val axisMin = min(minY, maxY)
     val axisMax = max(maxY, axisMin + 0.0001f)
     val axisStep = ((axisMax - axisMin) / safeSteps).coerceAtLeast(0.0001f)
-    return AxisRange(axisMin, axisMax, axisStep)
+    return AxisRange(axisMin, axisMax, axisStep, safeSteps)
 }
 
 private fun floorPreservingAxisRange(minY: Float, maxY: Float, steps: Int, decimals: Int): AxisRange {
@@ -956,7 +1268,7 @@ private fun floorPreservingAxisRange(minY: Float, maxY: Float, steps: Int, decim
     val minStep = if (decimals == 0) 1f else 0.1f
     val axisStep = niceCeilStep(rawRange / safeSteps).coerceAtLeast(minStep)
     val axisMax = axisMin + (axisStep * safeSteps)
-    return AxisRange(axisMin, axisMax, axisStep)
+    return AxisRange(axisMin, axisMax, axisStep, safeSteps)
 }
 
 private fun niceCeilStep(value: Float): Float {
@@ -993,4 +1305,10 @@ private fun niceNum(range: Float, round: Boolean): Float {
         }
     }
     return niceFraction * 10f.pow(exponent)
+}
+
+private fun roundToNearestMultiple(value: Float, multiple: Float): Float {
+    if (multiple <= 0f) return value
+    val scaled = (value / multiple).roundToInt().coerceAtLeast(1)
+    return scaled * multiple
 }
