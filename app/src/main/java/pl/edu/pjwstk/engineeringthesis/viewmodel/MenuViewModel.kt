@@ -219,7 +219,9 @@ class MenuViewModel @Inject constructor(
     val todaySpo2CardBars: StateFlow<List<Float?>> =
         todayExtremeBars(
             hourlyMinMaxProvider = { userId, start, end -> spo2Repo.observeHourlyMinMax(userId, start, end) },
-            normalRangeProvider = { 97f to 100f }
+            normalRangeProvider = { profile ->
+                profile.spO2NormalLow to profile.spO2NormalHigh
+            }
         )
 
     val todayTempCardBars: StateFlow<List<Float?>> =
