@@ -50,6 +50,7 @@
     <string name="profile_auto_calibration_confirm_title">Do you want to use automatic calibration?</string>
     <string name="profile_calibration_temperature_title">Set temperature</string>
     <string name="profile_calibration_heart_rate_title">Set heart rate</string>
+    <string name="profile_calibration_spo2_title">Set SpO2</string>
     <string name="profile_calibration_skin_conductance_title">Set skin conductance</string>
     <string name="profile_calibration_low_label">Low value</string>
     <string name="profile_calibration_high_label">High value</string>
