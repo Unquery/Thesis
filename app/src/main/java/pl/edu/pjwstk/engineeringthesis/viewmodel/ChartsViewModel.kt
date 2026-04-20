@@ -24,9 +24,14 @@ import pl.edu.pjwstk.engineeringthesis.model.UserProfile
 import pl.edu.pjwstk.engineeringthesis.util.ChartMetric
 import pl.edu.pjwstk.engineeringthesis.util.ChartRange
 import pl.edu.pjwstk.engineeringthesis.util.Charts
-import java.time.Instant
+import pl.edu.pjwstk.engineeringthesis.util.PROFILE_CALIBRATION_HEART_RATE_MIN
+import pl.edu.pjwstk.engineeringthesis.util.PROFILE_CALIBRATION_SKIN_CONDUCTANCE_MIN
+import pl.edu.pjwstk.engineeringthesis.util.PROFILE_CALIBRATION_SPO2_MIN
+import pl.edu.pjwstk.engineeringthesis.util.PROFILE_CALIBRATION_TEMPERATURE_MIN
 import java.time.DayOfWeek
+import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.temporal.TemporalAdjusters
 import java.time.ZoneId
 import javax.inject.Inject
@@ -34,15 +39,22 @@ import javax.inject.Inject
 data class ChartState(
     val range: ChartRange,
     val points: List<ChartBucketRange>,
+    val linePoints: List<ChartLinePoint>,
     val dates: List<LocalDate>,
     val summary: ChartSummary,
-    val baseDate: LocalDate
+    val baseDate: LocalDate,
+    val selectedHour: Int
 )
 
 data class ChartBucketRange(
     val x: Float,
     val minY: Float,
     val maxY: Float
+)
+
+data class ChartLinePoint(
+    val x: Float,
+    val y: Float
 )
 
 data class ChartSummary(
@@ -54,6 +66,13 @@ data class ChartSummary(
 private data class TimedMetricValue(
     val epoch: Long,
     val value: Float
+)
+
+private data class ChartQuery(
+    val userId: Int?,
+    val range: ChartRange,
+    val baseDate: LocalDate,
+    val selectedHour: Int
 )
 
 @HiltViewModel
@@ -81,6 +100,7 @@ class ChartsViewModel @Inject constructor(
 
     private val range = MutableStateFlow(ChartRange.Day)
     private val selectedDate = MutableStateFlow(LocalDate.now(zone))
+    private val selectedHour = MutableStateFlow(LocalTime.now(zone).hour)
 
     fun setRange(newRange: ChartRange) {
         range.value = newRange
@@ -90,32 +110,64 @@ class ChartsViewModel @Inject constructor(
         selectedDate.value = date
     }
 
+    fun setSelectedHour(hour: Int) {
+        selectedHour.value = hour.coerceIn(0, 23)
+    }
+
     @OptIn(ExperimentalCoroutinesApi::class)
     val chartState: StateFlow<ChartState> =
-        combine(activeUserId, range, selectedDate) { userId, selectedRange, baseDate ->
-            Triple(userId, selectedRange, baseDate)
-        }.flatMapLatest { (userId, selectedRange, baseDate) ->
+        combine(activeUserId, range, selectedDate, selectedHour) { userId, selectedRange, baseDate, pickedHour ->
+            ChartQuery(
+                userId = userId,
+                range = selectedRange,
+                baseDate = baseDate,
+                selectedHour = pickedHour
+            )
+        }.flatMapLatest { query ->
+            val userId = query.userId
+            val selectedRange = query.range
+            val baseDate = query.baseDate
+            val pickedHour = query.selectedHour
             if (userId == null) {
                 flowOf(
                     ChartState(
-                        selectedRange,
-                        emptyList(),
-                        emptyList(),
-                        ChartSummary(null, null, null),
-                        baseDate
+                        range = selectedRange,
+                        points = emptyList(),
+                        linePoints = emptyList(),
+                        dates = emptyList(),
+                        summary = ChartSummary(null, null, null),
+                        baseDate = baseDate,
+                        selectedHour = pickedHour
                     )
                 )
             } else {
                 when (selectedRange) {
+                    ChartRange.Hour -> {
+                        val (start, end) = hourMillis(baseDate, pickedHour)
+                        rawChartValuesFlow(metric, userId, start, end).map { rows ->
+                            ChartState(
+                                range = selectedRange,
+                                points = emptyList(),
+                                linePoints = toMinutePoints(rows),
+                                dates = emptyList(),
+                                summary = summaryFromValues(rows.map { it.value }),
+                                baseDate = baseDate,
+                                selectedHour = pickedHour
+                            )
+                        }
+                    }
+
                     ChartRange.Day -> {
                         val (start, end) = rangeMillis(baseDate, baseDate.plusDays(1))
                         rawChartValuesFlow(metric, userId, start, end).map { rows ->
                             ChartState(
-                                selectedRange,
-                                toHourlyBuckets(rows),
-                                emptyList(),
-                                summaryFromValues(rows.map { it.value }),
-                                baseDate
+                                range = selectedRange,
+                                points = toHourlyBuckets(rows),
+                                linePoints = emptyList(),
+                                dates = emptyList(),
+                                summary = summaryFromValues(rows.map { it.value }),
+                                baseDate = baseDate,
+                                selectedHour = pickedHour
                             )
                         }
                     }
@@ -125,11 +177,13 @@ class ChartsViewModel @Inject constructor(
                         val (start, end) = rangeMillis(dates.first(), dates.last().plusDays(1))
                         rawChartValuesFlow(metric, userId, start, end).map { rows ->
                             ChartState(
-                                selectedRange,
-                                toDailyBuckets(rows, dates),
-                                dates,
-                                summaryFromValues(rows.map { it.value }),
-                                baseDate
+                                range = selectedRange,
+                                points = toDailyBuckets(rows, dates),
+                                linePoints = emptyList(),
+                                dates = dates,
+                                summary = summaryFromValues(rows.map { it.value }),
+                                baseDate = baseDate,
+                                selectedHour = pickedHour
                             )
                         }
                     }
@@ -139,11 +193,13 @@ class ChartsViewModel @Inject constructor(
                         val (start, end) = rangeMillis(dates.first(), dates.last().plusDays(1))
                         rawChartValuesFlow(metric, userId, start, end).map { rows ->
                             ChartState(
-                                selectedRange,
-                                toDailyBuckets(rows, dates),
-                                dates,
-                                summaryFromValues(rows.map { it.value }),
-                                baseDate
+                                range = selectedRange,
+                                points = toDailyBuckets(rows, dates),
+                                linePoints = emptyList(),
+                                dates = dates,
+                                summary = summaryFromValues(rows.map { it.value }),
+                                baseDate = baseDate,
+                                selectedHour = pickedHour
                             )
                         }
                     }
@@ -153,11 +209,13 @@ class ChartsViewModel @Inject constructor(
             viewModelScope,
             SharingStarted.WhileSubscribed(5_000),
             ChartState(
-                ChartRange.Day,
-                emptyList(),
-                emptyList(),
-                ChartSummary(null, null, null),
-                LocalDate.now(zone)
+                range = ChartRange.Day,
+                points = emptyList(),
+                linePoints = emptyList(),
+                dates = emptyList(),
+                summary = ChartSummary(null, null, null),
+                baseDate = LocalDate.now(zone),
+                selectedHour = LocalTime.now(zone).hour
             )
         )
 
@@ -193,10 +251,10 @@ class ChartsViewModel @Inject constructor(
     }
 
     private fun minVisibleChartValue(metric: ChartMetric): Float = when (metric) {
-        ChartMetric.Temperature -> 30f
-        ChartMetric.HeartRate -> 30f
-        ChartMetric.SpO2 -> 80f
-        ChartMetric.Gsr -> 0.1f
+        ChartMetric.Temperature -> PROFILE_CALIBRATION_TEMPERATURE_MIN
+        ChartMetric.HeartRate -> PROFILE_CALIBRATION_HEART_RATE_MIN
+        ChartMetric.SpO2 -> PROFILE_CALIBRATION_SPO2_MIN
+        ChartMetric.Gsr -> PROFILE_CALIBRATION_SKIN_CONDUCTANCE_MIN
     }
 
     private fun toHourlyBuckets(rows: List<TimedMetricValue>): List<ChartBucketRange> {
@@ -213,6 +271,21 @@ class ChartsViewModel @Inject constructor(
                     x = hour * 2f,
                     minY = min,
                     maxY = max
+                )
+            }
+    }
+
+    private fun toMinutePoints(rows: List<TimedMetricValue>): List<ChartLinePoint> {
+        return rows
+            .groupBy { timedValue ->
+                Instant.ofEpochMilli(timedValue.epoch).atZone(zone).minute
+            }
+            .toSortedMap()
+            .mapNotNull { (minute, samples) ->
+                val avg = samples.map { it.value }.average().toFloat()
+                ChartLinePoint(
+                    x = minute.toFloat(),
+                    y = avg
                 )
             }
     }
@@ -258,6 +331,11 @@ class ChartsViewModel @Inject constructor(
         val startEpoch = start.atStartOfDay(zone).toInstant().toEpochMilli()
         val endEpoch = endExclusive.atStartOfDay(zone).toInstant().toEpochMilli()
         return startEpoch to endEpoch
+    }
+
+    private fun hourMillis(baseDate: LocalDate, hour: Int): Pair<Long, Long> {
+        val start = baseDate.atStartOfDay(zone).plusHours(hour.toLong())
+        return start.toInstant().toEpochMilli() to start.plusHours(1).toInstant().toEpochMilli()
     }
 
 }
