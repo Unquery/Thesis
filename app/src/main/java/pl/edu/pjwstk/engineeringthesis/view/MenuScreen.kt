@@ -57,6 +57,8 @@ import pl.edu.pjwstk.engineeringthesis.util.PROFILE_DEFAULT_HEART_RATE_HIGH
 import pl.edu.pjwstk.engineeringthesis.util.PROFILE_DEFAULT_HEART_RATE_LOW
 import pl.edu.pjwstk.engineeringthesis.util.PROFILE_DEFAULT_SKIN_CONDUCTANCE_HIGH
 import pl.edu.pjwstk.engineeringthesis.util.PROFILE_DEFAULT_SKIN_CONDUCTANCE_LOW
+import pl.edu.pjwstk.engineeringthesis.util.PROFILE_DEFAULT_SPO2_HIGH
+import pl.edu.pjwstk.engineeringthesis.util.PROFILE_DEFAULT_SPO2_LOW
 import pl.edu.pjwstk.engineeringthesis.util.PROFILE_DEFAULT_TEMPERATURE_HIGH
 import pl.edu.pjwstk.engineeringthesis.util.PROFILE_DEFAULT_TEMPERATURE_LOW
 import pl.edu.pjwstk.engineeringthesis.util.ChartMetric
@@ -113,6 +115,8 @@ fun MenuScreen(
                     temperatureNormalHigh = activeProfile?.temperatureNormalHigh ?: PROFILE_DEFAULT_TEMPERATURE_HIGH,
                     heartRateNormalLow = activeProfile?.heartRateNormalLow ?: PROFILE_DEFAULT_HEART_RATE_LOW,
                     heartRateNormalHigh = activeProfile?.heartRateNormalHigh ?: PROFILE_DEFAULT_HEART_RATE_HIGH,
+                    spO2NormalLow = activeProfile?.spO2NormalLow ?: PROFILE_DEFAULT_SPO2_LOW,
+                    spO2NormalHigh = activeProfile?.spO2NormalHigh ?: PROFILE_DEFAULT_SPO2_HIGH,
                     skinConductanceNormalLow = activeProfile?.skinConductanceNormalLow ?: PROFILE_DEFAULT_SKIN_CONDUCTANCE_LOW,
                     skinConductanceNormalHigh = activeProfile?.skinConductanceNormalHigh ?: PROFILE_DEFAULT_SKIN_CONDUCTANCE_HIGH,
                     onMetricClick = onMetricClick
@@ -145,6 +149,8 @@ private fun MenuBody(
     temperatureNormalHigh: Float = PROFILE_DEFAULT_TEMPERATURE_HIGH,
     heartRateNormalLow: Float = PROFILE_DEFAULT_HEART_RATE_LOW,
     heartRateNormalHigh: Float = PROFILE_DEFAULT_HEART_RATE_HIGH,
+    spO2NormalLow: Float = PROFILE_DEFAULT_SPO2_LOW,
+    spO2NormalHigh: Float = PROFILE_DEFAULT_SPO2_HIGH,
     skinConductanceNormalLow: Float = PROFILE_DEFAULT_SKIN_CONDUCTANCE_LOW,
     skinConductanceNormalHigh: Float = PROFILE_DEFAULT_SKIN_CONDUCTANCE_HIGH,
     onMetricClick: (ChartMetric) -> Unit
@@ -202,8 +208,8 @@ private fun MenuBody(
             trendText = spo2Trend,
             icon = Icons.Filled.Bloodtype,
             baseColor = Color(0xFF0284C7),
-            normalMin = 97.0,
-            normalMax = 100.0,
+            normalMin = spO2NormalLow.toDouble(),
+            normalMax = spO2NormalHigh.toDouble(),
             criticalMin = 70.0,
             criticalMax = 100.0,
             decimals = 0
@@ -279,6 +285,8 @@ private fun MenuBody(
             temperatureNormalHigh = temperatureNormalHigh,
             heartRateNormalLow = heartRateNormalLow,
             heartRateNormalHigh = heartRateNormalHigh,
+            spO2NormalLow = spO2NormalLow,
+            spO2NormalHigh = spO2NormalHigh,
             skinConductanceNormalLow = skinConductanceNormalLow,
             skinConductanceNormalHigh = skinConductanceNormalHigh,
             modifier = Modifier.fillMaxWidth()
@@ -377,6 +385,8 @@ fun MenuMetricsColumn(
     temperatureNormalHigh: Float = PROFILE_DEFAULT_TEMPERATURE_HIGH,
     heartRateNormalLow: Float = PROFILE_DEFAULT_HEART_RATE_LOW,
     heartRateNormalHigh: Float = PROFILE_DEFAULT_HEART_RATE_HIGH,
+    spO2NormalLow: Float = PROFILE_DEFAULT_SPO2_LOW,
+    spO2NormalHigh: Float = PROFILE_DEFAULT_SPO2_HIGH,
     skinConductanceNormalLow: Float = PROFILE_DEFAULT_SKIN_CONDUCTANCE_LOW,
     skinConductanceNormalHigh: Float = PROFILE_DEFAULT_SKIN_CONDUCTANCE_HIGH,
     @SuppressLint("ModifierParameter") modifier: Modifier = Modifier
@@ -468,9 +478,9 @@ fun MenuMetricsColumn(
                     fullHeightBars = true,
                     showMinMaxLabels = false,
                     useNormalRangeGradient = true,
-                    normalMinValue = 97f,
-                    normalMaxValue = 100f,
-                    referenceRange = 5.0f,
+                    normalMinValue = spO2NormalLow,
+                    normalMaxValue = spO2NormalHigh,
+                    referenceRange = (spO2NormalHigh - spO2NormalLow).coerceAtLeast(1f),
                     colorCurve = 1.3f,
                     colorStrength = 1.45f,
                     highColorMix = 0.25f,
