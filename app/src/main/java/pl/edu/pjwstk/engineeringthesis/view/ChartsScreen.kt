@@ -71,6 +71,8 @@ import pl.edu.pjwstk.engineeringthesis.util.PROFILE_DEFAULT_HEART_RATE_HIGH
 import pl.edu.pjwstk.engineeringthesis.util.PROFILE_DEFAULT_HEART_RATE_LOW
 import pl.edu.pjwstk.engineeringthesis.util.PROFILE_DEFAULT_SKIN_CONDUCTANCE_HIGH
 import pl.edu.pjwstk.engineeringthesis.util.PROFILE_DEFAULT_SKIN_CONDUCTANCE_LOW
+import pl.edu.pjwstk.engineeringthesis.util.PROFILE_DEFAULT_SPO2_HIGH
+import pl.edu.pjwstk.engineeringthesis.util.PROFILE_DEFAULT_SPO2_LOW
 import pl.edu.pjwstk.engineeringthesis.util.PROFILE_DEFAULT_TEMPERATURE_HIGH
 import pl.edu.pjwstk.engineeringthesis.util.PROFILE_DEFAULT_TEMPERATURE_LOW
 import pl.edu.pjwstk.engineeringthesis.viewmodel.ChartBucketRange
@@ -492,17 +494,21 @@ private fun metricUi(metric: ChartMetric, profile: UserProfile?): MetricUi =
             )
         }
 
-        ChartMetric.SpO2 -> MetricUi(
-            titleRes = R.string.metric_blood_oxygen,
-            unitRes = R.string.unit_percent,
-            decimals = 0,
-            color = Color(0xFF0284C7),
-            yAxisMinPadding = 2f,
-            yAxisFloor = 80f,
-            yAxisCeiling = 100f,
-            normalMin = 97f,
-            normalMax = 100f
-        )
+        ChartMetric.SpO2 -> {
+            val normalMin = profile?.spO2NormalLow ?: PROFILE_DEFAULT_SPO2_LOW
+            val normalMax = profile?.spO2NormalHigh ?: PROFILE_DEFAULT_SPO2_HIGH
+            MetricUi(
+                titleRes = R.string.metric_blood_oxygen,
+                unitRes = R.string.unit_percent,
+                decimals = 0,
+                color = Color(0xFF0284C7),
+                yAxisMinPadding = 2f,
+                yAxisFloor = 80f,
+                yAxisCeiling = 100f,
+                normalMin = normalMin,
+                normalMax = normalMax
+            )
+        }
 
         ChartMetric.Gsr -> {
             val normalMin = profile?.skinConductanceNormalLow ?: PROFILE_DEFAULT_SKIN_CONDUCTANCE_LOW
