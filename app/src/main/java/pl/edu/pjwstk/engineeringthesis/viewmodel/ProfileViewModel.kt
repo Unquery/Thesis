@@ -16,11 +16,21 @@ import pl.edu.pjwstk.engineeringthesis.R
 import pl.edu.pjwstk.engineeringthesis.data.repository.GsrSampleRepository
 import pl.edu.pjwstk.engineeringthesis.data.repository.HearthRateSampleRepository
 import pl.edu.pjwstk.engineeringthesis.data.repository.ProfileRepository
+import pl.edu.pjwstk.engineeringthesis.data.repository.SpO2SampleRepository
 import pl.edu.pjwstk.engineeringthesis.data.repository.TempSampleRepository
 import pl.edu.pjwstk.engineeringthesis.model.GsrSample
 import pl.edu.pjwstk.engineeringthesis.model.HearthRateSample
+import pl.edu.pjwstk.engineeringthesis.model.SpO2Sample
 import pl.edu.pjwstk.engineeringthesis.model.TempSample
 import pl.edu.pjwstk.engineeringthesis.model.UserProfile
+import pl.edu.pjwstk.engineeringthesis.util.PROFILE_CALIBRATION_HEART_RATE_MAX
+import pl.edu.pjwstk.engineeringthesis.util.PROFILE_CALIBRATION_HEART_RATE_MIN
+import pl.edu.pjwstk.engineeringthesis.util.PROFILE_CALIBRATION_SKIN_CONDUCTANCE_MAX
+import pl.edu.pjwstk.engineeringthesis.util.PROFILE_CALIBRATION_SKIN_CONDUCTANCE_MIN
+import pl.edu.pjwstk.engineeringthesis.util.PROFILE_CALIBRATION_SPO2_MAX
+import pl.edu.pjwstk.engineeringthesis.util.PROFILE_CALIBRATION_SPO2_MIN
+import pl.edu.pjwstk.engineeringthesis.util.PROFILE_CALIBRATION_TEMPERATURE_MAX
+import pl.edu.pjwstk.engineeringthesis.util.PROFILE_CALIBRATION_TEMPERATURE_MIN
 import java.time.Instant
 import java.time.LocalDate
 import java.time.Period
@@ -150,7 +160,8 @@ class ProfileViewModel @Inject constructor(
     private val repo: ProfileRepository,
     private val tempRepo: TempSampleRepository,
     private val hrRepo: HearthRateSampleRepository,
-    private val gsrRepo: GsrSampleRepository
+    private val gsrRepo: GsrSampleRepository,
+    private val spo2Repo: SpO2SampleRepository
 ) : ViewModel() {
 
     val activeProfile: StateFlow<UserProfile?> =
@@ -207,12 +218,15 @@ class ProfileViewModel @Inject constructor(
         temperatureNormalHigh: Float,
         heartRateNormalLow: Float,
         heartRateNormalHigh: Float,
+        spO2NormalLow: Float,
+        spO2NormalHigh: Float,
         skinConductanceNormalLow: Float,
         skinConductanceNormalHigh: Float
     ): Int? {
         if (
             temperatureNormalLow >= temperatureNormalHigh ||
             heartRateNormalLow >= heartRateNormalHigh ||
+            spO2NormalLow >= spO2NormalHigh ||
             skinConductanceNormalLow >= skinConductanceNormalHigh
         ) {
             return R.string.profile_calibration_error_low_less_than_high
@@ -226,6 +240,8 @@ class ProfileViewModel @Inject constructor(
                 temperatureNormalHigh = temperatureNormalHigh,
                 heartRateNormalLow = heartRateNormalLow,
                 heartRateNormalHigh = heartRateNormalHigh,
+                spO2NormalLow = spO2NormalLow,
+                spO2NormalHigh = spO2NormalHigh,
                 skinConductanceNormalLow = skinConductanceNormalLow,
                 skinConductanceNormalHigh = skinConductanceNormalHigh
             )
@@ -249,6 +265,7 @@ class ProfileViewModel @Inject constructor(
                     buildAutomaticCalibration(
                         temperatures = tempRepo.getRangeForUser(id, firstEpoch, now),
                         heartRates = hrRepo.getRangeForUser(id, firstEpoch, now),
+                        spO2Samples = spo2Repo.getRangeForUser(id, firstEpoch, now),
                         skinConductances = gsrRepo.getRangeForUser(id, firstEpoch, now)
                     )
                 } ?: run {
@@ -262,6 +279,8 @@ class ProfileViewModel @Inject constructor(
                     temperatureNormalHigh = calibration.temperatureNormalHigh,
                     heartRateNormalLow = calibration.heartRateNormalLow,
                     heartRateNormalHigh = calibration.heartRateNormalHigh,
+                    spO2NormalLow = calibration.spO2NormalLow,
+                    spO2NormalHigh = calibration.spO2NormalHigh,
                     skinConductanceNormalLow = calibration.skinConductanceNormalLow,
                     skinConductanceNormalHigh = calibration.skinConductanceNormalHigh
                 )
@@ -289,6 +308,8 @@ private data class AutomaticCalibrationValues(
     val temperatureNormalHigh: Float,
     val heartRateNormalLow: Float,
     val heartRateNormalHigh: Float,
+    val spO2NormalLow: Float,
+    val spO2NormalHigh: Float,
     val skinConductanceNormalLow: Float,
     val skinConductanceNormalHigh: Float
 )
@@ -297,34 +318,41 @@ private data class AutomaticCalibrationEpoch(
     val epoch: Long,
     val temperature: Float,
     val heartRate: Float,
+    val spO2: Float,
     val skinConductance: Float
 )
 
 private fun buildAutomaticCalibration(
     temperatures: List<TempSample>,
     heartRates: List<HearthRateSample>,
+    spO2Samples: List<SpO2Sample>,
     skinConductances: List<GsrSample>
 ): AutomaticCalibrationValues? {
     val temperatureByEpoch = temperatures.associateBy(TempSample::epoch)
     val heartRateByEpoch = heartRates.associateBy(HearthRateSample::epoch)
+    val spO2ByEpoch = spO2Samples.associateBy(SpO2Sample::epoch)
     val skinConductanceByEpoch = skinConductances.associateBy(GsrSample::epoch)
 
     val validEpochs = temperatureByEpoch.keys
         .intersect(heartRateByEpoch.keys)
+        .intersect(spO2ByEpoch.keys)
         .intersect(skinConductanceByEpoch.keys)
         .mapNotNull { epoch ->
             val temperature = temperatureByEpoch[epoch]?.temperature ?: return@mapNotNull null
             val heartRate = heartRateByEpoch[epoch]?.hearthRate ?: return@mapNotNull null
+            val spO2 = spO2ByEpoch[epoch]?.spo2?.toFloat() ?: return@mapNotNull null
             val skinConductance = skinConductanceByEpoch[epoch]?.gsr ?: return@mapNotNull null
 
             if (!isPhysiologicallyValidTemperature(temperature)) return@mapNotNull null
             if (!isPhysiologicallyValidHeartRate(heartRate)) return@mapNotNull null
+            if (!isPhysiologicallyValidSpO2(spO2)) return@mapNotNull null
             if (!isPhysiologicallyValidSkinConductance(skinConductance)) return@mapNotNull null
 
             AutomaticCalibrationEpoch(
                 epoch = epoch,
                 temperature = temperature,
                 heartRate = heartRate,
+                spO2 = spO2,
                 skinConductance = skinConductance
             )
         }
@@ -348,15 +376,18 @@ private fun buildAutomaticCalibration(
 
     val smoothedTemperatures = rollingMedianSmooth(validEpochs.map(AutomaticCalibrationEpoch::temperature))
     val smoothedHeartRates = rollingMedianSmooth(validEpochs.map(AutomaticCalibrationEpoch::heartRate))
+    val smoothedSpO2 = rollingMedianSmooth(validEpochs.map(AutomaticCalibrationEpoch::spO2))
     val smoothedSkinConductances = rollingMedianSmooth(validEpochs.map(AutomaticCalibrationEpoch::skinConductance))
 
     val temperatureRange = percentileRange(smoothedTemperatures) ?: return null
     val heartRateRange = percentileRange(smoothedHeartRates) ?: return null
+    val spO2Low = percentile(smoothedSpO2.sorted(), AUTO_CALIBRATION_LOW_PERCENTILE)
     val skinConductanceRange = percentileRange(smoothedSkinConductances) ?: return null
 
     if (
         temperatureRange.first >= temperatureRange.second ||
         heartRateRange.first >= heartRateRange.second ||
+        spO2Low >= AUTO_CALIBRATION_SPO2_HIGH ||
         skinConductanceRange.first >= skinConductanceRange.second
     ) {
         return null
@@ -367,6 +398,8 @@ private fun buildAutomaticCalibration(
         temperatureNormalHigh = temperatureRange.second,
         heartRateNormalLow = heartRateRange.first,
         heartRateNormalHigh = heartRateRange.second,
+        spO2NormalLow = spO2Low,
+        spO2NormalHigh = AUTO_CALIBRATION_SPO2_HIGH,
         skinConductanceNormalLow = skinConductanceRange.first,
         skinConductanceNormalHigh = skinConductanceRange.second
     )
@@ -411,15 +444,22 @@ private fun median(values: List<Float>): Float {
     }
 }
 
-private fun isPhysiologicallyValidTemperature(value: Float): Boolean = value in 30f..45f
+private fun isPhysiologicallyValidTemperature(value: Float): Boolean =
+    value in PROFILE_CALIBRATION_TEMPERATURE_MIN..PROFILE_CALIBRATION_TEMPERATURE_MAX
 
-private fun isPhysiologicallyValidHeartRate(value: Float): Boolean = value in 20f..240f
+private fun isPhysiologicallyValidHeartRate(value: Float): Boolean =
+    value in PROFILE_CALIBRATION_HEART_RATE_MIN..PROFILE_CALIBRATION_HEART_RATE_MAX
 
-private fun isPhysiologicallyValidSkinConductance(value: Float): Boolean = value in 0f..100f
+private fun isPhysiologicallyValidSpO2(value: Float): Boolean =
+    value in PROFILE_CALIBRATION_SPO2_MIN..PROFILE_CALIBRATION_SPO2_MAX
+
+private fun isPhysiologicallyValidSkinConductance(value: Float): Boolean =
+    value in PROFILE_CALIBRATION_SKIN_CONDUCTANCE_MIN..PROFILE_CALIBRATION_SKIN_CONDUCTANCE_MAX
 
 private const val MIN_AUTOMATIC_CALIBRATION_EPOCHS = 300
 private const val MIN_AUTOMATIC_CALIBRATION_DAYS = 7
 private const val AUTO_CALIBRATION_LOW_PERCENTILE = 5f
 private const val AUTO_CALIBRATION_HIGH_PERCENTILE = 95f
+private const val AUTO_CALIBRATION_SPO2_HIGH = 100f
 private val AUTO_CALIBRATION_LOOKBACK_MILLIS = TimeUnit.DAYS.toMillis(14)
 
