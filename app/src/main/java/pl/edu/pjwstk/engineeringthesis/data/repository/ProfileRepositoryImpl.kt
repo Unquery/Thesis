@@ -75,6 +75,8 @@ class ProfileRepositoryImpl @Inject constructor(
         temperatureNormalHigh: Float,
         heartRateNormalLow: Float,
         heartRateNormalHigh: Float,
+        spO2NormalLow: Float,
+        spO2NormalHigh: Float,
         skinConductanceNormalLow: Float,
         skinConductanceNormalHigh: Float
     ) {
@@ -84,6 +86,8 @@ class ProfileRepositoryImpl @Inject constructor(
             temperatureNormalHigh = temperatureNormalHigh,
             heartRateNormalLow = heartRateNormalLow,
             heartRateNormalHigh = heartRateNormalHigh,
+            spO2NormalLow = spO2NormalLow,
+            spO2NormalHigh = spO2NormalHigh,
             skinConductanceNormalLow = skinConductanceNormalLow,
             skinConductanceNormalHigh = skinConductanceNormalHigh
         )
@@ -119,6 +123,8 @@ private fun UserProfileEntity.toDomain(): UserProfile =
         temperatureNormalHigh = temperatureNormalHigh,
         heartRateNormalLow = heartRateNormalLow,
         heartRateNormalHigh = heartRateNormalHigh,
+        spO2NormalLow = spO2NormalLow,
+        spO2NormalHigh = spO2NormalHigh,
         skinConductanceNormalLow = skinConductanceNormalLow,
         skinConductanceNormalHigh = skinConductanceNormalHigh
     )
@@ -136,6 +142,8 @@ private fun UserProfile.toEntity(): UserProfileEntity =
         temperatureNormalHigh = temperatureNormalHigh,
         heartRateNormalLow = heartRateNormalLow,
         heartRateNormalHigh = heartRateNormalHigh,
+        spO2NormalLow = spO2NormalLow,
+        spO2NormalHigh = spO2NormalHigh,
         skinConductanceNormalLow = skinConductanceNormalLow,
         skinConductanceNormalHigh = skinConductanceNormalHigh
     )
