@@ -89,6 +89,8 @@ interface UserProfileDao {
             temperatureNormalHigh = :temperatureNormalHigh,
             heartRateNormalLow = :heartRateNormalLow,
             heartRateNormalHigh = :heartRateNormalHigh,
+            spO2NormalLow = :spO2NormalLow,
+            spO2NormalHigh = :spO2NormalHigh,
             skinConductanceNormalLow = :skinConductanceNormalLow,
             skinConductanceNormalHigh = :skinConductanceNormalHigh
         WHERE id = :id
@@ -100,6 +102,8 @@ interface UserProfileDao {
         temperatureNormalHigh: Float,
         heartRateNormalLow: Float,
         heartRateNormalHigh: Float,
+        spO2NormalLow: Float,
+        spO2NormalHigh: Float,
         skinConductanceNormalLow: Float,
         skinConductanceNormalHigh: Float
     )
