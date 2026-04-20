@@ -58,6 +58,14 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import pl.edu.pjwstk.engineeringthesis.R
 import pl.edu.pjwstk.engineeringthesis.font.interFamily
+import pl.edu.pjwstk.engineeringthesis.util.PROFILE_CALIBRATION_HEART_RATE_MAX
+import pl.edu.pjwstk.engineeringthesis.util.PROFILE_CALIBRATION_HEART_RATE_MIN
+import pl.edu.pjwstk.engineeringthesis.util.PROFILE_CALIBRATION_SKIN_CONDUCTANCE_MAX
+import pl.edu.pjwstk.engineeringthesis.util.PROFILE_CALIBRATION_SKIN_CONDUCTANCE_MIN
+import pl.edu.pjwstk.engineeringthesis.util.PROFILE_CALIBRATION_SPO2_MAX
+import pl.edu.pjwstk.engineeringthesis.util.PROFILE_CALIBRATION_SPO2_MIN
+import pl.edu.pjwstk.engineeringthesis.util.PROFILE_CALIBRATION_TEMPERATURE_MAX
+import pl.edu.pjwstk.engineeringthesis.util.PROFILE_CALIBRATION_TEMPERATURE_MIN
 import pl.edu.pjwstk.engineeringthesis.viewmodel.ProfileOnboardingViewModel
 import pl.edu.pjwstk.engineeringthesis.viewmodel.ProfileViewModel
 import java.time.Instant
@@ -292,6 +300,8 @@ fun ProfileScreen(
     var temperatureHighInput by remember { mutableStateOf("") }
     var heartRateLowInput by remember { mutableStateOf("") }
     var heartRateHighInput by remember { mutableStateOf("") }
+    var spO2LowInput by remember { mutableStateOf("") }
+    var spO2HighInput by remember { mutableStateOf("") }
     var skinConductanceLowInput by remember { mutableStateOf("") }
     var skinConductanceHighInput by remember { mutableStateOf("") }
     var editError by remember { mutableStateOf<Int?>(null) }
@@ -301,6 +311,8 @@ fun ProfileScreen(
         temperatureHighInput = ""
         heartRateLowInput = ""
         heartRateHighInput = ""
+        spO2LowInput = ""
+        spO2HighInput = ""
         skinConductanceLowInput = ""
         skinConductanceHighInput = ""
     }
@@ -325,12 +337,16 @@ fun ProfileScreen(
         temperatureNormalHigh: Float,
         heartRateNormalLow: Float,
         heartRateNormalHigh: Float,
+        spO2NormalLow: Float,
+        spO2NormalHigh: Float,
         skinConductanceNormalLow: Float,
         skinConductanceNormalHigh: Float
     ) -> Unit = { temperatureNormalLow,
                   temperatureNormalHigh,
                   heartRateNormalLow,
                   heartRateNormalHigh,
+                  spO2NormalLow,
+                  spO2NormalHigh,
                   skinConductanceNormalLow,
                   skinConductanceNormalHigh ->
         val err = vm.updateMeasurementCalibration(
@@ -338,6 +354,8 @@ fun ProfileScreen(
             temperatureNormalHigh = temperatureNormalHigh,
             heartRateNormalLow = heartRateNormalLow,
             heartRateNormalHigh = heartRateNormalHigh,
+            spO2NormalLow = spO2NormalLow,
+            spO2NormalHigh = spO2NormalHigh,
             skinConductanceNormalLow = skinConductanceNormalLow,
             skinConductanceNormalHigh = skinConductanceNormalHigh
         )
@@ -378,6 +396,8 @@ fun ProfileScreen(
             temperatureHighInput = formatCalibrationInput(currentProfile.temperatureNormalHigh)
             heartRateLowInput = formatCalibrationInput(currentProfile.heartRateNormalLow)
             heartRateHighInput = formatCalibrationInput(currentProfile.heartRateNormalHigh)
+            spO2LowInput = formatCalibrationInput(currentProfile.spO2NormalLow)
+            spO2HighInput = formatCalibrationInput(currentProfile.spO2NormalHigh)
             skinConductanceLowInput = formatCalibrationInput(currentProfile.skinConductanceNormalLow)
             skinConductanceHighInput = formatCalibrationInput(currentProfile.skinConductanceNormalHigh)
         }
@@ -529,8 +549,8 @@ fun ProfileScreen(
                     lowInput = temperatureLowInput,
                     highInput = temperatureHighInput,
                     parse = { text -> text.toFloatOrNull() },
-                    minAllowed = 30f,
-                    maxAllowed = 45f
+                    minAllowed = PROFILE_CALIBRATION_TEMPERATURE_MIN,
+                    maxAllowed = PROFILE_CALIBRATION_TEMPERATURE_MAX
                 )
                 if (err == null) {
                     goToNextCalibrationStep(CalibrationStep.Temperature)
@@ -567,11 +587,49 @@ fun ProfileScreen(
                     lowInput = heartRateLowInput,
                     highInput = heartRateHighInput,
                     parse = ::parseWholeNumberAsFloat,
-                    minAllowed = 20f,
-                    maxAllowed = 240f
+                    minAllowed = PROFILE_CALIBRATION_HEART_RATE_MIN,
+                    maxAllowed = PROFILE_CALIBRATION_HEART_RATE_MAX
                 )
                 if (err == null) {
                     goToNextCalibrationStep(CalibrationStep.HeartRate)
+                } else {
+                    calibrationError = err
+                }
+            }
+        )
+
+        CalibrationStep.SpO2 -> MeasurementCalibrationDialog(
+            title = stringResource(R.string.profile_calibration_spo2_title),
+            unit = stringResource(R.string.unit_percent),
+            lowValue = spO2LowInput,
+            highValue = spO2HighInput,
+            keyboardType = KeyboardType.Number,
+            confirmLabel = stringResource(R.string.action_next),
+            errorText = calibrationError,
+            onLowValueChange = {
+                spO2LowInput = it.filter(Char::isDigit).take(3)
+                calibrationError = null
+            },
+            onHighValueChange = {
+                spO2HighInput = it.filter(Char::isDigit).take(3)
+                calibrationError = null
+            },
+            onUseAverage = {
+                spO2LowInput = AVERAGE_SPO2_LOW.toInt().toString()
+                spO2HighInput = AVERAGE_SPO2_HIGH.toInt().toString()
+                goToNextCalibrationStep(CalibrationStep.SpO2)
+            },
+            onDismiss = discardCalibrationFlow,
+            onConfirm = {
+                val err = validateCalibrationRange(
+                    lowInput = spO2LowInput,
+                    highInput = spO2HighInput,
+                    parse = ::parseWholeNumberAsFloat,
+                    minAllowed = PROFILE_CALIBRATION_SPO2_MIN,
+                    maxAllowed = PROFILE_CALIBRATION_SPO2_MAX
+                )
+                if (err == null) {
+                    goToNextCalibrationStep(CalibrationStep.SpO2)
                 } else {
                     calibrationError = err
                 }
@@ -602,6 +660,8 @@ fun ProfileScreen(
                     temperatureHighInput.toFloat(),
                     heartRateLowInput.toFloat(),
                     heartRateHighInput.toFloat(),
+                    spO2LowInput.toFloat(),
+                    spO2HighInput.toFloat(),
                     AVERAGE_SKIN_CONDUCTANCE_LOW,
                     AVERAGE_SKIN_CONDUCTANCE_HIGH
                 )
@@ -612,8 +672,8 @@ fun ProfileScreen(
                     lowInput = skinConductanceLowInput,
                     highInput = skinConductanceHighInput,
                     parse = { text -> text.toFloatOrNull() },
-                    minAllowed = 0f,
-                    maxAllowed = 100f
+                    minAllowed = PROFILE_CALIBRATION_SKIN_CONDUCTANCE_MIN,
+                    maxAllowed = PROFILE_CALIBRATION_SKIN_CONDUCTANCE_MAX
                 )
                 if (err == null) {
                     saveCalibrationAndClose(
@@ -621,6 +681,8 @@ fun ProfileScreen(
                         temperatureHighInput.toFloat(),
                         heartRateLowInput.toFloat(),
                         heartRateHighInput.toFloat(),
+                        spO2LowInput.toFloat(),
+                        spO2HighInput.toFloat(),
                         skinConductanceLowInput.toFloat(),
                         skinConductanceHighInput.toFloat()
                     )
@@ -779,6 +841,7 @@ private enum class EditField {
 private enum class CalibrationStep {
     Temperature,
     HeartRate,
+    SpO2,
     SkinConductance
 }
 
@@ -1178,7 +1241,8 @@ private fun formatWeightInput(weightKg: Float): String {
 private fun nextCalibrationStep(step: CalibrationStep): CalibrationStep? =
     when (step) {
         CalibrationStep.Temperature -> CalibrationStep.HeartRate
-        CalibrationStep.HeartRate -> CalibrationStep.SkinConductance
+        CalibrationStep.HeartRate -> CalibrationStep.SpO2
+        CalibrationStep.SpO2 -> CalibrationStep.SkinConductance
         CalibrationStep.SkinConductance -> null
     }
 
@@ -1318,6 +1382,8 @@ private fun formatHeight(heightCm: Int): String {
 private val PROFILE_DIALOG_ACTION_COLOR = Color(0xFF0F172A)
 private const val AVERAGE_HEART_RATE_LOW = 60f
 private const val AVERAGE_HEART_RATE_HIGH = 100f
+private const val AVERAGE_SPO2_LOW = 97f
+private const val AVERAGE_SPO2_HIGH = 100f
 private const val AVERAGE_TEMPERATURE_LOW = 36.1f
 private const val AVERAGE_TEMPERATURE_HIGH = 37.2f
 private const val AVERAGE_SKIN_CONDUCTANCE_LOW = 1f
