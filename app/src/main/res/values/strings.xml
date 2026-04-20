@@ -11,6 +11,7 @@
     <string name="bottom_nav_profile">Profile</string>
 
     <string name="action_ok">OK</string>
+    <string name="action_pick">Pick</string>
     <string name="action_cancel">Cancel</string>
     <string name="action_yes">Yes</string>
     <string name="action_no">No</string>
@@ -137,10 +138,13 @@
 
     <string name="charts_back">Back</string>
     <string name="charts_today">Today</string>
+    <string name="charts_range_hour">Hour</string>
     <string name="charts_range_day">Day</string>
     <string name="charts_range_week">Week</string>
     <string name="charts_range_month">Month</string>
     <string name="charts_choose_day">Choose day</string>
+    <string name="charts_pick_hour_title">Pick hour</string>
+    <string name="charts_no_data_hour">No data for this hour.</string>
     <string name="charts_no_data_today">No data for today.</string>
     <string name="charts_no_data_day">No data for this day.</string>
     <string name="charts_no_data_week">No data for this week.</string>
