@@ -15,10 +15,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -46,11 +48,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -65,6 +69,8 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import co.yml.charts.axis.AxisData
 import co.yml.charts.axis.Gravity
+import co.yml.charts.axis.XAxis
+import co.yml.charts.axis.YAxis
 import co.yml.charts.common.model.Point
 import co.yml.charts.ui.linechart.LineChart
 import co.yml.charts.ui.linechart.model.GridLines
@@ -200,6 +206,7 @@ fun ChartsScreen(
     val selectionLabel = remember(
         range,
         rangeDates,
+        selectedHour,
         ui.decimals,
         uiUnit,
         selectionDayFormat,
@@ -210,6 +217,7 @@ fun ChartsScreen(
         buildSelectionLabel(
             range = range,
             dates = rangeDates,
+            selectedHour = selectedHour,
             decimals = ui.decimals,
             unit = uiUnit,
             dayFormat = selectionDayFormat,
@@ -315,6 +323,7 @@ fun ChartsScreen(
                     }
 
                     val axisStepSize = remember(plotWidth, xAxisSteps) { plotWidth / xAxisSteps }
+                    val axisStepSizePx = with(density) { axisStepSize.toPx() }
 
                     val xMax = remember(range, rangeDates) {
                         when (range) {
@@ -362,19 +371,30 @@ fun ChartsScreen(
                             labels = xAxisLabels.values
                         )
                     }
+                    var measuredYAxisWidthPx by remember(chartData.yAxisData) { mutableStateOf(0f) }
+                    var measuredXAxisHeightPx by remember(chartData.xAxisData, range, xAxisLabels) {
+                        mutableStateOf(0f)
+                    }
+                    val lineChartPoints = remember(chartData) {
+                        chartData.linePlotData.lines.flatMap { line -> line.dataPoints }
+                    }
+                    val plotStartX = measuredYAxisWidthPx.takeIf { it > 0f }
+                        ?: with(density) { yAxisInset.toPx() }
+                    val plotBottomY = with(density) { CHART_HEIGHT.toPx() } -
+                        (measuredXAxisHeightPx.takeIf { it > 0f } ?: with(density) { xAxisHeight.toPx() })
                     val chartPlotGeometry = remember(
-                        density,
-                        yAxisInset,
-                        plotWidth,
-                        xAxisHeight,
+                        plotStartX,
+                        axisStepSizePx,
+                        plotBottomY,
                         xMax,
                         yAxisSpec
                     ) {
                         ChartPlotGeometry(
-                            plotStartX = with(density) { yAxisInset.toPx() },
-                            plotWidth = with(density) { plotWidth.toPx() },
+                            plotStartX = plotStartX,
+                            xStepSize = axisStepSizePx,
                             plotTopY = with(density) { chartData.paddingTop.toPx() },
-                            plotBottomY = with(density) { CHART_HEIGHT.toPx() - xAxisHeight.toPx() },
+                            plotBottomY = plotBottomY,
+                            xMin = 0f,
                             xMax = xMax.coerceAtLeast(1f),
                             yMin = yAxisSpec.range.min,
                             yMax = yAxisSpec.range.max
@@ -398,6 +418,43 @@ fun ChartsScreen(
                             modifier = Modifier.matchParentSize(),
                             lineChartData = chartData
                         )
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopStart)
+                                .fillMaxHeight()
+                                .alpha(0f)
+                                .onGloballyPositioned { coords ->
+                                    measuredYAxisWidthPx = coords.size.width.toFloat()
+                                }
+                        ) {
+                            YAxis(
+                                modifier = Modifier.fillMaxHeight(),
+                                yAxisData = chartData.yAxisData,
+                                chartData = lineChartPoints
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomStart)
+                                .fillMaxWidth()
+                                .wrapContentHeight()
+                                .alpha(0f)
+                                .onGloballyPositioned { coords ->
+                                    measuredXAxisHeightPx = coords.size.height.toFloat()
+                                }
+                        ) {
+                            XAxis(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .wrapContentHeight(),
+                                xAxisData = chartData.xAxisData,
+                                xStart = plotStartX,
+                                scrollOffset = 0f,
+                                zoomScale = 1f,
+                                chartData = lineChartPoints,
+                                axisStart = plotStartX
+                            )
+                        }
                         ChartSelectionOverlay(
                             modifier = Modifier.matchParentSize(),
                             selectablePoints = selectablePoints,
@@ -576,23 +633,23 @@ private data class ChartSelectablePointLayout(
 
 private data class ChartPlotGeometry(
     val plotStartX: Float,
-    val plotWidth: Float,
+    val xStepSize: Float,
     val plotTopY: Float,
     val plotBottomY: Float,
+    val xMin: Float,
     val xMax: Float,
     val yMin: Float,
     val yMax: Float
 ) {
     val plotEndX: Float
-        get() = plotStartX + plotWidth
+        get() = plotStartX + ((xMax - xMin).coerceAtLeast(0f) * xStepSize)
 
     fun toOffset(point: ChartSelectablePoint): Offset {
-        val safeXMax = xMax.coerceAtLeast(1f)
-        val xRatio = (point.x / safeXMax).coerceIn(0f, 1f)
+        val clampedX = point.x.coerceIn(xMin, xMax)
         val yRange = (yMax - yMin).coerceAtLeast(CHART_POINT_EQUALITY_THRESHOLD)
         val yRatio = ((point.y - yMin) / yRange).coerceIn(0f, 1f)
         return Offset(
-            x = plotStartX + (plotWidth * xRatio),
+            x = plotStartX + ((clampedX - xMin) * xStepSize),
             y = plotBottomY - ((plotBottomY - plotTopY) * yRatio)
         )
     }
@@ -1045,6 +1102,7 @@ private fun formatRangeLabel(
 private fun buildSelectionLabel(
     range: ChartRange,
     dates: List<LocalDate>,
+    selectedHour: Int,
     decimals: Int,
     unit: String,
     dayFormat: String,
@@ -1054,7 +1112,8 @@ private fun buildSelectionLabel(
 ): (Float, Float) -> String {
     return when (range) {
         ChartRange.Hour -> { x, y ->
-            val time = formatHourMinute(x / MINUTES_PER_HOUR.toFloat(), time24Label)
+            val minute = x.roundToInt().coerceIn(0, MINUTES_PER_HOUR - 1)
+            val time = String.format(Locale.US, "%02d:%02d", selectedHour.coerceIn(0, 23), minute)
             String.format(Locale.getDefault(), dayFormat, time, formatValue(y, decimals), unit)
         }
 
