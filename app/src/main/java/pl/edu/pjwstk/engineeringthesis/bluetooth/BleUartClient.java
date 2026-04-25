@@ -12,8 +12,6 @@ import android.util.Log;
 
 import androidx.core.content.ContextCompat;
 
-import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
@@ -34,6 +32,7 @@ public class BleUartClient {
 
     private static final UUID DEFAULT_NUS_RX =
             UUID.fromString("6E400002-B5A3-F393-E0A9-E50E24DCCA9E");
+    private static final double DEFAULT_TEMP_OFFSET_C = 0.0;
 
     private final Context appCtx;
     private final BluetoothAdapter adapter;
@@ -56,8 +55,11 @@ public class BleUartClient {
 
     private boolean pushTimeOnConnect = true;
     private boolean timePushedThisConn = false;
+    private volatile double tempOffsetC = DEFAULT_TEMP_OFFSET_C;
 
     public boolean isConnected() { return connected; }
+
+    public boolean isTimeSyncReady() { return connected && rxChar != null; }
 
     public BleUartClient(Context ctx,
                          BluetoothAdapter adapter,
@@ -83,6 +85,14 @@ public class BleUartClient {
     public void setDeviceNameFilter(String name) { this.deviceNameFilter = name; }
 
     public void setPushTimeOnConnect(boolean enable) { this.pushTimeOnConnect = enable; }
+
+    public void setTempOffsetC(double tempOffsetC) {
+        if (Double.isNaN(tempOffsetC)) {
+            this.tempOffsetC = DEFAULT_TEMP_OFFSET_C;
+            return;
+        }
+        this.tempOffsetC = Math.max(-20.0, Math.min(20.0, tempOffsetC));
+    }
 
     public boolean hasScanPermission() {
         if (Build.VERSION.SDK_INT >= 31)
@@ -189,10 +199,9 @@ public class BleUartClient {
         if (gatt == null || rxChar == null) { notifyErr("RX char not ready", null); return; }
         if (!hasConnectPermission()) { notifyErr("Missing BLUETOOTH_CONNECT for write", null); return; }
 
-        byte[] payload = ByteBuffer.allocate(8)
-                .order(ByteOrder.LITTLE_ENDIAN)
-                .putLong(epochSeconds)
-                .array();
+        double offsetC = tempOffsetC;
+        String json = "{\"epoch\":" + epochSeconds + ",\"tempOffsetC\":" + offsetC + "}";
+        byte[] payload = json.getBytes(StandardCharsets.UTF_8);
 
         int props = rxChar.getProperties();
         int writeType = (props & BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE) != 0
@@ -207,7 +216,11 @@ public class BleUartClient {
                 rxChar.setValue(payload);
                 gatt.writeCharacteristic(rxChar);
             }
-            if (listener != null) listener.onStatus("Pushed time " + epochSeconds + " (type=" + writeType + ")");
+            if (listener != null) {
+                listener.onStatus(
+                        "Pushed time sync " + epochSeconds + ", tempOffsetC=" + offsetC +
+                                " (type=" + writeType + ")");
+            }
         } catch (SecurityException se) {
             notifyErr("SecurityException during writeCharacteristic", se);
         }
