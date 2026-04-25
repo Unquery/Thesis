@@ -87,6 +87,7 @@ interface UserProfileDao {
         UPDATE user_profile
         SET temperatureNormalLow = :temperatureNormalLow,
             temperatureNormalHigh = :temperatureNormalHigh,
+            temperatureOffsetC = :temperatureOffsetC,
             heartRateNormalLow = :heartRateNormalLow,
             heartRateNormalHigh = :heartRateNormalHigh,
             spO2NormalLow = :spO2NormalLow,
@@ -100,6 +101,7 @@ interface UserProfileDao {
         id: Int,
         temperatureNormalLow: Float,
         temperatureNormalHigh: Float,
+        temperatureOffsetC: Float,
         heartRateNormalLow: Float,
         heartRateNormalHigh: Float,
         spO2NormalLow: Float,
