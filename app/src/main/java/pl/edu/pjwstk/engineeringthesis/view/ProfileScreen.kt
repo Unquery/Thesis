@@ -66,6 +66,8 @@ import pl.edu.pjwstk.engineeringthesis.util.PROFILE_CALIBRATION_SPO2_MAX
 import pl.edu.pjwstk.engineeringthesis.util.PROFILE_CALIBRATION_SPO2_MIN
 import pl.edu.pjwstk.engineeringthesis.util.PROFILE_CALIBRATION_TEMPERATURE_MAX
 import pl.edu.pjwstk.engineeringthesis.util.PROFILE_CALIBRATION_TEMPERATURE_MIN
+import pl.edu.pjwstk.engineeringthesis.util.PROFILE_CALIBRATION_TEMPERATURE_OFFSET_MAX
+import pl.edu.pjwstk.engineeringthesis.util.PROFILE_CALIBRATION_TEMPERATURE_OFFSET_MIN
 import pl.edu.pjwstk.engineeringthesis.viewmodel.ProfileOnboardingViewModel
 import pl.edu.pjwstk.engineeringthesis.viewmodel.ProfileViewModel
 import java.time.Instant
@@ -298,6 +300,7 @@ fun ProfileScreen(
     var birthDateInput by remember { mutableStateOf<Long?>(null) }
     var temperatureLowInput by remember { mutableStateOf("") }
     var temperatureHighInput by remember { mutableStateOf("") }
+    var temperatureOffsetInput by remember { mutableStateOf("") }
     var heartRateLowInput by remember { mutableStateOf("") }
     var heartRateHighInput by remember { mutableStateOf("") }
     var spO2LowInput by remember { mutableStateOf("") }
@@ -309,6 +312,7 @@ fun ProfileScreen(
     val resetCalibrationInputs = {
         temperatureLowInput = ""
         temperatureHighInput = ""
+        temperatureOffsetInput = ""
         heartRateLowInput = ""
         heartRateHighInput = ""
         spO2LowInput = ""
@@ -335,6 +339,7 @@ fun ProfileScreen(
     val saveCalibrationAndClose: (
         temperatureNormalLow: Float,
         temperatureNormalHigh: Float,
+        temperatureOffsetC: Float,
         heartRateNormalLow: Float,
         heartRateNormalHigh: Float,
         spO2NormalLow: Float,
@@ -343,6 +348,7 @@ fun ProfileScreen(
         skinConductanceNormalHigh: Float
     ) -> Unit = { temperatureNormalLow,
                   temperatureNormalHigh,
+                  temperatureOffsetC,
                   heartRateNormalLow,
                   heartRateNormalHigh,
                   spO2NormalLow,
@@ -352,6 +358,7 @@ fun ProfileScreen(
         val err = vm.updateMeasurementCalibration(
             temperatureNormalLow = temperatureNormalLow,
             temperatureNormalHigh = temperatureNormalHigh,
+            temperatureOffsetC = temperatureOffsetC,
             heartRateNormalLow = heartRateNormalLow,
             heartRateNormalHigh = heartRateNormalHigh,
             spO2NormalLow = spO2NormalLow,
@@ -394,6 +401,7 @@ fun ProfileScreen(
         profile?.let { currentProfile ->
             temperatureLowInput = formatCalibrationInput(currentProfile.temperatureNormalLow)
             temperatureHighInput = formatCalibrationInput(currentProfile.temperatureNormalHigh)
+            temperatureOffsetInput = formatCalibrationInput(currentProfile.temperatureOffsetC)
             heartRateLowInput = formatCalibrationInput(currentProfile.heartRateNormalLow)
             heartRateHighInput = formatCalibrationInput(currentProfile.heartRateNormalHigh)
             spO2LowInput = formatCalibrationInput(currentProfile.spO2NormalLow)
@@ -502,15 +510,11 @@ fun ProfileScreen(
             },
             onConfirm = {
                 automaticCalibrationError = null
-                isAutomaticCalibrationRunning = true
-                vm.autoCalibrateMeasurementCalibration { err ->
-                    isAutomaticCalibrationRunning = false
-                    if (err == null) {
-                        finishCalibrationFlow()
-                    } else {
-                        automaticCalibrationError = err
-                    }
-                }
+                calibrationError = null
+                showAutomaticCalibrationDialog = false
+                temperatureOffsetInput = profile?.temperatureOffsetC?.let(::formatCalibrationInput)
+                    ?: formatCalibrationInput(AVERAGE_TEMPERATURE_OFFSET)
+                calibrationStep = CalibrationStep.AutomaticTemperatureOffset
             },
             onManualCalibration = {
                 showAutomaticCalibrationDialog = false
@@ -554,6 +558,66 @@ fun ProfileScreen(
                 )
                 if (err == null) {
                     goToNextCalibrationStep(CalibrationStep.Temperature)
+                } else {
+                    calibrationError = err
+                }
+            }
+        )
+
+        CalibrationStep.TemperatureOffset -> TemperatureOffsetCalibrationDialog(
+            title = stringResource(R.string.profile_calibration_temperature_offset_title),
+            unit = stringResource(R.string.unit_celsius),
+            value = temperatureOffsetInput,
+            confirmLabel = stringResource(R.string.action_next),
+            errorText = calibrationError,
+            onValueChange = {
+                temperatureOffsetInput = filterSignedDecimalCalibrationInput(
+                    input = it,
+                    maxIntegerDigits = 2
+                )
+                calibrationError = null
+            },
+            onDismiss = discardCalibrationFlow,
+            onConfirm = {
+                val err = validateTemperatureOffsetInput(temperatureOffsetInput)
+                if (err == null) {
+                    goToNextCalibrationStep(CalibrationStep.TemperatureOffset)
+                } else {
+                    calibrationError = err
+                }
+            }
+        )
+
+        CalibrationStep.AutomaticTemperatureOffset -> TemperatureOffsetCalibrationDialog(
+            title = stringResource(R.string.profile_calibration_temperature_offset_title),
+            unit = stringResource(R.string.unit_celsius),
+            value = temperatureOffsetInput,
+            confirmLabel = stringResource(R.string.action_save),
+            errorText = calibrationError,
+            buttonsEnabled = !isAutomaticCalibrationRunning,
+            onValueChange = {
+                temperatureOffsetInput = filterSignedDecimalCalibrationInput(
+                    input = it,
+                    maxIntegerDigits = 2
+                )
+                calibrationError = null
+            },
+            onDismiss = discardCalibrationFlow,
+            onConfirm = {
+                val err = validateTemperatureOffsetInput(temperatureOffsetInput)
+                if (err == null) {
+                    calibrationError = null
+                    isAutomaticCalibrationRunning = true
+                    vm.autoCalibrateMeasurementCalibration(
+                        temperatureOffsetC = temperatureOffsetInput.toFloat()
+                    ) { result ->
+                        isAutomaticCalibrationRunning = false
+                        if (result == null) {
+                            finishCalibrationFlow()
+                        } else {
+                            calibrationError = result
+                        }
+                    }
                 } else {
                     calibrationError = err
                 }
@@ -658,6 +722,7 @@ fun ProfileScreen(
                 saveCalibrationAndClose(
                     temperatureLowInput.toFloat(),
                     temperatureHighInput.toFloat(),
+                    temperatureOffsetInput.toFloat(),
                     heartRateLowInput.toFloat(),
                     heartRateHighInput.toFloat(),
                     spO2LowInput.toFloat(),
@@ -679,6 +744,7 @@ fun ProfileScreen(
                     saveCalibrationAndClose(
                         temperatureLowInput.toFloat(),
                         temperatureHighInput.toFloat(),
+                        temperatureOffsetInput.toFloat(),
                         heartRateLowInput.toFloat(),
                         heartRateHighInput.toFloat(),
                         spO2LowInput.toFloat(),
@@ -840,6 +906,8 @@ private enum class EditField {
 
 private enum class CalibrationStep {
     Temperature,
+    TemperatureOffset,
+    AutomaticTemperatureOffset,
     HeartRate,
     SpO2,
     SkinConductance
@@ -885,25 +953,25 @@ private fun CalibrationConfirmDialog(
                 horizontalArrangement = Arrangement.Center
             ) {
                 OutlinedButton(
-                    onClick = onConfirm,
+                    onClick = onDismiss,
                     modifier = Modifier.width(124.dp),
                     border = BorderStroke(2.dp, PROFILE_DIALOG_ACTION_COLOR),
                     colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = Color.White
                     )
                 ) {
-                    Text(text = stringResource(R.string.action_yes))
+                    Text(text = stringResource(R.string.action_no))
                 }
                 Spacer(modifier = Modifier.width(20.dp))
                 Button(
-                    onClick = onDismiss,
+                    onClick = onConfirm,
                     modifier = Modifier.width(124.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = PROFILE_DIALOG_ACTION_COLOR,
                         contentColor = Color.White
                     )
                 ) {
-                    Text(text = stringResource(R.string.action_no))
+                    Text(text = stringResource(R.string.action_yes))
                 }
             }
         }
@@ -937,7 +1005,7 @@ private fun AutomaticCalibrationDialog(
                 horizontalArrangement = Arrangement.Center
             ) {
                 OutlinedButton(
-                    onClick = onConfirm,
+                    onClick = onManualCalibration,
                     modifier = Modifier.width(124.dp),
                     enabled = buttonsEnabled,
                     border = BorderStroke(2.dp, PROFILE_DIALOG_ACTION_COLOR),
@@ -945,11 +1013,11 @@ private fun AutomaticCalibrationDialog(
                         contentColor = Color.White
                     )
                 ) {
-                    Text(text = stringResource(R.string.action_yes))
+                    Text(text = stringResource(R.string.action_no))
                 }
                 Spacer(modifier = Modifier.width(20.dp))
                 Button(
-                    onClick = onManualCalibration,
+                    onClick = onConfirm,
                     modifier = Modifier.width(124.dp),
                     enabled = buttonsEnabled,
                     colors = ButtonDefaults.buttonColors(
@@ -957,7 +1025,7 @@ private fun AutomaticCalibrationDialog(
                         contentColor = Color.White
                     )
                 ) {
-                    Text(text = stringResource(R.string.action_no))
+                    Text(text = stringResource(R.string.action_yes))
                 }
             }
         }
@@ -1048,6 +1116,81 @@ private fun MeasurementCalibrationDialog(
                     Button(
                         onClick = onConfirm,
                         modifier = Modifier.width(124.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = PROFILE_DIALOG_ACTION_COLOR,
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Text(text = confirmLabel)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TemperatureOffsetCalibrationDialog(
+    title: String,
+    unit: String,
+    value: String,
+    confirmLabel: String,
+    errorText: Int?,
+    buttonsEnabled: Boolean = true,
+    onValueChange: (String) -> Unit,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    Dialog(onDismissRequest = { if (buttonsEnabled) onDismiss() }) {
+        Surface(
+            shape = AlertDialogDefaults.shape,
+            color = AlertDialogDefaults.containerColor,
+            tonalElevation = AlertDialogDefaults.TonalElevation
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = AlertDialogDefaults.titleContentColor
+                )
+                OutlinedTextField(
+                    value = value,
+                    onValueChange = onValueChange,
+                    label = { Text(stringResource(R.string.profile_calibration_offset_label)) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                    singleLine = true,
+                    suffix = { Text(unit) },
+                    isError = errorText != null,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                if (errorText != null) {
+                    Text(stringResource(errorText), color = MaterialTheme.colorScheme.error)
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.width(124.dp),
+                        enabled = buttonsEnabled,
+                        border = BorderStroke(2.dp, PROFILE_DIALOG_ACTION_COLOR),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Text(text = stringResource(R.string.action_cancel))
+                    }
+                    Spacer(modifier = Modifier.width(20.dp))
+                    Button(
+                        onClick = onConfirm,
+                        modifier = Modifier.width(124.dp),
+                        enabled = buttonsEnabled,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = PROFILE_DIALOG_ACTION_COLOR,
                             contentColor = Color.White
@@ -1240,7 +1383,9 @@ private fun formatWeightInput(weightKg: Float): String {
 
 private fun nextCalibrationStep(step: CalibrationStep): CalibrationStep? =
     when (step) {
-        CalibrationStep.Temperature -> CalibrationStep.HeartRate
+        CalibrationStep.Temperature -> CalibrationStep.TemperatureOffset
+        CalibrationStep.TemperatureOffset -> CalibrationStep.HeartRate
+        CalibrationStep.AutomaticTemperatureOffset -> null
         CalibrationStep.HeartRate -> CalibrationStep.SpO2
         CalibrationStep.SpO2 -> CalibrationStep.SkinConductance
         CalibrationStep.SkinConductance -> null
@@ -1284,6 +1429,47 @@ private fun filterDecimalCalibrationInput(
     return filtered
 }
 
+private fun filterSignedDecimalCalibrationInput(
+    input: String,
+    maxIntegerDigits: Int,
+    maxDecimalDigits: Int = 1
+): String {
+    val filtered = buildString {
+        var hasDot = false
+        var integerDigits = 0
+        var decimalDigits = 0
+
+        input.forEach { ch ->
+            when {
+                ch == '-' && isEmpty() -> append(ch)
+
+                ch.isDigit() && !hasDot && integerDigits < maxIntegerDigits -> {
+                    append(ch)
+                    integerDigits++
+                }
+
+                ch.isDigit() && hasDot && decimalDigits < maxDecimalDigits -> {
+                    append(ch)
+                    decimalDigits++
+                }
+
+                ch == '.' && !hasDot -> {
+                    if (isEmpty()) {
+                        append('0')
+                        integerDigits = 1
+                    } else if (toString() == "-") {
+                        append('0')
+                        integerDigits = 1
+                    }
+                    append(ch)
+                    hasDot = true
+                }
+            }
+        }
+    }
+    return filtered
+}
+
 private fun formatCalibrationInput(value: Float): String {
     val rounded = String.format(Locale.US, "%.1f", value)
     return if (rounded.endsWith(".0")) {
@@ -1314,6 +1500,18 @@ private fun validateCalibrationRange(
         null
     } else {
         R.string.profile_calibration_error_low_less_than_high
+    }
+}
+
+private fun validateTemperatureOffsetInput(input: String): Int? {
+    val value = input.trim().toFloatOrNull()
+    return if (
+        value != null &&
+        value in PROFILE_CALIBRATION_TEMPERATURE_OFFSET_MIN..PROFILE_CALIBRATION_TEMPERATURE_OFFSET_MAX
+    ) {
+        null
+    } else {
+        R.string.profile_calibration_error_invalid_temperature_offset
     }
 }
 
@@ -1386,6 +1584,7 @@ private const val AVERAGE_SPO2_LOW = 97f
 private const val AVERAGE_SPO2_HIGH = 100f
 private const val AVERAGE_TEMPERATURE_LOW = 36.1f
 private const val AVERAGE_TEMPERATURE_HIGH = 37.2f
+private const val AVERAGE_TEMPERATURE_OFFSET = 0f
 private const val AVERAGE_SKIN_CONDUCTANCE_LOW = 1f
 private const val AVERAGE_SKIN_CONDUCTANCE_HIGH = 20f
 
