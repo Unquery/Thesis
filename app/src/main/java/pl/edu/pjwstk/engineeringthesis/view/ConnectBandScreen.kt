@@ -399,28 +399,28 @@ private fun ConnectedDeviceRow(
                         horizontalArrangement = Arrangement.Center
                     ) {
                         OutlinedButton(
-                            onClick = {
-                                showDisconnectDialog = false
-                                onDisconnect()
-                            },
+                            onClick = { showDisconnectDialog = false },
                             modifier = Modifier.width(124.dp),
                             border = BorderStroke(2.dp, DIALOG_ACTION_COLOR),
                             colors = ButtonDefaults.outlinedButtonColors(
                                 contentColor = Color.White
                             )
                         ) {
-                            Text(text = stringResource(R.string.action_yes))
+                            Text(text = stringResource(R.string.action_no))
                         }
                         Spacer(modifier = Modifier.width(20.dp))
                         Button(
-                            onClick = { showDisconnectDialog = false },
+                            onClick = {
+                                showDisconnectDialog = false
+                                onDisconnect()
+                            },
                             modifier = Modifier.width(124.dp),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = DIALOG_ACTION_COLOR,
                                 contentColor = Color.White
                             )
                         ) {
-                            Text(text = stringResource(R.string.action_no))
+                            Text(text = stringResource(R.string.action_yes))
                         }
                     }
                 }
