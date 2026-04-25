@@ -19,6 +19,7 @@ import pl.edu.pjwstk.engineeringthesis.data.db.dao.TempSampleDao
 
 private const val DEFAULT_TEMPERATURE_LOW_SQL = 36.5
 private const val DEFAULT_TEMPERATURE_HIGH_SQL = 37.3
+private const val DEFAULT_TEMPERATURE_OFFSET_C_SQL = 0.0
 private const val DEFAULT_HEART_RATE_LOW_SQL = 60.0
 private const val DEFAULT_HEART_RATE_HIGH_SQL = 100.0
 private const val DEFAULT_SPO2_LOW_SQL = 97.0
@@ -119,6 +120,14 @@ private val MIGRATION_18_19 = object : Migration(18, 19) {
     }
 }
 
+private val MIGRATION_19_20 = object : Migration(19, 20) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL(
+            "ALTER TABLE user_profile ADD COLUMN temperatureOffsetC REAL NOT NULL DEFAULT $DEFAULT_TEMPERATURE_OFFSET_C_SQL"
+        )
+    }
+}
+
 @Module
 @InstallIn(SingletonComponent::class)
 object DbModule {
@@ -127,7 +136,14 @@ object DbModule {
     @Singleton
     fun provideDb(@ApplicationContext ctx: Context): DiaryDB =
         Room.databaseBuilder(ctx, DiaryDB::class.java, "diary.db")
-            .addMigrations(MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14, MIGRATION_15_16, MIGRATION_18_19)
+            .addMigrations(
+                MIGRATION_11_12,
+                MIGRATION_12_13,
+                MIGRATION_13_14,
+                MIGRATION_15_16,
+                MIGRATION_18_19,
+                MIGRATION_19_20
+            )
             .fallbackToDestructiveMigration(false)
             .build()
 
