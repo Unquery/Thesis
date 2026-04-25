@@ -15,6 +15,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.isActive
@@ -28,6 +30,7 @@ import pl.edu.pjwstk.engineeringthesis.model.GsrSample
 import pl.edu.pjwstk.engineeringthesis.model.HearthRateSample
 import pl.edu.pjwstk.engineeringthesis.model.SpO2Sample
 import pl.edu.pjwstk.engineeringthesis.model.TempSample
+import pl.edu.pjwstk.engineeringthesis.util.PROFILE_DEFAULT_TEMPERATURE_OFFSET_C
 import pl.edu.pjwstk.engineeringthesis.viewmodel.Band
 import pl.edu.pjwstk.engineeringthesis.viewmodel.ConnectedDevice
 import pl.edu.pjwstk.engineeringthesis.viewmodel.ScanUiState
@@ -191,6 +194,7 @@ class BleConnectionManager @Inject constructor(
 
     init {
         startDisconnectCleanup()
+        startTemperatureOffsetSync()
     }
 
     fun startAfterPermissionsGranted(timeoutMs: Long = 8_000L) {
@@ -522,6 +526,23 @@ class BleConnectionManager @Inject constructor(
                     }
                 }
             }
+        }
+    }
+
+    private fun startTemperatureOffsetSync() {
+        scope.launch {
+            profileRepo.observeActive()
+                .map { it?.temperatureOffsetC ?: PROFILE_DEFAULT_TEMPERATURE_OFFSET_C }
+                .distinctUntilChanged()
+                .collect { offsetC ->
+                    client.setTempOffsetC(offsetC.toDouble())
+                    if (client.isTimeSyncReady) {
+                        try {
+                            client.pushEpochNow()
+                        } catch (_: SecurityException) {
+                        }
+                    }
+                }
         }
     }
 
