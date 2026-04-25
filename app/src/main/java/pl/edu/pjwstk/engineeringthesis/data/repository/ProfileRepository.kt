@@ -36,6 +36,7 @@ interface ProfileRepository {
         id: Int,
         temperatureNormalLow: Float,
         temperatureNormalHigh: Float,
+        temperatureOffsetC: Float,
         heartRateNormalLow: Float,
         heartRateNormalHigh: Float,
         spO2NormalLow: Float,
