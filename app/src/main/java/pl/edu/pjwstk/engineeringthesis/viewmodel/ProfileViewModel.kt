@@ -31,6 +31,9 @@ import pl.edu.pjwstk.engineeringthesis.util.PROFILE_CALIBRATION_SPO2_MAX
 import pl.edu.pjwstk.engineeringthesis.util.PROFILE_CALIBRATION_SPO2_MIN
 import pl.edu.pjwstk.engineeringthesis.util.PROFILE_CALIBRATION_TEMPERATURE_MAX
 import pl.edu.pjwstk.engineeringthesis.util.PROFILE_CALIBRATION_TEMPERATURE_MIN
+import pl.edu.pjwstk.engineeringthesis.util.PROFILE_CALIBRATION_TEMPERATURE_OFFSET_MAX
+import pl.edu.pjwstk.engineeringthesis.util.PROFILE_CALIBRATION_TEMPERATURE_OFFSET_MIN
+import pl.edu.pjwstk.engineeringthesis.util.PROFILE_DEFAULT_TEMPERATURE_OFFSET_C
 import java.time.Instant
 import java.time.LocalDate
 import java.time.Period
@@ -216,6 +219,7 @@ class ProfileViewModel @Inject constructor(
     fun updateMeasurementCalibration(
         temperatureNormalLow: Float,
         temperatureNormalHigh: Float,
+        temperatureOffsetC: Float,
         heartRateNormalLow: Float,
         heartRateNormalHigh: Float,
         spO2NormalLow: Float,
@@ -231,6 +235,9 @@ class ProfileViewModel @Inject constructor(
         ) {
             return R.string.profile_calibration_error_low_less_than_high
         }
+        if (temperatureOffsetC !in PROFILE_CALIBRATION_TEMPERATURE_OFFSET_MIN..PROFILE_CALIBRATION_TEMPERATURE_OFFSET_MAX) {
+            return R.string.profile_calibration_error_invalid_temperature_offset
+        }
 
         val id = activeProfile.value?.id ?: return R.string.error_no_active_profile
         viewModelScope.launch {
@@ -238,6 +245,7 @@ class ProfileViewModel @Inject constructor(
                 id = id,
                 temperatureNormalLow = temperatureNormalLow,
                 temperatureNormalHigh = temperatureNormalHigh,
+                temperatureOffsetC = temperatureOffsetC,
                 heartRateNormalLow = heartRateNormalLow,
                 heartRateNormalHigh = heartRateNormalHigh,
                 spO2NormalLow = spO2NormalLow,
@@ -250,15 +258,27 @@ class ProfileViewModel @Inject constructor(
     }
 
     fun autoCalibrateMeasurementCalibration(
+        temperatureOffsetC: Float? = null,
         onResult: (Int?) -> Unit
     ) {
         val id = activeProfile.value?.id ?: run {
             onResult(R.string.error_no_active_profile)
             return
         }
+        if (
+            temperatureOffsetC != null &&
+            temperatureOffsetC !in PROFILE_CALIBRATION_TEMPERATURE_OFFSET_MIN..PROFILE_CALIBRATION_TEMPERATURE_OFFSET_MAX
+        ) {
+            onResult(R.string.profile_calibration_error_invalid_temperature_offset)
+            return
+        }
 
         viewModelScope.launch {
             val result = try {
+                val currentProfile = activeProfile.value ?: run {
+                    onResult(R.string.error_no_active_profile)
+                    return@launch
+                }
                 val now = System.currentTimeMillis()
                 val firstEpoch = now - AUTO_CALIBRATION_LOOKBACK_MILLIS
                 val calibration = withContext(Dispatchers.Default) {
@@ -277,6 +297,10 @@ class ProfileViewModel @Inject constructor(
                     id = id,
                     temperatureNormalLow = calibration.temperatureNormalLow,
                     temperatureNormalHigh = calibration.temperatureNormalHigh,
+                    temperatureOffsetC = temperatureOffsetC ?: currentProfile.temperatureOffsetC
+                        .takeIf {
+                            it in PROFILE_CALIBRATION_TEMPERATURE_OFFSET_MIN..PROFILE_CALIBRATION_TEMPERATURE_OFFSET_MAX
+                        } ?: PROFILE_DEFAULT_TEMPERATURE_OFFSET_C,
                     heartRateNormalLow = calibration.heartRateNormalLow,
                     heartRateNormalHigh = calibration.heartRateNormalHigh,
                     spO2NormalLow = calibration.spO2NormalLow,
