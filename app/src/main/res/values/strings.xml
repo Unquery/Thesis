@@ -50,14 +50,17 @@
     <string name="profile_calibrate_confirm_title">Do you want to change normal values for mesurments?</string>
     <string name="profile_auto_calibration_confirm_title">Do you want to use automatic calibration?</string>
     <string name="profile_calibration_temperature_title">Set temperature</string>
+    <string name="profile_calibration_temperature_offset_title">Set temperature offset</string>
     <string name="profile_calibration_heart_rate_title">Set heart rate</string>
     <string name="profile_calibration_spo2_title">Set SpO2</string>
     <string name="profile_calibration_skin_conductance_title">Set skin conductance</string>
     <string name="profile_calibration_low_label">Low value</string>
     <string name="profile_calibration_high_label">High value</string>
+    <string name="profile_calibration_offset_label">Offset</string>
     <string name="profile_calibration_set_average_value">Set average value</string>
     <string name="profile_calibration_error_invalid_low">Enter a valid low value</string>
     <string name="profile_calibration_error_invalid_high">Enter a valid high value</string>
+    <string name="profile_calibration_error_invalid_temperature_offset">Enter a valid temperature offset from -20 to 20</string>
     <string name="profile_calibration_error_low_less_than_high">Low value must be lower than high value</string>
     <string name="profile_auto_calibration_error_not_enough_data">Not enough valid data from the last 14 days for automatic calibration</string>
     <string name="profile_auto_calibration_error_failed">Automatic calibration failed</string>
