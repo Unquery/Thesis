@@ -8,6 +8,8 @@ import pl.edu.pjwstk.engineeringthesis.data.repository.GsrSampleRepository
 import pl.edu.pjwstk.engineeringthesis.data.repository.GsrSampleRepositoryImpl
 import pl.edu.pjwstk.engineeringthesis.data.repository.HearthRateSampleRepository
 import pl.edu.pjwstk.engineeringthesis.data.repository.HearthRateSampleRepositoryImpl
+import pl.edu.pjwstk.engineeringthesis.data.repository.MeasurementPacketRepository
+import pl.edu.pjwstk.engineeringthesis.data.repository.MeasurementPacketRepositoryImpl
 import pl.edu.pjwstk.engineeringthesis.data.repository.ProfileRepository
 import pl.edu.pjwstk.engineeringthesis.data.repository.ProfileRepositoryImpl
 import pl.edu.pjwstk.engineeringthesis.data.repository.SpO2SampleRepository
@@ -50,4 +52,10 @@ abstract class RepositoryModule {
     abstract fun bindGsrSampleRepository(
         impl: GsrSampleRepositoryImpl
     ): GsrSampleRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindMeasurementPacketRepository(
+        impl: MeasurementPacketRepositoryImpl
+    ): MeasurementPacketRepository
 }
