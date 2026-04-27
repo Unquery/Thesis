@@ -33,6 +33,7 @@ public class BleUartClient {
     private static final UUID DEFAULT_NUS_RX =
             UUID.fromString("6E400002-B5A3-F393-E0A9-E50E24DCCA9E");
     private static final double DEFAULT_TEMP_OFFSET_C = 0.0;
+    private static final int MAX_JSON_BUFFER_BYTES = 512;
 
     private final Context appCtx;
     private final BluetoothAdapter adapter;
@@ -55,6 +56,8 @@ public class BleUartClient {
 
     private boolean pushTimeOnConnect = true;
     private boolean timePushedThisConn = false;
+    private boolean readyNotifiedThisConn = false;
+    private int currentMtu = 23;
     private volatile double tempOffsetC = DEFAULT_TEMP_OFFSET_C;
 
     public boolean isConnected() { return connected; }
@@ -167,6 +170,9 @@ public class BleUartClient {
         stop();
         closeCurrentGatt();
         timePushedThisConn = false;
+        readyNotifiedThisConn = false;
+        currentMtu = 23;
+        lineBuf.setLength(0);
         gatt = dev.connectGatt(appCtx, false, gattCb, BluetoothDevice.TRANSPORT_LE);
     }
 
@@ -188,6 +194,9 @@ public class BleUartClient {
         txChar = null;
         rxChar = null;
         connected = false;
+        readyNotifiedThisConn = false;
+        currentMtu = 23;
+        lineBuf.setLength(0);
     }
     @SuppressLint("MissingPermission")
     public void pushEpochNow() {
@@ -268,8 +277,9 @@ public class BleUartClient {
         @Override
         public void onConnectionStateChange(BluetoothGatt g, int status, int newState) {
             if (status == BluetoothGatt.GATT_SUCCESS && newState == BluetoothProfile.STATE_CONNECTED) {
-                connected = true;
-                if (listener != null) listener.onConnected(g.getDevice().getAddress(), 23);
+                connected = false;
+                readyNotifiedThisConn = false;
+                currentMtu = 23;
                 if (listener != null) listener.onStatus("Discovering services…");
                 safeGatt("discoverServices", g::discoverServices);
             } else {
@@ -282,17 +292,28 @@ public class BleUartClient {
 
         @Override
         public void onServicesDiscovered(final BluetoothGatt g, int status) {
-            if (status != BluetoothGatt.GATT_SUCCESS) { notifyErr("Service discovery failed: " + status); return; }
+            if (status != BluetoothGatt.GATT_SUCCESS) {
+                notifyErr("Service discovery failed: " + status);
+                disconnect();
+                return;
+            }
             BluetoothGattService svc = g.getService(serviceUuid);
             txChar = (svc != null) ? svc.getCharacteristic(txUuid) : null;
-            if (txChar == null) { notifyErr("UART TX characteristic not found"); return; }
+            if (txChar == null) {
+                notifyErr("UART TX characteristic not found");
+                disconnect();
+                return;
+            }
 
             rxChar = svc.getCharacteristic(rxUuid);
             if (rxChar == null) {
                 if (listener != null) listener.onStatus("RX characteristic not found (time sync disabled)");
             }
 
-            enableNotifications(g, (txChar.getProperties() & BluetoothGattCharacteristic.PROPERTY_INDICATE) != 0);
+            if (!enableNotifications(g, (txChar.getProperties() & BluetoothGattCharacteristic.PROPERTY_INDICATE) != 0)) {
+                disconnect();
+                return;
+            }
 
             if (hasConnectPermission()) {
                 try {
@@ -312,12 +333,9 @@ public class BleUartClient {
         @Override
         public void onMtuChanged(BluetoothGatt g, int mtu, int status) {
             if (listener != null) listener.onStatus("MTU=" + mtu);
-            boolean useIndicate = (txChar != null) &&
-                    ((txChar.getProperties() & BluetoothGattCharacteristic.PROPERTY_INDICATE) != 0);
-            enableNotifications(g, useIndicate);
-            if (listener != null) listener.onConnected(g.getDevice().getAddress(), mtu);
-
-            maybePushTime(g);
+            if (status == BluetoothGatt.GATT_SUCCESS) {
+                currentMtu = mtu;
+            }
         }
 
         @Override
@@ -325,12 +343,14 @@ public class BleUartClient {
             if (CCCD_UUID.equals(d.getUuid())) {
                 if (status == BluetoothGatt.GATT_SUCCESS) {
                     if (listener != null) listener.onStatus("Subscribed; waiting for data…");
+                    notifyReady(g);
                     if (pendingTimePush) {
                         pendingTimePush = false;
                         maybePushTime(g);
                     }
                 } else {
                     if (listener != null) listener.onError("Subscribe failed: " + status, null);
+                    disconnect();
                 }
             }
         }
@@ -359,27 +379,34 @@ public class BleUartClient {
     }
 
     @SuppressLint("MissingPermission")
-    private void enableNotifications(BluetoothGatt g, boolean useIndicate) {
-        if (!hasConnectPermission() || txChar == null) return;
+    private boolean enableNotifications(BluetoothGatt g, boolean useIndicate) {
+        if (!hasConnectPermission() || txChar == null) return false;
         try {
             boolean ok = g.setCharacteristicNotification(txChar, true);
             BluetoothGattDescriptor cccd = txChar.getDescriptor(CCCD_UUID);
             if (!ok || cccd == null) {
                 if (listener != null) listener.onError("Failed to enable notifications", null);
-                return;
+                return false;
             }
             cccd.setValue(useIndicate ?
                     BluetoothGattDescriptor.ENABLE_INDICATION_VALUE :
                     BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
-            g.writeDescriptor(cccd);
+            return g.writeDescriptor(cccd);
         } catch (SecurityException se) {
             if (listener != null) listener.onError("No permission for notifications", se);
+            return false;
         }
     }
 
     private void handleNotify(byte[] bytes) {
         String chunk = new String(bytes, StandardCharsets.UTF_8);
         lineBuf.append(chunk);
+
+        if (lineBuf.toString().getBytes(StandardCharsets.UTF_8).length > MAX_JSON_BUFFER_BYTES) {
+            lineBuf.setLength(0);
+            notifyErr("BLE JSON packet too large or malformed");
+            return;
+        }
 
         String json = extractNextJsonObject(lineBuf);
         while (json != null) {
@@ -451,6 +478,13 @@ public class BleUartClient {
         return null;
     }
 
+    private void notifyReady(BluetoothGatt g) {
+        if (readyNotifiedThisConn) return;
+        readyNotifiedThisConn = true;
+        connected = true;
+        if (listener != null) listener.onConnected(g.getDevice().getAddress(), currentMtu);
+    }
+
     @SuppressLint("MissingPermission")
     public void disconnect() {
         try {
@@ -460,6 +494,9 @@ public class BleUartClient {
         }
         closeGattSafely();
         gatt = null; txChar = null;  rxChar = null; connected = false;
+        readyNotifiedThisConn = false;
+        currentMtu = 23;
+        lineBuf.setLength(0);
         if (listener != null) listener.onDisconnected();
     }
 
