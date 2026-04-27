@@ -13,6 +13,7 @@ import javax.inject.Singleton
 import pl.edu.pjwstk.engineeringthesis.data.db.DiaryDB
 import pl.edu.pjwstk.engineeringthesis.data.db.dao.GsrSampleDao
 import pl.edu.pjwstk.engineeringthesis.data.db.dao.HearthRateSampleDao
+import pl.edu.pjwstk.engineeringthesis.data.db.dao.MeasurementPacketDao
 import pl.edu.pjwstk.engineeringthesis.data.db.dao.SpO2SampleDao
 import pl.edu.pjwstk.engineeringthesis.data.db.dao.UserProfileDao
 import pl.edu.pjwstk.engineeringthesis.data.db.dao.TempSampleDao
@@ -128,6 +129,48 @@ private val MIGRATION_19_20 = object : Migration(19, 20) {
     }
 }
 
+private val MIGRATION_20_21 = object : Migration(20, 21) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL(
+            "CREATE INDEX IF NOT EXISTS index_temp_sample_userId_epoch ON temp_sample(userId, epoch)"
+        )
+        database.execSQL(
+            "CREATE INDEX IF NOT EXISTS index_gsr_sample_userId_epoch ON gsr_sample(userId, epoch)"
+        )
+        database.execSQL(
+            "CREATE INDEX IF NOT EXISTS index_hearth_rate_sample_userId_epoch ON hearth_rate_sample(userId, epoch)"
+        )
+        database.execSQL(
+            "CREATE INDEX IF NOT EXISTS index_spo2_sample_userId_epoch ON spo2_sample(userId, epoch)"
+        )
+    }
+}
+
+private val MIGRATION_21_22 = object : Migration(21, 22) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS measurement_packet (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                userId INTEGER NOT NULL,
+                epoch INTEGER NOT NULL,
+                receivedAt INTEGER NOT NULL,
+                temperature REAL,
+                heartRate REAL,
+                spo2 INTEGER,
+                gsr REAL
+            )
+            """.trimIndent()
+        )
+        database.execSQL(
+            "CREATE INDEX IF NOT EXISTS index_measurement_packet_userId_epoch ON measurement_packet(userId, epoch)"
+        )
+        database.execSQL(
+            "CREATE INDEX IF NOT EXISTS index_measurement_packet_userId_receivedAt ON measurement_packet(userId, receivedAt)"
+        )
+    }
+}
+
 @Module
 @InstallIn(SingletonComponent::class)
 object DbModule {
@@ -142,7 +185,9 @@ object DbModule {
                 MIGRATION_13_14,
                 MIGRATION_15_16,
                 MIGRATION_18_19,
-                MIGRATION_19_20
+                MIGRATION_19_20,
+                MIGRATION_20_21,
+                MIGRATION_21_22
             )
             .fallbackToDestructiveMigration(false)
             .build()
@@ -152,6 +197,7 @@ object DbModule {
     @Provides fun provideGsrSampleDao(diaryDB: DiaryDB): GsrSampleDao = diaryDB.gsrSamples
     @Provides fun provideHearthRateSampleDao(db: DiaryDB): HearthRateSampleDao = db.hearthRateSamples
     @Provides fun provideSpO2SampleDao(db: DiaryDB): SpO2SampleDao = db.spO2Samples
+    @Provides fun provideMeasurementPacketDao(db: DiaryDB): MeasurementPacketDao = db.measurementPackets
 
 
 }
