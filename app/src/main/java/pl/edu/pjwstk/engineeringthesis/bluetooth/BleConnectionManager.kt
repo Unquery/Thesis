@@ -23,13 +23,23 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import pl.edu.pjwstk.engineeringthesis.data.repository.GsrSampleRepository
 import pl.edu.pjwstk.engineeringthesis.data.repository.HearthRateSampleRepository
+import pl.edu.pjwstk.engineeringthesis.data.repository.MeasurementPacketRepository
 import pl.edu.pjwstk.engineeringthesis.data.repository.ProfileRepository
 import pl.edu.pjwstk.engineeringthesis.data.repository.SpO2SampleRepository
 import pl.edu.pjwstk.engineeringthesis.data.repository.TempSampleRepository
 import pl.edu.pjwstk.engineeringthesis.model.GsrSample
 import pl.edu.pjwstk.engineeringthesis.model.HearthRateSample
+import pl.edu.pjwstk.engineeringthesis.model.MeasurementPacket
 import pl.edu.pjwstk.engineeringthesis.model.SpO2Sample
 import pl.edu.pjwstk.engineeringthesis.model.TempSample
+import pl.edu.pjwstk.engineeringthesis.util.PROFILE_CALIBRATION_HEART_RATE_MAX
+import pl.edu.pjwstk.engineeringthesis.util.PROFILE_CALIBRATION_HEART_RATE_MIN
+import pl.edu.pjwstk.engineeringthesis.util.PROFILE_CALIBRATION_SKIN_CONDUCTANCE_MAX
+import pl.edu.pjwstk.engineeringthesis.util.PROFILE_CALIBRATION_SKIN_CONDUCTANCE_MIN
+import pl.edu.pjwstk.engineeringthesis.util.PROFILE_CALIBRATION_SPO2_MAX
+import pl.edu.pjwstk.engineeringthesis.util.PROFILE_CALIBRATION_SPO2_MIN
+import pl.edu.pjwstk.engineeringthesis.util.PROFILE_CALIBRATION_TEMPERATURE_MAX
+import pl.edu.pjwstk.engineeringthesis.util.PROFILE_CALIBRATION_TEMPERATURE_MIN
 import pl.edu.pjwstk.engineeringthesis.util.PROFILE_DEFAULT_TEMPERATURE_OFFSET_C
 import pl.edu.pjwstk.engineeringthesis.viewmodel.Band
 import pl.edu.pjwstk.engineeringthesis.viewmodel.ConnectedDevice
@@ -46,6 +56,7 @@ class BleConnectionManager @Inject constructor(
     private val tempRepo: TempSampleRepository,
     private val hrRepo: HearthRateSampleRepository,
     private val spo2Repo: SpO2SampleRepository,
+    private val measurementPacketRepo: MeasurementPacketRepository,
     private val profileRepo: ProfileRepository
 ) {
 
@@ -160,22 +171,35 @@ class BleConnectionManager @Inject constructor(
                     val userId = resolveTargetUserId()
                     val epochMillis = normalizeEpochMillis(p.epoch)
                     try {
-                        p.temps.forEach { value ->
+                        measurementPacketRepo.insert(
+                            MeasurementPacket(
+                                id = 0,
+                                userId = userId,
+                                epoch = epochMillis,
+                                receivedAt = System.currentTimeMillis(),
+                                temperature = p.temps.lastOrNull(),
+                                heartRate = p.hearthRate.lastOrNull(),
+                                spo2 = p.spo2.lastOrNull()?.toInt(),
+                                gsr = p.gsr.lastOrNull()
+                            )
+                        )
+
+                        p.temps.filter(::isValidTemperature).forEach { value ->
                             tempRepo.upsert(
                                 TempSample(id = 0, userId = userId, epoch = epochMillis, temperature = value)
                             )
                         }
-                        p.gsr.forEach { value ->
+                        p.gsr.filter(::isValidGsr).forEach { value ->
                             gsrRepo.upsert(
                                 GsrSample(id = 0, userId = userId, epoch = epochMillis, gsr = value)
                             )
                         }
-                        p.hearthRate.forEach { value ->
+                        p.hearthRate.filter(::isValidHeartRate).forEach { value ->
                             hrRepo.upsert(
                                 HearthRateSample(id = 0, userId = userId, epoch = epochMillis, hearthRate = value)
                             )
                         }
-                        p.spo2.forEach { value ->
+                        p.spo2.filter(::isValidSpO2).forEach { value ->
                             spo2Repo.upsert(
                                 SpO2Sample(id = 0, userId = userId, epoch = epochMillis, spo2 = value.toInt())
                             )
@@ -608,6 +632,18 @@ class BleConnectionManager @Inject constructor(
         if (epoch <= 0L) return System.currentTimeMillis()
         return if (epoch < 100_000_000_000L) epoch * 1_000L else epoch
     }
+
+    private fun isValidTemperature(value: Float): Boolean =
+        value.isFinite() && value in PROFILE_CALIBRATION_TEMPERATURE_MIN..PROFILE_CALIBRATION_TEMPERATURE_MAX
+
+    private fun isValidHeartRate(value: Float): Boolean =
+        value.isFinite() && value in PROFILE_CALIBRATION_HEART_RATE_MIN..PROFILE_CALIBRATION_HEART_RATE_MAX
+
+    private fun isValidSpO2(value: Float): Boolean =
+        value.isFinite() && value in PROFILE_CALIBRATION_SPO2_MIN..PROFILE_CALIBRATION_SPO2_MAX
+
+    private fun isValidGsr(value: Float): Boolean =
+        value.isFinite() && value in PROFILE_CALIBRATION_SKIN_CONDUCTANCE_MIN..PROFILE_CALIBRATION_SKIN_CONDUCTANCE_MAX
 
     private companion object {
         const val KEY_LAST_BAND_ADDR = "last_band_address"
