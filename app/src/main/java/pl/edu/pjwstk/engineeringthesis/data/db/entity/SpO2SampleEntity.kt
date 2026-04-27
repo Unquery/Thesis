@@ -1,10 +1,14 @@
 package pl.edu.pjwstk.engineeringthesis.data.db.entity
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import pl.edu.pjwstk.engineeringthesis.model.SpO2Sample
 
-@Entity(tableName = "spo2_sample")
+@Entity(
+    tableName = "spo2_sample",
+    indices = [Index(value = ["userId", "epoch"])]
+)
 data class SpO2SampleEntity(
     @PrimaryKey(autoGenerate = true)
     val id : Int = 0,
