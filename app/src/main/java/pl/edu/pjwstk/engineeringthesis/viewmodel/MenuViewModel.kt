@@ -7,11 +7,13 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import pl.edu.pjwstk.engineeringthesis.data.repository.GsrSampleRepository
 import pl.edu.pjwstk.engineeringthesis.data.repository.HearthRateSampleRepository
+import pl.edu.pjwstk.engineeringthesis.data.repository.MeasurementPacketRepository
 import pl.edu.pjwstk.engineeringthesis.data.repository.ProfileRepository
 import pl.edu.pjwstk.engineeringthesis.data.repository.SpO2SampleRepository
 import pl.edu.pjwstk.engineeringthesis.data.repository.TempSampleRepository
 import pl.edu.pjwstk.engineeringthesis.model.HourlyAvg
 import pl.edu.pjwstk.engineeringthesis.model.HourlyMinMax
+import pl.edu.pjwstk.engineeringthesis.model.MeasurementPacket
 import pl.edu.pjwstk.engineeringthesis.model.UserProfile
 import pl.edu.pjwstk.engineeringthesis.util.GSR_NEUTRAL_MAX
 import pl.edu.pjwstk.engineeringthesis.util.GSR_NEUTRAL_MIN
@@ -73,7 +75,8 @@ class MenuViewModel @Inject constructor(
     private val profileRepo: ProfileRepository,
     private val hrRepo: HearthRateSampleRepository,
     private val spo2Repo: SpO2SampleRepository,
-    private val tempRepo: TempSampleRepository
+    private val tempRepo: TempSampleRepository,
+    private val measurementPacketRepo: MeasurementPacketRepository
     ) : ViewModel() {
 
     private val zone = ZoneId.systemDefault()
@@ -134,6 +137,18 @@ class MenuViewModel @Inject constructor(
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     @OptIn(ExperimentalCoroutinesApi::class)
+    private val latestPackets: StateFlow<List<MeasurementPacket>> =
+        activeUserId
+            .flatMapLatest { userId ->
+                if (userId == null) {
+                    flowOf(emptyList())
+                } else {
+                    measurementPacketRepo.observeLatestTwoForUser(userId)
+                }
+            }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    @OptIn(ExperimentalCoroutinesApi::class)
     private fun todayBars(
         hourlyAvgProvider: (userId: Int, start: Long, end: Long) -> Flow<List<HourlyAvg>>
     ): StateFlow<List<Float?>> =
@@ -166,27 +181,6 @@ class MenuViewModel @Inject constructor(
                 }
             }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), List(24) { null })
-
-    @OptIn(ExperimentalCoroutinesApi::class)
-    private fun <T> todayLatestPair(
-        latestTwoProvider: (userId: Int, start: Long, end: Long) -> Flow<List<T>>,
-        valueSelector: (T) -> Float
-    ): StateFlow<LatestMeasurementPair> =
-        activeUserId
-            .flatMapLatest { userId ->
-                if (userId == null) {
-                    flowOf(LatestMeasurementPair())
-                } else {
-                    val (start, end) = todayRangeMillis()
-                    latestTwoProvider(userId, start, end).map { rows ->
-                        LatestMeasurementPair(
-                            current = rows.getOrNull(0)?.let(valueSelector),
-                            previous = rows.getOrNull(1)?.let(valueSelector)
-                        )
-                    }
-                }
-            }
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LatestMeasurementPair())
 
     val todayGsrBars: StateFlow<List<Float?>> =
         todayBars { userId, start, end -> gsrRepo.observeHourlyAvg(userId, start, end) }
@@ -232,48 +226,10 @@ class MenuViewModel @Inject constructor(
             }
         )
 
-    private val latestGsrValues: StateFlow<LatestMeasurementPair> =
-        todayLatestPair(
-            latestTwoProvider = { userId, start, end -> gsrRepo.observeLatestTwo(userId, start, end) },
-            valueSelector = { it.gsr }
-        )
-
-    private val latestHrValues: StateFlow<LatestMeasurementPair> =
-        todayLatestPair(
-            latestTwoProvider = { userId, start, end -> hrRepo.observeLatestTwo(userId, start, end) },
-            valueSelector = { it.hearthRate }
-        )
-
-    private val latestSpo2Values: StateFlow<LatestMeasurementPair> =
-        todayLatestPair(
-            latestTwoProvider = { userId, start, end -> spo2Repo.observeLatestTwo(userId, start, end) },
-            valueSelector = { it.spo2.toFloat() }
-        )
-
-    private val latestTempValues: StateFlow<LatestMeasurementPair> =
-        todayLatestPair(
-            latestTwoProvider = { userId, start, end -> tempRepo.observeLatestTwo(userId, start, end) },
-            valueSelector = { it.temperature }
-        )
-
     @OptIn(ExperimentalCoroutinesApi::class)
     val todayLatestEpoch: StateFlow<Long?> =
-        activeUserId
-            .flatMapLatest { userId ->
-                if (userId == null) {
-                    flowOf(null)
-                } else {
-                    val (start, end) = todayRangeMillis()
-                    combine(
-                        gsrRepo.observeLatest(userId, start, end).map { it?.epoch },
-                        hrRepo.observeLatest(userId, start, end).map { it?.epoch },
-                        spo2Repo.observeLatest(userId, start, end).map { it?.epoch },
-                        tempRepo.observeLatest(userId, start, end).map { it?.epoch }
-                    ) { gsr, hr, spo2, temp ->
-                        listOfNotNull(gsr, hr, spo2, temp).maxOrNull()
-                    }
-                }
-            }
+        latestPackets
+            .map { packets -> packets.firstOrNull()?.epoch }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     private val primaryBars: StateFlow<MenuPrimaryBars> =
@@ -325,19 +281,9 @@ class MenuViewModel @Inject constructor(
         )
 
     private val latestMeasurements: StateFlow<MenuLatestMeasurements> =
-        combine(
-            latestGsrValues,
-            latestHrValues,
-            latestSpo2Values,
-            latestTempValues
-        ) { gsr, hr, spo2, temp ->
-            MenuLatestMeasurements(
-                gsr = gsr,
-                hr = hr,
-                spo2 = spo2,
-                temp = temp
-            )
-        }.stateIn(
+        latestPackets
+            .map(::toLatestMeasurements)
+            .stateIn(
             viewModelScope,
             SharingStarted.WhileSubscribed(5_000),
             MenuLatestMeasurements()
@@ -370,4 +316,27 @@ class MenuViewModel @Inject constructor(
                 lastUpdatedEpoch = lastUpdatedEpoch
             )
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MenuUiState())
+
+    private fun toLatestMeasurements(packets: List<MeasurementPacket>): MenuLatestMeasurements {
+        val current = packets.getOrNull(0)
+        val previous = packets.getOrNull(1)
+        return MenuLatestMeasurements(
+            gsr = LatestMeasurementPair(
+                current = current?.gsr,
+                previous = previous?.gsr
+            ),
+            hr = LatestMeasurementPair(
+                current = current?.heartRate,
+                previous = previous?.heartRate
+            ),
+            spo2 = LatestMeasurementPair(
+                current = current?.spo2?.toFloat(),
+                previous = previous?.spo2?.toFloat()
+            ),
+            temp = LatestMeasurementPair(
+                current = current?.temperature,
+                previous = previous?.temperature
+            )
+        )
+    }
 }
