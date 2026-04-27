@@ -7,11 +7,13 @@ import dagger.hilt.android.components.ViewModelComponent
 import dagger.multibindings.IntoSet
 import pl.edu.pjwstk.engineeringthesis.data.repository.GsrSampleRepository
 import pl.edu.pjwstk.engineeringthesis.data.repository.HearthRateSampleRepository
+import pl.edu.pjwstk.engineeringthesis.data.repository.MeasurementPacketRepository
 import pl.edu.pjwstk.engineeringthesis.data.repository.ProfileRepository
 import pl.edu.pjwstk.engineeringthesis.data.repository.SpO2SampleRepository
 import pl.edu.pjwstk.engineeringthesis.data.repository.TempSampleRepository
 import pl.edu.pjwstk.engineeringthesis.model.GsrSample
 import pl.edu.pjwstk.engineeringthesis.model.HearthRateSample
+import pl.edu.pjwstk.engineeringthesis.model.MeasurementPacket
 import pl.edu.pjwstk.engineeringthesis.model.SpO2Sample
 import pl.edu.pjwstk.engineeringthesis.model.TempSample
 import pl.edu.pjwstk.engineeringthesis.util.GSR_MENU_MAX_VALUE
@@ -28,7 +30,8 @@ class MenuMockSeedTask @Inject constructor(
     private val gsrRepo: GsrSampleRepository,
     private val hrRepo: HearthRateSampleRepository,
     private val spo2Repo: SpO2SampleRepository,
-    private val tempRepo: TempSampleRepository
+    private val tempRepo: TempSampleRepository,
+    private val measurementPacketRepo: MeasurementPacketRepository
 ) : MenuStartupTask {
 
     override suspend fun run() {
@@ -64,8 +67,9 @@ class MenuMockSeedTask @Inject constructor(
             val hasHr = hrRepo.existsInRange(userId, start, end)
             val hasSpo2 = spo2Repo.existsInRange(userId, start, end)
             val hasTemp = tempRepo.existsInRange(userId, start, end)
+            val hasMeasurementPackets = measurementPacketRepo.existsInRange(userId, start, end)
 
-            if (hasGsr && hasHr && hasSpo2 && hasTemp) continue
+            if (hasGsr && hasHr && hasSpo2 && hasTemp && hasMeasurementPackets) continue
 
             val rnd = Random(start xor userId.toLong())
             val highHour = 13 + rnd.nextInt(3)
@@ -107,39 +111,55 @@ class MenuMockSeedTask @Inject constructor(
                 val isHigh = t >= highStart && t < highEnd
                 val isLow = !isHigh && t >= lowStart && t < lowEnd
 
+                val gsrValue = when {
+                    isHigh -> GSR_NEUTRAL_MAX + rnd.nextFloat() * (GSR_MENU_MAX_VALUE - GSR_NEUTRAL_MAX)
+                    isLow -> rnd.nextFloat() * (GSR_NEUTRAL_MIN - GSR_VERY_LOW_THRESHOLD)
+                    else -> GSR_NEUTRAL_MIN + rnd.nextFloat() * (GSR_NEUTRAL_MAX - GSR_NEUTRAL_MIN)
+                }
+                val hrValue = when {
+                    isHigh -> 125f + rnd.nextInt(35)
+                    isLow -> 42f + rnd.nextInt(10)
+                    else -> 55f + rnd.nextInt(35)
+                }
+                val spo2Value = when {
+                    pointIndex in spo2LowDipIndices -> 90 + rnd.nextInt(5)
+                    pointIndex in spo2ModerateDipIndices -> 95 + rnd.nextInt(3)
+                    else -> 98 + rnd.nextInt(3)
+                }.coerceIn(0, 100)
+                val tempValue = when {
+                    isHigh -> 38.2f + (rnd.nextInt(11) / 10f)
+                    isLow -> 35.2f + (rnd.nextInt(6) / 10f)
+                    else -> 36.2f + (rnd.nextInt(8) / 10f)
+                }
+
+                if (!hasMeasurementPackets) {
+                    measurementPacketRepo.insert(
+                        MeasurementPacket(
+                            id = 0,
+                            userId = userId,
+                            epoch = t,
+                            receivedAt = t,
+                            temperature = tempValue,
+                            heartRate = hrValue,
+                            spo2 = spo2Value,
+                            gsr = gsrValue
+                        )
+                    )
+                }
+
                 if (!hasGsr) {
-                    val gsrValue = when {
-                        isHigh -> GSR_NEUTRAL_MAX + rnd.nextFloat() * (GSR_MENU_MAX_VALUE - GSR_NEUTRAL_MAX)
-                        isLow -> rnd.nextFloat() * (GSR_NEUTRAL_MIN - GSR_VERY_LOW_THRESHOLD)
-                        else -> GSR_NEUTRAL_MIN + rnd.nextFloat() * (GSR_NEUTRAL_MAX - GSR_NEUTRAL_MIN)
-                    }
                     gsrRepo.upsert(GsrSample(id = 0, userId = userId, epoch = t, gsr = gsrValue))
                 }
 
                 if (!hasHr) {
-                    val hrValue = when {
-                        isHigh -> 125f + rnd.nextInt(35)
-                        isLow -> 42f + rnd.nextInt(10)
-                        else -> 55f + rnd.nextInt(35)
-                    }
                     hrRepo.upsert(HearthRateSample(id = 0, userId = userId, epoch = t, hearthRate = hrValue))
                 }
 
                 if (!hasSpo2) {
-                    val spo2Value = when {
-                        pointIndex in spo2LowDipIndices -> 90 + rnd.nextInt(5)
-                        pointIndex in spo2ModerateDipIndices -> 95 + rnd.nextInt(3)
-                        else -> 98 + rnd.nextInt(3)
-                    }.coerceIn(0, 100)
                     spo2Repo.upsert(SpO2Sample(id = 0, userId = userId, epoch = t, spo2 = spo2Value))
                 }
 
                 if (!hasTemp) {
-                    val tempValue = when {
-                        isHigh -> 38.2f + (rnd.nextInt(11) / 10f)
-                        isLow -> 35.2f + (rnd.nextInt(6) / 10f)
-                        else -> 36.2f + (rnd.nextInt(8) / 10f)
-                    }
                     tempRepo.upsert(TempSample(id = 0, userId = userId, epoch = t, temperature = tempValue))
                 }
 
