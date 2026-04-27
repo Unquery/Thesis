@@ -11,6 +11,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import dagger.hilt.android.AndroidEntryPoint
@@ -173,6 +174,7 @@ class BleForegroundService : Service() {
         private const val ACTION_STOP = "pl.edu.pjwstk.engineeringthesis.bluetooth.action.STOP"
         private const val CHANNEL_ID = "ble_connection"
         private const val NOTIFICATION_ID = 1001
+        private const val TAG = "BleForegroundService"
         @Volatile private var isRunning = false
         @Volatile private var isStartRequested = false
 
@@ -182,7 +184,12 @@ class BleForegroundService : Service() {
             val intent = Intent(context, BleForegroundService::class.java).apply {
                 action = ACTION_START
             }
-            ContextCompat.startForegroundService(context, intent)
+            try {
+                ContextCompat.startForegroundService(context, intent)
+            } catch (e: RuntimeException) {
+                isStartRequested = false
+                Log.w(TAG, "Unable to start BLE foreground service", e)
+            }
         }
 
         fun stop(context: Context) {
