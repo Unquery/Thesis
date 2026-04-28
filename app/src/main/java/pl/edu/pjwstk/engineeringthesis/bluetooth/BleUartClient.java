@@ -243,10 +243,6 @@ public class BleUartClient {
             String name = (result.getScanRecord() != null) ? result.getScanRecord().getDeviceName() : device.getName();
             int rssi = result.getRssi();
             if (deviceNameFilter == null || deviceNameFilter.equals(name)) {
-                try {
-                    BluetoothLeScanner scanner = getScanner();
-                    if (scanner != null) scanner.stopScan(this);
-                } catch (Exception ignored) {}
                 found.put(address, device);
                 if (listener != null) listener.onDeviceFound(address, name, rssi);
             }
