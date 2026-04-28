@@ -44,6 +44,7 @@ import pl.edu.pjwstk.engineeringthesis.util.PROFILE_DEFAULT_TEMPERATURE_OFFSET_C
 import pl.edu.pjwstk.engineeringthesis.viewmodel.Band
 import pl.edu.pjwstk.engineeringthesis.viewmodel.ConnectedDevice
 import pl.edu.pjwstk.engineeringthesis.viewmodel.ScanUiState
+import java.util.concurrent.ConcurrentHashMap
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -69,10 +70,14 @@ class BleConnectionManager @Inject constructor(
     val bands: StateFlow<List<Band>> = _bands
 
     private var scanJob: Job? = null
+    private var staleBandCleanupJob: Job? = null
     private var reconnectJob: Job? = null
+    @Volatile private var scanGeneration = 0L
     @Volatile private var gotConnection = false
+    @Volatile private var connectingAddress: String? = null
     @Volatile private var isAppVisible = false
     @Volatile private var isConnectScreenVisible = false
+    private val bandLastSeenByAddress = ConcurrentHashMap<String, Long>()
 
     private val prefs by lazy {
         ctx.getSharedPreferences("ble_band_prefs", Context.MODE_PRIVATE)
@@ -102,34 +107,33 @@ class BleConnectionManager @Inject constructor(
             }
 
             override fun onDeviceFound(address: String, name: String?, rssi: Int) {
-                val updated = _bands.value.toMutableList()
-                val idx = updated.indexOfFirst { it.address == address }
-                if (idx >= 0) {
-                    updated[idx] = updated[idx].copy(name = name, rssi = rssi)
-                } else {
-                    updated += Band(address, name, rssi)
-                }
-                _bands.value = updated.sortedByDescending { it.rssi }
+                scope.launch {
+                    if (_scanState.value != ScanUiState.Scanning || gotConnection) return@launch
 
-                val connected = _connectedDevice.value
-                if (connected != null && connected.address == address && !name.isNullOrEmpty()) {
-                    if (connected.name != name) {
-                        updateConnectedDevice { it.copy(name = name) }
+                    markBandSeen(address, name, rssi)
+
+                    val connected = _connectedDevice.value
+                    if (connected != null && connected.address == address && !name.isNullOrEmpty()) {
+                        if (connected.name != name) {
+                            updateConnectedDevice { it.copy(name = name) }
+                        }
                     }
-                }
 
-                val preferred = preferredAddress
-                if (!gotConnection && preferred != null && preferred == address) {
-                    try {
-                        connectTo(address)
-                    } catch (_: SecurityException) {
+                    val preferred = preferredAddress
+                    if (!gotConnection && preferred != null && preferred == address && connectingAddress == null) {
+                        try {
+                            connectTo(address)
+                        } catch (_: SecurityException) {
+                        }
                     }
                 }
             }
 
             override fun onConnected(address: String, mtu: Int) {
                 gotConnection = true
+                connectingAddress = null
                 reconnectJob?.cancel()
+                stopStaleBandCleanup()
                 _scanState.value = ScanUiState.Connected
                 savePreferredAddress(address)
                 val resolvedName = resolveBandName(address)
@@ -145,6 +149,7 @@ class BleConnectionManager @Inject constructor(
             }
 
             override fun onDisconnected() {
+                connectingAddress = null
                 val now = System.currentTimeMillis()
                 updateConnectedDevice {
                     it.copy(
@@ -211,6 +216,8 @@ class BleConnectionManager @Inject constructor(
             }
 
             override fun onError(msg: String, t: Throwable?) {
+                connectingAddress = null
+                stopStaleBandCleanup()
                 _scanState.value = ScanUiState.Idle
             }
         })
@@ -289,26 +296,32 @@ class BleConnectionManager @Inject constructor(
             return
         }
         scanJob?.cancel()
+        client.stop()
+        stopStaleBandCleanup()
+        clearScanResults()
         gotConnection = false
         _scanState.value = ScanUiState.Scanning
+        val scanId = ++scanGeneration
         scanJob = scope.launch(Dispatchers.Main.immediate) {
             try {
                 client.startScan()
+                startStaleBandCleanup()
+
+                val end = System.currentTimeMillis() + timeoutMs
+                while (isActive && System.currentTimeMillis() < end && !gotConnection) {
+                    delay(100)
+                }
+
+                if (!gotConnection) _scanState.value = ScanUiState.Empty
             } catch (_: SecurityException) {
                 _scanState.value = ScanUiState.Idle
-                return@launch
             } catch (_: IllegalStateException) {
                 _scanState.value = ScanUiState.Idle
-                return@launch
+            } finally {
+                if (scanGeneration == scanId) {
+                    client.stop()
+                }
             }
-
-            val end = System.currentTimeMillis() + timeoutMs
-            while (isActive && System.currentTimeMillis() < end && !gotConnection) {
-                delay(100)
-            }
-
-            client.stop()
-            if (!gotConnection) _scanState.value = ScanUiState.Empty
         }
     }
 
@@ -316,7 +329,9 @@ class BleConnectionManager @Inject constructor(
 
     fun stop() {
         scanJob?.cancel()
+        stopStaleBandCleanup()
         reconnectJob?.cancel()
+        connectingAddress = null
         client.stop()
         _scanState.value = ScanUiState.Idle
         stopForegroundService()
@@ -331,6 +346,7 @@ class BleConnectionManager @Inject constructor(
         setReconnectOnNextOpen(shouldMaintainConnection(connected))
         isAppVisible = false
         scanJob?.cancel()
+        stopStaleBandCleanup()
         if (_scanState.value == ScanUiState.Scanning) {
             client.stop()
             _scanState.value = if (connected?.isConnected == true) {
@@ -351,6 +367,7 @@ class BleConnectionManager @Inject constructor(
     fun onConnectScreenHidden() {
         isConnectScreenVisible = false
         scanJob?.cancel()
+        stopStaleBandCleanup()
         if (_scanState.value == ScanUiState.Scanning) {
             client.stop()
             val connected = _connectedDevice.value
@@ -368,7 +385,9 @@ class BleConnectionManager @Inject constructor(
         // A manual disconnect should forget the band immediately and never schedule reconnect.
         reconnectJob?.cancel()
         scanJob?.cancel()
+        stopStaleBandCleanup()
         gotConnection = false
+        connectingAddress = null
         client.stop()
         removeBandFromScanResults(device.address)
         clearConnectedDevice(clearPreferred = true)
@@ -378,9 +397,13 @@ class BleConnectionManager @Inject constructor(
 
     fun connectTo(address: String) {
         ensureForegroundServiceRunning()
+        connectingAddress = address
         try {
             client.connect(address)
         } catch (_: SecurityException) {
+            if (connectingAddress == address) {
+                connectingAddress = null
+            }
         }
     }
 
@@ -505,7 +528,55 @@ class BleConnectionManager @Inject constructor(
     }
 
     private fun removeBandFromScanResults(address: String) {
+        bandLastSeenByAddress.remove(address)
         _bands.value = _bands.value.filterNot { it.address == address }
+    }
+
+    private fun clearScanResults() {
+        bandLastSeenByAddress.clear()
+        _bands.value = emptyList()
+    }
+
+    private fun markBandSeen(address: String, name: String?, rssi: Int) {
+        bandLastSeenByAddress[address] = System.currentTimeMillis()
+        val updated = _bands.value.toMutableList()
+        val idx = updated.indexOfFirst { it.address == address }
+        if (idx >= 0) {
+            updated[idx] = updated[idx].copy(name = name ?: updated[idx].name, rssi = rssi)
+        } else {
+            updated += Band(address, name, rssi)
+        }
+        _bands.value = updated.sortedByDescending { it.rssi }
+    }
+
+    private fun startStaleBandCleanup() {
+        staleBandCleanupJob?.cancel()
+        staleBandCleanupJob = scope.launch {
+            while (isActive) {
+                delay(STALE_BAND_CHECK_INTERVAL_MS)
+                pruneStaleBands()
+                if (_scanState.value != ScanUiState.Scanning && _bands.value.isEmpty()) {
+                    staleBandCleanupJob = null
+                    return@launch
+                }
+            }
+        }
+    }
+
+    private fun stopStaleBandCleanup() {
+        staleBandCleanupJob?.cancel()
+        staleBandCleanupJob = null
+    }
+
+    private fun pruneStaleBands() {
+        val oldestAllowed = System.currentTimeMillis() - STALE_BAND_TIMEOUT_MS
+        val staleAddresses = bandLastSeenByAddress
+            .filterValues { lastSeen -> lastSeen < oldestAllowed }
+            .keys
+        if (staleAddresses.isEmpty()) return
+
+        staleAddresses.forEach { address -> bandLastSeenByAddress.remove(address) }
+        _bands.value = _bands.value.filterNot { band -> band.address in staleAddresses }
     }
 
     private fun markConnected(address: String, name: String? = null) {
@@ -655,5 +726,7 @@ class BleConnectionManager @Inject constructor(
         const val KEY_CONNECTED_DISCONNECT_REQUESTED = "connected_band_disconnect_requested_at"
         const val KEY_CONNECTED_SLEEP_STARTED = "connected_band_sleep_started_at"
         const val KEY_RECONNECT_ON_NEXT_OPEN = "reconnect_on_next_open"
+        const val STALE_BAND_CHECK_INTERVAL_MS = 1_000L
+        const val STALE_BAND_TIMEOUT_MS = 5_000L
     }
 }
