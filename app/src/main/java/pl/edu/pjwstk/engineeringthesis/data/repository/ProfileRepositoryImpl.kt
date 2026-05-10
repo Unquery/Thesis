@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.map
 import pl.edu.pjwstk.engineeringthesis.data.db.DiaryDB
 import pl.edu.pjwstk.engineeringthesis.data.db.entity.UserProfileEntity
 import pl.edu.pjwstk.engineeringthesis.model.UserProfile
+import pl.edu.pjwstk.engineeringthesis.util.coerceGsrNormalRange
 import javax.inject.Inject
 
 class ProfileRepositoryImpl @Inject constructor(
@@ -112,8 +113,10 @@ class ProfileRepositoryImpl @Inject constructor(
     override suspend fun getNextId(): Int = dao.getNextId()
 }
 
-private fun UserProfileEntity.toDomain(): UserProfile =
-    UserProfile(
+private fun UserProfileEntity.toDomain(): UserProfile {
+    val (safeSkinConductanceNormalLow, safeSkinConductanceNormalHigh) =
+        coerceGsrNormalRange(skinConductanceNormalLow, skinConductanceNormalHigh)
+    return UserProfile(
         id = id,
         name = name,
         gender = gender,
@@ -128,12 +131,15 @@ private fun UserProfileEntity.toDomain(): UserProfile =
         heartRateNormalHigh = heartRateNormalHigh,
         spO2NormalLow = spO2NormalLow,
         spO2NormalHigh = spO2NormalHigh,
-        skinConductanceNormalLow = skinConductanceNormalLow,
-        skinConductanceNormalHigh = skinConductanceNormalHigh
+        skinConductanceNormalLow = safeSkinConductanceNormalLow,
+        skinConductanceNormalHigh = safeSkinConductanceNormalHigh
     )
+}
 
-private fun UserProfile.toEntity(): UserProfileEntity =
-    UserProfileEntity(
+private fun UserProfile.toEntity(): UserProfileEntity {
+    val (safeSkinConductanceNormalLow, safeSkinConductanceNormalHigh) =
+        coerceGsrNormalRange(skinConductanceNormalLow, skinConductanceNormalHigh)
+    return UserProfileEntity(
         id = id,
         name = name,
         gender = gender,
@@ -148,6 +154,7 @@ private fun UserProfile.toEntity(): UserProfileEntity =
         heartRateNormalHigh = heartRateNormalHigh,
         spO2NormalLow = spO2NormalLow,
         spO2NormalHigh = spO2NormalHigh,
-        skinConductanceNormalLow = skinConductanceNormalLow,
-        skinConductanceNormalHigh = skinConductanceNormalHigh
+        skinConductanceNormalLow = safeSkinConductanceNormalLow,
+        skinConductanceNormalHigh = safeSkinConductanceNormalHigh
     )
+}

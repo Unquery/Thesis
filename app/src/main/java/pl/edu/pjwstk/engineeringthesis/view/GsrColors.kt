@@ -13,7 +13,7 @@ internal fun gsrMenuColor(
     neutralMin: Float = GSR_NEUTRAL_MIN,
     neutralMax: Float = GSR_NEUTRAL_MAX
 ): Color {
-    val safeValue = value.coerceAtLeast(0f)
+    val safeValue = if (value.isFinite()) value.coerceIn(0f, GSR_MENU_MAX_VALUE) else 0f
     val safeNeutralMin = neutralMin
         .coerceAtLeast(GSR_VERY_LOW_THRESHOLD + 0.0001f)
         .coerceAtMost(GSR_MENU_MAX_VALUE - 0.0002f)

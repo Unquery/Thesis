@@ -15,8 +15,8 @@ import pl.edu.pjwstk.engineeringthesis.model.HourlyAvg
 import pl.edu.pjwstk.engineeringthesis.model.HourlyMinMax
 import pl.edu.pjwstk.engineeringthesis.model.MeasurementPacket
 import pl.edu.pjwstk.engineeringthesis.model.UserProfile
-import pl.edu.pjwstk.engineeringthesis.util.GSR_NEUTRAL_MAX
-import pl.edu.pjwstk.engineeringthesis.util.GSR_NEUTRAL_MIN
+import pl.edu.pjwstk.engineeringthesis.util.coerceGsrNormalRange
+import pl.edu.pjwstk.engineeringthesis.util.coerceGsrToSensorRange
 import java.time.LocalDate
 import java.time.ZoneId
 import javax.inject.Inject
@@ -183,7 +183,14 @@ class MenuViewModel @Inject constructor(
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), List(24) { null })
 
     val todayGsrBars: StateFlow<List<Float?>> =
-        todayBars { userId, start, end -> gsrRepo.observeHourlyAvg(userId, start, end) }
+        todayBars { userId, start, end ->
+            gsrRepo.observeHourlyAvg(userId, start, end)
+                .map { rows ->
+                    rows.map { row ->
+                        row.copy(avg = row.avg?.toFloat()?.let(::coerceGsrToSensorRange)?.toDouble())
+                    }
+                }
+        }
 
     val todayHrBars: StateFlow<List<Float?>> =
         todayBars { userId, start, end -> hrRepo.observeHourlyAvg(userId, start, end) }
@@ -196,9 +203,19 @@ class MenuViewModel @Inject constructor(
 
     val todayGsrCardBars: StateFlow<List<Float?>> =
         todayExtremeBars(
-            hourlyMinMaxProvider = { userId, start, end -> gsrRepo.observeHourlyMinMax(userId, start, end) },
+            hourlyMinMaxProvider = { userId, start, end ->
+                gsrRepo.observeHourlyMinMax(userId, start, end)
+                    .map { rows ->
+                        rows.map { row ->
+                            row.copy(
+                                min = row.min?.toFloat()?.let(::coerceGsrToSensorRange)?.toDouble(),
+                                max = row.max?.toFloat()?.let(::coerceGsrToSensorRange)?.toDouble()
+                            )
+                        }
+                    }
+            },
             normalRangeProvider = { profile ->
-                profile.skinConductanceNormalLow to profile.skinConductanceNormalHigh
+                coerceGsrNormalRange(profile.skinConductanceNormalLow, profile.skinConductanceNormalHigh)
             }
         )
 
@@ -322,8 +339,8 @@ class MenuViewModel @Inject constructor(
         val previous = packets.getOrNull(1)
         return MenuLatestMeasurements(
             gsr = LatestMeasurementPair(
-                current = current?.gsr,
-                previous = previous?.gsr
+                current = current?.gsr?.let(::coerceGsrToSensorRange),
+                previous = previous?.gsr?.let(::coerceGsrToSensorRange)
             ),
             hr = LatestMeasurementPair(
                 current = current?.heartRate,
