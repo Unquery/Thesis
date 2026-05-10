@@ -409,15 +409,24 @@ private fun buildAutomaticCalibration(
     val smoothedSpO2 = rollingMedianSmooth(validEpochs.map(AutomaticCalibrationEpoch::spO2))
     val smoothedSkinConductances = rollingMedianSmooth(validEpochs.map(AutomaticCalibrationEpoch::skinConductance))
 
-    val temperatureRange = percentileRange(smoothedTemperatures) ?: return null
-    val heartRateRange = percentileRange(smoothedHeartRates) ?: return null
+    val temperatureRange = percentileRange(smoothedTemperatures)
+        ?.coerceCalibrationRange(PROFILE_CALIBRATION_TEMPERATURE_MIN, PROFILE_CALIBRATION_TEMPERATURE_MAX)
+        ?: return null
+    val heartRateRange = percentileRange(smoothedHeartRates)
+        ?.coerceWholeNumberCalibrationRange(PROFILE_CALIBRATION_HEART_RATE_MIN, PROFILE_CALIBRATION_HEART_RATE_MAX)
+        ?: return null
     val spO2Low = percentile(smoothedSpO2.sorted(), AUTO_CALIBRATION_LOW_PERCENTILE)
-    val skinConductanceRange = percentileRange(smoothedSkinConductances) ?: return null
+        .coerceCalibrationValue(PROFILE_CALIBRATION_SPO2_MIN, PROFILE_CALIBRATION_SPO2_MAX)
+        .floorCalibrationValue(PROFILE_CALIBRATION_SPO2_MIN, PROFILE_CALIBRATION_SPO2_MAX)
+    val spO2High = PROFILE_CALIBRATION_SPO2_MAX
+    val skinConductanceRange = percentileRange(smoothedSkinConductances)
+        ?.coerceCalibrationRange(PROFILE_CALIBRATION_SKIN_CONDUCTANCE_MIN, PROFILE_CALIBRATION_SKIN_CONDUCTANCE_MAX)
+        ?: return null
 
     if (
         temperatureRange.first >= temperatureRange.second ||
         heartRateRange.first >= heartRateRange.second ||
-        spO2Low >= AUTO_CALIBRATION_SPO2_HIGH ||
+        spO2Low >= spO2High ||
         skinConductanceRange.first >= skinConductanceRange.second
     ) {
         return null
@@ -429,11 +438,39 @@ private fun buildAutomaticCalibration(
         heartRateNormalLow = heartRateRange.first,
         heartRateNormalHigh = heartRateRange.second,
         spO2NormalLow = spO2Low,
-        spO2NormalHigh = AUTO_CALIBRATION_SPO2_HIGH,
+        spO2NormalHigh = spO2High,
         skinConductanceNormalLow = skinConductanceRange.first,
         skinConductanceNormalHigh = skinConductanceRange.second
     )
 }
+
+private fun Pair<Float, Float>.coerceCalibrationRange(minAllowed: Float, maxAllowed: Float): Pair<Float, Float> =
+    first.coerceCalibrationValue(minAllowed, maxAllowed) to
+        second.coerceCalibrationValue(minAllowed, maxAllowed)
+
+private fun Pair<Float, Float>.coerceWholeNumberCalibrationRange(
+    minAllowed: Float,
+    maxAllowed: Float
+): Pair<Float, Float> =
+    first.floorCalibrationValue(minAllowed, maxAllowed) to
+        second.ceilCalibrationValue(minAllowed, maxAllowed)
+
+private fun Float.floorCalibrationValue(minAllowed: Float, maxAllowed: Float): Float =
+    kotlin.math.floor(coerceCalibrationValue(minAllowed, maxAllowed).toDouble())
+        .toFloat()
+        .coerceCalibrationValue(minAllowed, maxAllowed)
+
+private fun Float.ceilCalibrationValue(minAllowed: Float, maxAllowed: Float): Float =
+    kotlin.math.ceil(coerceCalibrationValue(minAllowed, maxAllowed).toDouble())
+        .toFloat()
+        .coerceCalibrationValue(minAllowed, maxAllowed)
+
+private fun Float.coerceCalibrationValue(minAllowed: Float, maxAllowed: Float): Float =
+    when {
+        this < minAllowed -> minAllowed
+        this > maxAllowed -> maxAllowed
+        else -> this
+    }
 
 private fun rollingMedianSmooth(values: List<Float>): List<Float> {
     if (values.size < 3) return values
@@ -490,6 +527,5 @@ private const val MIN_AUTOMATIC_CALIBRATION_EPOCHS = 300
 private const val MIN_AUTOMATIC_CALIBRATION_DAYS = 7
 private const val AUTO_CALIBRATION_LOW_PERCENTILE = 5f
 private const val AUTO_CALIBRATION_HIGH_PERCENTILE = 95f
-private const val AUTO_CALIBRATION_SPO2_HIGH = 100f
 private val AUTO_CALIBRATION_LOOKBACK_MILLIS = TimeUnit.DAYS.toMillis(14)
 
