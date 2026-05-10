@@ -238,6 +238,12 @@ class ProfileViewModel @Inject constructor(
         if (temperatureOffsetC !in PROFILE_CALIBRATION_TEMPERATURE_OFFSET_MIN..PROFILE_CALIBRATION_TEMPERATURE_OFFSET_MAX) {
             return R.string.profile_calibration_error_invalid_temperature_offset
         }
+        if (!isPhysiologicallyValidSkinConductance(skinConductanceNormalLow)) {
+            return R.string.profile_calibration_error_invalid_low
+        }
+        if (!isPhysiologicallyValidSkinConductance(skinConductanceNormalHigh)) {
+            return R.string.profile_calibration_error_invalid_high
+        }
 
         val id = activeProfile.value?.id ?: return R.string.error_no_active_profile
         viewModelScope.launch {

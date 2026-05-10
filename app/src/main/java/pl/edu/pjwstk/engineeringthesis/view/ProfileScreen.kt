@@ -406,8 +406,8 @@ fun ProfileScreen(
             heartRateHighInput = formatCalibrationInput(currentProfile.heartRateNormalHigh)
             spO2LowInput = formatCalibrationInput(currentProfile.spO2NormalLow)
             spO2HighInput = formatCalibrationInput(currentProfile.spO2NormalHigh)
-            skinConductanceLowInput = formatCalibrationInput(currentProfile.skinConductanceNormalLow)
-            skinConductanceHighInput = formatCalibrationInput(currentProfile.skinConductanceNormalHigh)
+            skinConductanceLowInput = formatCalibrationInput(currentProfile.skinConductanceNormalLow, maxDecimalDigits = 4)
+            skinConductanceHighInput = formatCalibrationInput(currentProfile.skinConductanceNormalHigh, maxDecimalDigits = 4)
         }
         calibrationError = null
         automaticCalibrationError = null
@@ -709,11 +709,11 @@ fun ProfileScreen(
             confirmLabel = stringResource(R.string.action_save),
             errorText = calibrationError,
             onLowValueChange = {
-                skinConductanceLowInput = filterDecimalCalibrationInput(it, maxIntegerDigits = 3)
+                skinConductanceLowInput = filterDecimalCalibrationInput(it, maxIntegerDigits = 2, maxDecimalDigits = 4)
                 calibrationError = null
             },
             onHighValueChange = {
-                skinConductanceHighInput = filterDecimalCalibrationInput(it, maxIntegerDigits = 3)
+                skinConductanceHighInput = filterDecimalCalibrationInput(it, maxIntegerDigits = 2, maxDecimalDigits = 4)
                 calibrationError = null
             },
             onUseAverage = {
@@ -1470,13 +1470,10 @@ private fun filterSignedDecimalCalibrationInput(
     return filtered
 }
 
-private fun formatCalibrationInput(value: Float): String {
-    val rounded = String.format(Locale.US, "%.1f", value)
-    return if (rounded.endsWith(".0")) {
-        rounded.dropLast(2)
-    } else {
-        rounded
-    }
+private fun formatCalibrationInput(value: Float, maxDecimalDigits: Int = 1): String {
+    val rounded = String.format(Locale.US, "%.${maxDecimalDigits}f", value)
+    if (!rounded.contains('.')) return rounded
+    return rounded.trimEnd('0').trimEnd('.')
 }
 
 private fun validateCalibrationRange(
@@ -1585,8 +1582,8 @@ private const val AVERAGE_SPO2_HIGH = 100f
 private const val AVERAGE_TEMPERATURE_LOW = 36.1f
 private const val AVERAGE_TEMPERATURE_HIGH = 37.2f
 private const val AVERAGE_TEMPERATURE_OFFSET = 0f
-private const val AVERAGE_SKIN_CONDUCTANCE_LOW = 1f
-private const val AVERAGE_SKIN_CONDUCTANCE_HIGH = 20f
+private const val AVERAGE_SKIN_CONDUCTANCE_LOW = 5f
+private const val AVERAGE_SKIN_CONDUCTANCE_HIGH = 10f
 
 @Composable
 private fun formatWeight(weightKg: Float): String {
