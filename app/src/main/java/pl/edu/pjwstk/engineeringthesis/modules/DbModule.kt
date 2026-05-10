@@ -26,7 +26,7 @@ private const val DEFAULT_HEART_RATE_HIGH_SQL = 100.0
 private const val DEFAULT_SPO2_LOW_SQL = 97.0
 private const val DEFAULT_SPO2_HIGH_SQL = 100.0
 private const val DEFAULT_SKIN_CONDUCTANCE_LOW_SQL = 5.0
-private const val DEFAULT_SKIN_CONDUCTANCE_HIGH_SQL = 15.0
+private const val DEFAULT_SKIN_CONDUCTANCE_HIGH_SQL = 10.0
 
 private val MIGRATION_11_12 = object : Migration(11, 12) {
     override fun migrate(database: SupportSQLiteDatabase) {
