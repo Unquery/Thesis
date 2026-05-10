@@ -185,7 +185,7 @@ class BleConnectionManager @Inject constructor(
                                 temperature = p.temps.lastOrNull(),
                                 heartRate = p.hearthRate.lastOrNull(),
                                 spo2 = p.spo2.lastOrNull()?.toInt(),
-                                gsr = p.gsr.lastOrNull()
+                                gsr = p.gsr.lastOrNull(::isValidGsr)
                             )
                         )
 
