@@ -54,6 +54,7 @@ fun MetricBox24h(
     chartHeight: Dp = 60.dp,
     barColor: Color = Color(0xFF3F51B5),
     columnBgColor: Color = Color.Black.copy(alpha = 0.08f),
+    missingBarColor: Color = Color(0xFF334155).copy(alpha = 0.85f),
     maxBarRatio: Float = 0.8f,
     scaleFromMin: Boolean = false,
     yMinOverride: Float? = null,
@@ -218,6 +219,7 @@ fun MetricBox24h(
 
                         val x = chartLeft + i * (w + gap)
                         val y = barAreaTop + (barAreaHeightPx - h)
+                        val r = (w * 0.35f).coerceAtMost(with(density) { 6.dp.toPx() })
 
                         val defaultColor = when {
                             isMissing || finiteVals.isEmpty() -> barColor
@@ -291,8 +293,14 @@ fun MetricBox24h(
                             size = Size(w, barAreaHeightPx)
                         )
 
-                        if (!isMissing) {
-                            val r = (w * 0.35f).coerceAtMost(with(density) { 6.dp.toPx() })
+                        if (isMissing) {
+                            drawRoundRect(
+                                color = missingBarColor,
+                                topLeft = Offset(x, barAreaTop),
+                                size = Size(w, barAreaHeightPx),
+                                cornerRadius = CornerRadius(r, r)
+                            )
+                        } else {
                             drawRoundRect(
                                 color = c,
                                 topLeft = Offset(x, y),
