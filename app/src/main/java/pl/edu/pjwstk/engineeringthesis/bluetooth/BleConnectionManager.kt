@@ -75,6 +75,7 @@ class BleConnectionManager @Inject constructor(
     @Volatile private var scanGeneration = 0L
     @Volatile private var gotConnection = false
     @Volatile private var connectingAddress: String? = null
+    @Volatile private var removeFoundBandOnFailedConnectionAddress: String? = null
     @Volatile private var isAppVisible = false
     @Volatile private var isConnectScreenVisible = false
     private val bandLastSeenByAddress = ConcurrentHashMap<String, Long>()
@@ -122,7 +123,7 @@ class BleConnectionManager @Inject constructor(
                     val preferred = preferredAddress
                     if (!gotConnection && preferred != null && preferred == address && connectingAddress == null) {
                         try {
-                            connectTo(address)
+                            connectTo(address, removeFoundBandOnFailure = false)
                         } catch (_: SecurityException) {
                         }
                     }
@@ -132,6 +133,7 @@ class BleConnectionManager @Inject constructor(
             override fun onConnected(address: String, mtu: Int) {
                 gotConnection = true
                 connectingAddress = null
+                removeFoundBandOnFailedConnectionAddress = null
                 reconnectJob?.cancel()
                 stopStaleBandCleanup()
                 _scanState.value = ScanUiState.Connected
@@ -149,6 +151,8 @@ class BleConnectionManager @Inject constructor(
             }
 
             override fun onDisconnected() {
+                val failedAddress = connectingAddress.takeUnless { gotConnection }
+                removeFoundBandAfterFailedConnection(failedAddress)
                 connectingAddress = null
                 val now = System.currentTimeMillis()
                 updateConnectedDevice {
@@ -216,6 +220,8 @@ class BleConnectionManager @Inject constructor(
             }
 
             override fun onError(msg: String, t: Throwable?) {
+                val failedAddress = connectingAddress.takeUnless { gotConnection }
+                removeFoundBandAfterFailedConnection(failedAddress)
                 connectingAddress = null
                 stopStaleBandCleanup()
                 _scanState.value = ScanUiState.Idle
@@ -320,6 +326,7 @@ class BleConnectionManager @Inject constructor(
             } finally {
                 if (scanGeneration == scanId) {
                     client.stop()
+                    stopStaleBandCleanup()
                 }
             }
         }
@@ -396,12 +403,20 @@ class BleConnectionManager @Inject constructor(
     }
 
     fun connectTo(address: String) {
+        connectTo(address, removeFoundBandOnFailure = true)
+    }
+
+    private fun connectTo(address: String, removeFoundBandOnFailure: Boolean) {
         ensureForegroundServiceRunning()
+        gotConnection = false
         connectingAddress = address
+        removeFoundBandOnFailedConnectionAddress =
+            if (removeFoundBandOnFailure) address else null
         try {
             client.connect(address)
         } catch (_: SecurityException) {
             if (connectingAddress == address) {
+                removeFoundBandAfterFailedConnection(address)
                 connectingAddress = null
             }
         }
@@ -530,6 +545,16 @@ class BleConnectionManager @Inject constructor(
     private fun removeBandFromScanResults(address: String) {
         bandLastSeenByAddress.remove(address)
         _bands.value = _bands.value.filterNot { it.address == address }
+    }
+
+    private fun removeFoundBandAfterFailedConnection(address: String?) {
+        if (
+            address != null &&
+            removeFoundBandOnFailedConnectionAddress == address
+        ) {
+            removeBandFromScanResults(address)
+        }
+        removeFoundBandOnFailedConnectionAddress = null
     }
 
     private fun clearScanResults() {
