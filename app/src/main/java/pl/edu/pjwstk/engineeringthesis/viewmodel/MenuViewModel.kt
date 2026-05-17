@@ -17,6 +17,7 @@ import pl.edu.pjwstk.engineeringthesis.model.MeasurementPacket
 import pl.edu.pjwstk.engineeringthesis.model.UserProfile
 import pl.edu.pjwstk.engineeringthesis.util.coerceGsrNormalRange
 import pl.edu.pjwstk.engineeringthesis.util.coerceGsrToSensorRange
+import pl.edu.pjwstk.engineeringthesis.util.normalizeGsrForDisplay
 import java.time.LocalDate
 import java.time.ZoneId
 import javax.inject.Inject
@@ -339,8 +340,8 @@ class MenuViewModel @Inject constructor(
         val previous = packets.getOrNull(1)
         return MenuLatestMeasurements(
             gsr = LatestMeasurementPair(
-                current = current?.gsr?.let(::coerceGsrToSensorRange),
-                previous = previous?.gsr?.let(::coerceGsrToSensorRange)
+                current = current?.gsr?.let(::normalizeGsrForDisplay),
+                previous = previous?.gsr?.let(::normalizeGsrForDisplay)
             ),
             hr = LatestMeasurementPair(
                 current = current?.heartRate,
