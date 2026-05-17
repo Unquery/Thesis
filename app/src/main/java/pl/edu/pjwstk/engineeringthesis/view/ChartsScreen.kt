@@ -84,6 +84,7 @@ import pl.edu.pjwstk.engineeringthesis.R
 import pl.edu.pjwstk.engineeringthesis.model.UserProfile
 import pl.edu.pjwstk.engineeringthesis.util.ChartMetric
 import pl.edu.pjwstk.engineeringthesis.util.ChartRange
+import pl.edu.pjwstk.engineeringthesis.util.GSR_OVER_RANGE_US
 import pl.edu.pjwstk.engineeringthesis.util.PROFILE_DEFAULT_HEART_RATE_HIGH
 import pl.edu.pjwstk.engineeringthesis.util.PROFILE_DEFAULT_HEART_RATE_LOW
 import pl.edu.pjwstk.engineeringthesis.util.PROFILE_DEFAULT_SKIN_CONDUCTANCE_HIGH
@@ -1049,12 +1050,13 @@ private fun metricUi(metric: ChartMetric, profile: UserProfile?): MetricUi =
             MetricUi(
                 titleRes = R.string.metric_skin_conductance,
                 unitRes = R.string.unit_us,
-                decimals = 1,
+                decimals = 2,
                 color = Color(0xFF6366F1),
                 axisPaddingBottom = 2f,
                 axisPaddingTop = 2f,
                 axisRoundTo = 1f,
                 axisMinClamp = 0f,
+                axisMaxClamp = GSR_OVER_RANGE_US,
                 normalMin = normalMin,
                 normalMax = normalMax
             )
