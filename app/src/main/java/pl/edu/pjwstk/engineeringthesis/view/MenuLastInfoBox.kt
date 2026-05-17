@@ -47,6 +47,7 @@ data class MeasurementCircleItem(
     val title: String,
     val value: Double?,
     val unit: String,
+    val valueText: String? = null,
     val trendText: String? = null,
     val icon: ImageVector,
     val baseColor: Color,
@@ -181,7 +182,7 @@ private fun MeasurementCircle(
             Spacer(Modifier.height(6.dp))
 
             Text(
-                text = formatValue(item.value, item.decimals) + " " + item.unit,
+                text = item.valueText ?: (formatValue(item.value, item.decimals) + " " + item.unit),
                 fontFamily = fontFamily,
                 fontSize = valueSize,
                 fontWeight = FontWeight.SemiBold,
