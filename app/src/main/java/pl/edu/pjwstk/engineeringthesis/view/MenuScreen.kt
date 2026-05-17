@@ -63,6 +63,8 @@ import pl.edu.pjwstk.engineeringthesis.util.PROFILE_DEFAULT_TEMPERATURE_HIGH
 import pl.edu.pjwstk.engineeringthesis.util.PROFILE_DEFAULT_TEMPERATURE_LOW
 import pl.edu.pjwstk.engineeringthesis.util.ChartMetric
 import pl.edu.pjwstk.engineeringthesis.util.GSR_MENU_MAX_VALUE
+import pl.edu.pjwstk.engineeringthesis.util.isGsrOverRange
+import pl.edu.pjwstk.engineeringthesis.util.isValidGsrMeasurement
 import pl.edu.pjwstk.engineeringthesis.ui.theme.EngineeringThesisTheme
 import pl.edu.pjwstk.engineeringthesis.viewmodel.MenuStartupViewModel
 import pl.edu.pjwstk.engineeringthesis.viewmodel.MenuViewModel
@@ -172,7 +174,8 @@ private fun MenuBody(
     val tempTrend = trendTextFromValues(previousTemp, latestTemp, stringResource(R.string.unit_celsius), 1)
     val hrTrend = trendTextFromValues(previousHr, latestHr, stringResource(R.string.unit_bpm), 0)
     val spo2Trend = trendTextFromValues(previousSpo2, latestSpo2, stringResource(R.string.unit_percent), 0)
-    val gsrTrend = trendTextFromValues(previousGsr, latestGsr, stringResource(R.string.unit_us), 1)
+    val gsrUnit = stringResource(R.string.unit_us)
+    val gsrTrend = trendTextFromGsrValues(previousGsr, latestGsr, gsrUnit, 2)
 
     val lastItems = listOf(
         MeasurementCircleItem(
@@ -217,7 +220,8 @@ private fun MenuBody(
         MeasurementCircleItem(
             title = stringResource(R.string.metric_skin_conductance),
             value = latestGsr?.toDouble(),
-            unit = stringResource(R.string.unit_us),
+            unit = gsrUnit,
+            valueText = formatGsrMeasurementText(latestGsr, gsrUnit),
             trendText = gsrTrend,
             icon = Icons.Filled.SsidChart,
             baseColor = GsrBaseColor,
@@ -225,7 +229,7 @@ private fun MenuBody(
             normalMax = skinConductanceNormalHigh.toDouble(),
             criticalMin = 0.0,
             criticalMax = GSR_MENU_MAX_VALUE.toDouble(),
-            decimals = 1,
+            decimals = 2,
             colorForValue = { value ->
                 gsrMenuColor(value, GsrBaseColor, skinConductanceNormalLow, skinConductanceNormalHigh)
             }
@@ -541,6 +545,18 @@ private fun trendTextFromValues(
 }
 
 @Composable
+private fun trendTextFromGsrValues(
+    previous: Float?,
+    current: Float?,
+    unit: String,
+    decimals: Int
+): String? {
+    if (previous == null || current == null) return null
+    if (!isValidGsrMeasurement(previous) || !isValidGsrMeasurement(current)) return null
+    return buildTrendText(previous.toDouble(), current.toDouble(), unit, decimals)
+}
+
+@Composable
 private fun buildTrendText(
     previous: Double,
     current: Double,
@@ -561,6 +577,17 @@ private fun buildTrendText(
 private fun formatNumber(value: Double, decimals: Int): String {
     val safeDecimals = decimals.coerceIn(0, 4)
     return String.format(Locale.US, "%.${safeDecimals}f", value)
+}
+
+@Composable
+private fun formatGsrMeasurementText(value: Float?, unit: String): String {
+    if (value == null || !value.isFinite() || value <= 0f) {
+        return stringResource(R.string.value_placeholder)
+    }
+    if (isGsrOverRange(value)) {
+        return ">100 $unit"
+    }
+    return "${formatNumber(value.toDouble(), 2)} $unit"
 }
 
 @Composable
