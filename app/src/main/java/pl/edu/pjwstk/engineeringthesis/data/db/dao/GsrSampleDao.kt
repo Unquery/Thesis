@@ -31,7 +31,7 @@ interface GsrSampleDao {
     suspend fun getAllTGsrSamples(): List<GsrSampleEntity>
 
     @Transaction
-    @Query("SELECT * FROM gsr_sample WHERE epoch >= :firstEpoch AND epoch < :lastEpoch")
+    @Query("SELECT * FROM gsr_sample WHERE epoch >= :firstEpoch AND epoch < :lastEpoch AND gsr > 0.0 AND gsr < 100.0")
     suspend fun getGsrSamples(firstEpoch : Long, lastEpoch : Long): List<GsrSampleEntity>
 
     @Query("DELETE FROM gsr_sample WHERE id = :id")
@@ -48,6 +48,8 @@ interface GsrSampleDao {
         SELECT * FROM gsr_sample
         WHERE userId = :userId
           AND epoch >= :firstEpoch AND epoch < :lastEpoch
+          AND gsr > 0.0
+          AND gsr < 100.0
         ORDER BY epoch ASC
     """)
     suspend fun getGsrSamplesForUser(
@@ -61,6 +63,8 @@ interface GsrSampleDao {
         SELECT * FROM gsr_sample
         WHERE userId = :userId
           AND epoch >= :firstEpoch AND epoch < :lastEpoch
+          AND gsr > 0.0
+          AND gsr < 100.0
         ORDER BY epoch ASC, id ASC
     """)
     fun observeGsrSamplesForUser(
@@ -78,7 +82,8 @@ interface GsrSampleDao {
         WHERE userId = :userId
           AND epoch >= :startEpoch
           AND epoch < :endEpoch
-          AND gsr >= 0.1
+          AND gsr > 0.0
+          AND gsr < 100.0
         GROUP BY hour
         ORDER BY hour
         """
@@ -99,7 +104,8 @@ interface GsrSampleDao {
         WHERE userId = :userId
           AND epoch >= :startEpoch
           AND epoch < :endEpoch
-          AND gsr >= 0.1
+          AND gsr > 0.0
+          AND gsr < 100.0
         GROUP BY hour
         ORDER BY hour
         """
@@ -119,6 +125,8 @@ interface GsrSampleDao {
         WHERE userId = :userId
           AND epoch >= :startEpoch
           AND epoch < :endEpoch
+          AND gsr > 0.0
+          AND gsr < 100.0
         GROUP BY date
         ORDER BY date
         """
@@ -139,6 +147,8 @@ interface GsrSampleDao {
         WHERE userId = :userId
           AND epoch >= :startEpoch
           AND epoch < :endEpoch
+          AND gsr > 0.0
+          AND gsr < 100.0
         GROUP BY date
         ORDER BY date
         """
@@ -154,6 +164,8 @@ interface GsrSampleDao {
         WHERE userId = :userId
           AND epoch >= :startEpoch
           AND epoch < :endEpoch
+          AND gsr > 0.0
+          AND gsr < 100.0
         ORDER BY epoch DESC, id DESC
         LIMIT 1
     """)
@@ -168,6 +180,8 @@ interface GsrSampleDao {
         WHERE userId = :userId
           AND epoch >= :startEpoch
           AND epoch < :endEpoch
+          AND gsr > 0.0
+          AND gsr < 100.0
         ORDER BY epoch DESC, id DESC
         LIMIT 2
     """)
@@ -187,6 +201,8 @@ interface GsrSampleDao {
         WHERE userId = :userId
           AND epoch >= :startEpoch
           AND epoch < :endEpoch
+          AND gsr > 0.0
+          AND gsr < 100.0
     """)
     fun observeSummaryInRange(
         userId: Int,
@@ -200,6 +216,8 @@ interface GsrSampleDao {
         WHERE userId = :userId
           AND epoch >= :startEpoch
           AND epoch < :endEpoch
+          AND gsr > 0.0
+          AND gsr < 100.0
     )
     """)
     suspend fun existsInRange(userId: Int, startEpoch: Long, endEpoch: Long): Boolean
