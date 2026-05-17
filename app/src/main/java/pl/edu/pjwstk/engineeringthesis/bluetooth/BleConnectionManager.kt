@@ -34,13 +34,13 @@ import pl.edu.pjwstk.engineeringthesis.model.SpO2Sample
 import pl.edu.pjwstk.engineeringthesis.model.TempSample
 import pl.edu.pjwstk.engineeringthesis.util.PROFILE_CALIBRATION_HEART_RATE_MAX
 import pl.edu.pjwstk.engineeringthesis.util.PROFILE_CALIBRATION_HEART_RATE_MIN
-import pl.edu.pjwstk.engineeringthesis.util.PROFILE_CALIBRATION_SKIN_CONDUCTANCE_MAX
-import pl.edu.pjwstk.engineeringthesis.util.PROFILE_CALIBRATION_SKIN_CONDUCTANCE_MIN
 import pl.edu.pjwstk.engineeringthesis.util.PROFILE_CALIBRATION_SPO2_MAX
 import pl.edu.pjwstk.engineeringthesis.util.PROFILE_CALIBRATION_SPO2_MIN
 import pl.edu.pjwstk.engineeringthesis.util.PROFILE_CALIBRATION_TEMPERATURE_MAX
 import pl.edu.pjwstk.engineeringthesis.util.PROFILE_CALIBRATION_TEMPERATURE_MIN
 import pl.edu.pjwstk.engineeringthesis.util.PROFILE_DEFAULT_TEMPERATURE_OFFSET_C
+import pl.edu.pjwstk.engineeringthesis.util.isValidGsrMeasurement
+import pl.edu.pjwstk.engineeringthesis.util.normalizeGsrForDisplay
 import pl.edu.pjwstk.engineeringthesis.viewmodel.Band
 import pl.edu.pjwstk.engineeringthesis.viewmodel.ConnectedDevice
 import pl.edu.pjwstk.engineeringthesis.viewmodel.ScanUiState
@@ -189,7 +189,7 @@ class BleConnectionManager @Inject constructor(
                                 temperature = p.temps.lastOrNull(),
                                 heartRate = p.hearthRate.lastOrNull(),
                                 spo2 = p.spo2.lastOrNull()?.toInt(),
-                                gsr = p.gsr.lastOrNull(::isValidGsr)
+                                gsr = p.gsr.asReversed().firstNotNullOfOrNull(::normalizeGsrForDisplay)
                             )
                         )
 
@@ -198,7 +198,7 @@ class BleConnectionManager @Inject constructor(
                                 TempSample(id = 0, userId = userId, epoch = epochMillis, temperature = value)
                             )
                         }
-                        p.gsr.filter(::isValidGsr).forEach { value ->
+                        p.gsr.filter(::isValidGsrMeasurement).forEach { value ->
                             gsrRepo.upsert(
                                 GsrSample(id = 0, userId = userId, epoch = epochMillis, gsr = value)
                             )
@@ -737,9 +737,6 @@ class BleConnectionManager @Inject constructor(
 
     private fun isValidSpO2(value: Float): Boolean =
         value.isFinite() && value in PROFILE_CALIBRATION_SPO2_MIN..PROFILE_CALIBRATION_SPO2_MAX
-
-    private fun isValidGsr(value: Float): Boolean =
-        value.isFinite() && value in PROFILE_CALIBRATION_SKIN_CONDUCTANCE_MIN..PROFILE_CALIBRATION_SKIN_CONDUCTANCE_MAX
 
     private companion object {
         const val KEY_LAST_BAND_ADDR = "last_band_address"
