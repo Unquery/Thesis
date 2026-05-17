@@ -25,10 +25,10 @@ import pl.edu.pjwstk.engineeringthesis.util.ChartMetric
 import pl.edu.pjwstk.engineeringthesis.util.ChartRange
 import pl.edu.pjwstk.engineeringthesis.util.Charts
 import pl.edu.pjwstk.engineeringthesis.util.PROFILE_CALIBRATION_HEART_RATE_MIN
-import pl.edu.pjwstk.engineeringthesis.util.PROFILE_CALIBRATION_SKIN_CONDUCTANCE_MAX
 import pl.edu.pjwstk.engineeringthesis.util.PROFILE_CALIBRATION_SKIN_CONDUCTANCE_MIN
 import pl.edu.pjwstk.engineeringthesis.util.PROFILE_CALIBRATION_SPO2_MIN
 import pl.edu.pjwstk.engineeringthesis.util.PROFILE_CALIBRATION_TEMPERATURE_MIN
+import pl.edu.pjwstk.engineeringthesis.util.isValidGsrMeasurement
 import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDate
@@ -246,8 +246,7 @@ class ChartsViewModel @Inject constructor(
         ChartMetric.Gsr -> gsrRepo.observeRangeForUser(userId, start, end)
             .map { rows ->
                 rows.map { TimedMetricValue(epoch = it.epoch, value = it.gsr) }
-                    .filter { it.value >= minVisibleValue }
-                    .map { it.copy(value = it.value.coerceAtMost(PROFILE_CALIBRATION_SKIN_CONDUCTANCE_MAX)) }
+                    .filter { isValidGsrMeasurement(it.value) }
             }
         }
     }
