@@ -34,6 +34,7 @@ import pl.edu.pjwstk.engineeringthesis.util.PROFILE_CALIBRATION_TEMPERATURE_MIN
 import pl.edu.pjwstk.engineeringthesis.util.PROFILE_CALIBRATION_TEMPERATURE_OFFSET_MAX
 import pl.edu.pjwstk.engineeringthesis.util.PROFILE_CALIBRATION_TEMPERATURE_OFFSET_MIN
 import pl.edu.pjwstk.engineeringthesis.util.PROFILE_DEFAULT_TEMPERATURE_OFFSET_C
+import pl.edu.pjwstk.engineeringthesis.util.isValidGsrMeasurement
 import java.time.Instant
 import java.time.LocalDate
 import java.time.Period
@@ -521,7 +522,7 @@ private fun isPhysiologicallyValidSpO2(value: Float): Boolean =
     value in PROFILE_CALIBRATION_SPO2_MIN..PROFILE_CALIBRATION_SPO2_MAX
 
 private fun isPhysiologicallyValidSkinConductance(value: Float): Boolean =
-    value in PROFILE_CALIBRATION_SKIN_CONDUCTANCE_MIN..PROFILE_CALIBRATION_SKIN_CONDUCTANCE_MAX
+    isValidGsrMeasurement(value)
 
 private const val MIN_AUTOMATIC_CALIBRATION_EPOCHS = 300
 private const val MIN_AUTOMATIC_CALIBRATION_DAYS = 7
