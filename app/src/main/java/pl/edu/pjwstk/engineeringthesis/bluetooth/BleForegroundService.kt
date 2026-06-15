@@ -9,9 +9,11 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
+import androidx.core.app.ServiceCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import dagger.hilt.android.AndroidEntryPoint
@@ -117,7 +119,7 @@ class BleForegroundService : Service() {
         }
     }
 
-    @SuppressLint("NotificationPermission")
+    @SuppressLint("InlinedApi", "NotificationPermission")
     private fun startOrUpdateForeground(title: String, text: String) {
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
@@ -129,7 +131,12 @@ class BleForegroundService : Service() {
             .build()
 
         if (!isForegroundStarted) {
-            startForeground(NOTIFICATION_ID, notification)
+            ServiceCompat.startForeground(
+                this,
+                NOTIFICATION_ID,
+                notification,
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
+            )
             isForegroundStarted = true
         } else {
             val notificationManager = getSystemService(NotificationManager::class.java)

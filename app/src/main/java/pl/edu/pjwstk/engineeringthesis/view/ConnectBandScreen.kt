@@ -111,7 +111,7 @@ fun ConnectBandScreen(
     LaunchedEffect(state.hasPermissions, state.bluetoothOn) {
         when {
             !state.hasPermissions -> {
-                launcher.launch(vmBluetoothPermission.requiredBluetoothPermissions())
+                launcher.launch(vmBluetoothPermission.permissionsToRequest())
             }
             state.hasPermissions && !state.bluetoothOn -> {
                 enableBt.launch(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE))
