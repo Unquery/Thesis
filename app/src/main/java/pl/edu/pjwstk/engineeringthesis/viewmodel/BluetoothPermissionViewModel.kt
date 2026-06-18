@@ -61,14 +61,6 @@ class BluetoothPermissionViewModel @Inject constructor(
             arrayOf(Manifest.permission.ACCESS_FINE_LOCATION)
         }
 
-    fun permissionsToRequest(): Array<String> {
-        val permissions = requiredBluetoothPermissions().toMutableList()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            permissions += Manifest.permission.POST_NOTIFICATIONS
-        }
-        return permissions.toTypedArray()
-    }
-
     fun onStart(connectPressed: Boolean = false, hasPerms: Boolean) {
         _state.update {
             it.copy(
