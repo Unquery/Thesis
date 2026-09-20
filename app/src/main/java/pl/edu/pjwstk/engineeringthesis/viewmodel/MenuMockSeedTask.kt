@@ -5,6 +5,8 @@ import dagger.Module
 import dagger.hilt.InstallIn
 import dagger.hilt.android.components.ViewModelComponent
 import dagger.multibindings.IntoSet
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import pl.edu.pjwstk.engineeringthesis.data.repository.GsrSampleRepository
 import pl.edu.pjwstk.engineeringthesis.data.repository.HearthRateSampleRepository
 import pl.edu.pjwstk.engineeringthesis.data.repository.MeasurementPacketRepository
@@ -35,11 +37,12 @@ class MenuMockSeedTask @Inject constructor(
 ) : MenuStartupTask {
 
     override suspend fun run() {
+        // The menu starts before onboarding finishes, so wait for an active profile.
+        val active = profileRepo.observeActive().filterNotNull().first()
         val zone = ZoneId.of("Europe/Warsaw")
         val today = LocalDate.now(zone)
         val now = System.currentTimeMillis()
 
-        val active = profileRepo.getActive()
         // val userId = active?.id ?: profileRepo.insertAndActivate(
         //     UserProfile(
         //         id = 0,
@@ -50,12 +53,12 @@ class MenuMockSeedTask @Inject constructor(
         //         isActive = true
         //     )
         // )
-        val userId = active?.id ?: return
+        val userId = active.id
 
-        val lookbackDays = 14
+        val lookbackDays = 10
         val step = 10 * 60 * 1000L
 
-        for (offset in (lookbackDays - 1) downTo 0) {
+        for (offset in lookbackDays downTo 0) {
             val date = today.minusDays(offset.toLong())
             val start = date.atStartOfDay(zone).toInstant().toEpochMilli()
             val end = date.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
