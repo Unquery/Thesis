@@ -20,5 +20,3 @@ enum class ChartMetric {
 @Serializable data class Charts(val metric: ChartMetric) : Route
 
 @Serializable data object Profile : Route
-
-//Todo keys for other screens

@@ -16,7 +16,7 @@ class HearthRateSampleRepositoryImpl @Inject constructor(
     diaryDB: DiaryDB
 ) : HearthRateSampleRepository {
 
-    private val dao = diaryDB.hearthRateSamples // add this to DiaryDB
+    private val dao = diaryDB.hearthRateSamples
 
     override suspend fun upsert(sample: HearthRateSample) {
         dao.upsert(sample.toEntity())
