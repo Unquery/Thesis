@@ -24,7 +24,7 @@ import pl.edu.pjwstk.engineeringthesis.data.db.entity.UserProfileEntity
         SpO2SampleEntity::class,
         MeasurementPacketEntity::class
     ],
-    version = 22
+    version = 23
 )
 abstract class DiaryDB : RoomDatabase() {
 
