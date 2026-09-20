@@ -2,6 +2,17 @@
 
 An Android companion app for a BLE sensor band, developed as an engineering thesis project. It stores measurements locally and displays heart rate, SpO2, temperature, and skin conductance (GSR). The profile, dashboard, and charts can be reviewed without a physical band using automatically generated sample data.
 
+## Screenshots
+
+<p>
+  <img src="docs/screenshots/dashboard.png" width="240" alt="Health dashboard">
+  <img src="docs/screenshots/chart.png" width="240" alt="Measurement chart">
+</p>
+<p>
+  <img src="docs/screenshots/history.png" width="240" alt="Measurement history">
+  <img src="docs/screenshots/profile.png" width="240" alt="Profile settings">
+</p>
+
 ## Features
 
 - Profile creation and editing: name, gender, date of birth, height, and weight.
@@ -150,7 +161,7 @@ There are no automated tests for onboarding, mock generation, ViewModels, Compos
 
 Gradle HTML reports are written to `app/build/reports/tests/testDebugUnitTest/index.html` and, after a connected test run, `app/build/reports/androidTests/connected/debug/index.html`.
 
-During preparation of this README, `:app:assembleDebug` and `:app:testDebugUnitTest` passed on Windows with JDK 17; all three JVM tests passed. The emulator walkthrough, connected test, and physical BLE workflow were not executed as part of that verification.
+During final verification, `:app:assembleDebug` and `:app:testDebugUnitTest` passed on Windows with JDK 17. The application was also manually verified on an Android emulator running API 36 with Google APIs. The verified flow included clean onboarding and profile creation, the Health dashboard with all four metrics, detailed charts with multiple time ranges, profile editing, and persistence after application restart. Physical BLE communication with the smart band and the connected instrumented test were not re-verified during this emulator review.
 
 ## Persistence limitation
 

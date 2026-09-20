@@ -63,7 +63,7 @@ class MainActivity : ComponentActivity() {
 
 
         setContent {
-            EngineeringThesisTheme {
+            EngineeringThesisTheme(darkTheme = true) {
                 AppRoot()
             }
         }
