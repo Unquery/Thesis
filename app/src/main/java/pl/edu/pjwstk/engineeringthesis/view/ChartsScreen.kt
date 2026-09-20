@@ -578,7 +578,6 @@ private const val TARGET_Y_AXIS_STEPS = 5f
 private const val MAX_Y_AXIS_STEPS = 8
 private const val MINUTES_PER_HOUR = 60
 private const val X_AXIS_STEPS = 48
-private const val HALF_HOUR_STEP = 0.5f
 private const val CHART_POINT_EQUALITY_THRESHOLD = 0.0001f
 private val Y_AXIS_LABEL_PADDING = 10.dp
 private val Y_AXIS_OFFSET = 14.dp
@@ -1233,7 +1232,6 @@ private fun buildLineChartData(
         .axisLineColor(xAxisLineColor)
         .axisLineThickness(0.dp)
         .indicatorLineWidth(0.dp)
-        //.endPadding(4.dp)
         .axisPosition(Gravity.BOTTOM)
         .labelData { index -> xAxisLabels[index] ?: "" }
         .build()
@@ -1436,98 +1434,6 @@ private fun withMinutePoints(points: List<ChartLinePoint>): List<ChartLinePoint>
     return result
 }
 
-private fun normalizeToHours0to24(points: List<Point>): List<Point> {
-    if (points.isEmpty()) return points
-
-    val xMin = points.minOf { it.x }
-    val xMax = points.maxOf { it.x }
-
-    val toHours: (Float) -> Float = when {
-        xMin >= -0.5f && xMax <= 24.5f -> { x -> x }
-        xMin >= -1f && xMax <= 24f * 60f + 5f -> { x -> x / 60f }
-        xMin >= -1f && xMax <= 24f * 3600f + 10f -> { x -> x / 3600f }
-        else -> { x -> x }
-    }
-
-    return points.map {
-        val hx = toHours(it.x).coerceIn(0f, 24f)
-        Point(x = hx, y = it.y, description = it.description)
-    }
-}
-
-private fun withHalfHourPoints(points: List<Point>): List<Point> {
-    if (points.isEmpty()) return points
-    val sorted = points.sortedBy { it.x }
-    if (sorted.size == 1) return sorted
-    val byExactX = sorted.associateBy { it.x }
-    val result = ArrayList<Point>(X_AXIS_STEPS + 1)
-    var prev = sorted.first()
-    var nextIndex = 1
-    var next = sorted.getOrNull(nextIndex)
-    val startX = sorted.first().x
-    val endX = sorted.last().x
-    var x = startX
-
-    // Smooth only within the observed range. Extrapolating to 24:00 makes
-    // the chart look like future hours have data when they do not.
-    while (x <= endX + 0.0001f) {
-        while (next != null && x > next.x) {
-            prev = next
-            nextIndex++
-            next = sorted.getOrNull(nextIndex)
-        }
-
-        val existing = byExactX[x]
-        val y = when {
-            existing != null -> existing.y
-            next == null -> prev.y
-            x <= prev.x -> prev.y
-            else -> {
-                val delta = next.x - prev.x
-                if (delta <= 0f) {
-                    prev.y
-                } else {
-                    val t = (x - prev.x) / delta
-                    prev.y + t * (next.y - prev.y)
-                }
-            }
-        }
-
-        result.add(
-            Point(
-                x = x,
-                y = y,
-                description = existing?.description ?: ""
-            )
-        )
-        x += HALF_HOUR_STEP
-    }
-
-    if (result.lastOrNull()?.x != endX) {
-        val lastPoint = sorted.last()
-        result.add(
-            Point(
-                x = lastPoint.x,
-                y = lastPoint.y,
-                description = lastPoint.description
-            )
-        )
-    }
-
-    return result
-}
-
-private fun toHalfHourIndex(points: List<Point>): List<Point> {
-    if (points.isEmpty()) return points
-    return points.map { point ->
-        Point(
-            x = (point.x * 2f).coerceIn(0f, X_AXIS_STEPS.toFloat()),
-            y = point.y,
-            description = point.description
-        )
-    }
-}
-
 private fun formatHourMinute(hourFloat: Float, time24Label: String): String {
     val totalMinutes = (hourFloat * 60f).roundToInt().coerceIn(0, 24 * 60)
     if (totalMinutes == 24 * 60) return time24Label
@@ -1603,59 +1509,6 @@ private fun dynamicAxisRange(minY: Float, maxY: Float, ui: MetricUi): AxisRange 
     )
 }
 
-private fun niceAxisRange(minY: Float, maxY: Float, steps: Int): AxisRange {
-    val minVal = min(minY, maxY)
-    val maxVal = max(minY, maxY)
-    val safeSteps = steps.coerceAtLeast(1)
-
-    if (minVal == maxVal) {
-        val bump = if (minVal == 0f) 1f else kotlin.math.abs(minVal) * 0.1f
-        val niceStep = niceNum((2f * bump) / safeSteps, round = true).coerceAtLeast(0.0001f)
-        val axisMin = floor((minVal - bump) / niceStep) * niceStep
-        val axisMax = ceil((maxVal + bump) / niceStep) * niceStep
-        val axisStep = ((axisMax - axisMin) / safeSteps).coerceAtLeast(0.0001f)
-        return AxisRange(axisMin, axisMax, axisStep, safeSteps)
-    }
-
-    val rawRange = (maxVal - minVal).coerceAtLeast(0.0001f)
-    val niceRange = niceNum(rawRange, round = false)
-    val niceStep = niceNum(niceRange / safeSteps, round = true).coerceAtLeast(0.0001f)
-
-    val axisMin = floor(minVal / niceStep) * niceStep
-    val axisMax = ceil(maxVal / niceStep) * niceStep
-    val axisStep = ((axisMax - axisMin) / safeSteps).coerceAtLeast(0.0001f)
-
-    return AxisRange(axisMin, axisMax, axisStep, safeSteps)
-}
-
-private fun exactMinAxisRange(minY: Float, maxY: Float, steps: Int, decimals: Int): AxisRange {
-    val safeSteps = steps.coerceAtLeast(1)
-    val axisMin = min(minY, maxY)
-    val rawRange = (maxY - axisMin).coerceAtLeast(0.0001f)
-    val minStep = if (decimals == 0) 1f else 0.0001f
-    val axisStep = max(rawRange / safeSteps, minStep)
-    val axisMax = axisMin + (axisStep * safeSteps)
-    return AxisRange(axisMin, axisMax, axisStep, safeSteps)
-}
-
-private fun fixedAxisRange(minY: Float, maxY: Float, steps: Int): AxisRange {
-    val safeSteps = steps.coerceAtLeast(1)
-    val axisMin = min(minY, maxY)
-    val axisMax = max(maxY, axisMin + 0.0001f)
-    val axisStep = ((axisMax - axisMin) / safeSteps).coerceAtLeast(0.0001f)
-    return AxisRange(axisMin, axisMax, axisStep, safeSteps)
-}
-
-private fun floorPreservingAxisRange(minY: Float, maxY: Float, steps: Int, decimals: Int): AxisRange {
-    val safeSteps = steps.coerceAtLeast(1)
-    val axisMin = minY
-    val rawRange = (maxY - axisMin).coerceAtLeast(0.0001f)
-    val minStep = if (decimals == 0) 1f else 0.1f
-    val axisStep = niceCeilStep(rawRange / safeSteps).coerceAtLeast(minStep)
-    val axisMax = axisMin + (axisStep * safeSteps)
-    return AxisRange(axisMin, axisMax, axisStep, safeSteps)
-}
-
 private fun niceCeilStep(value: Float): Float {
     if (value <= 0f) return 1f
     val exponent = floor(log10(value.toDouble())).toInt()
@@ -1669,27 +1522,6 @@ private fun niceCeilStep(value: Float): Float {
         else -> 10f
     }
     return niceFraction * scale
-}
-
-private fun niceNum(range: Float, round: Boolean): Float {
-    val exponent = floor(log10(range.toDouble())).toInt()
-    val fraction = (range / 10f.pow(exponent))
-    val niceFraction = if (round) {
-        when {
-            fraction < 1.5f -> 1f
-            fraction < 3f -> 2f
-            fraction < 7f -> 5f
-            else -> 10f
-        }
-    } else {
-        when {
-            fraction <= 1f -> 1f
-            fraction <= 2f -> 2f
-            fraction <= 5f -> 5f
-            else -> 10f
-        }
-    }
-    return niceFraction * 10f.pow(exponent)
 }
 
 private fun roundToNearestMultiple(value: Float, multiple: Float): Float {
